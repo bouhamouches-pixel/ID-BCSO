@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BCSO — Système de gestion des enquêtes</title>
+<style>
+:root{
+  --paper:#e9dcbd;
+  --paper-dark:#dcccA2;
+  --ink:#2c2013;
+  --ink-soft:#5a4632;
+  --cork:#5b4632;
+  --gold:#b6892f;
+  --gold-bright:#d9a83e;
+  --string:#9c1f1f;
+  --status-open:#b8722c;
+  --status-closed:#4b6b4e;
+  --status-cold:#5c6670;
+  --panel-shadow: 0 8px 24px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  font-family:'Libre Baskerville', Georgia, serif;
+  background:
+    radial-gradient(ellipse at 20% 10%, rgba(255,255,255,.03), transparent 40%),
+    repeating-linear-gradient(45deg, rgba(0,0,0,.06) 0 2px, transparent 2px 4px),
+    var(--cork);
+  color:var(--ink);
+  min-height:100vh;
+}
+h1,h2,h3,.display{ font-family:'Special Elite','Courier New',monospace; letter-spacing:.03em; }
+.mono{font-family:'Courier New',monospace;}
+
+header.topbar{
+  background:linear-gradient(180deg,#2a2018,#1c150f);
+  border-bottom:4px solid var(--gold);
+  padding:14px 22px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:50;
+  box-shadow:0 4px 14px rgba(0,0,0,.5);
+}
+.badge-mini{
+  width:44px;height:44px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 60%, #7a5b1a 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:#2a1c05;font-weight:bold;flex:none;
+  box-shadow:inset 0 0 4px rgba(0,0,0,.5), 0 0 0 2px #1c150f;
+  cursor:pointer;
+}
+.title-block{color:var(--paper);flex:1;min-width:200px;}
+.title-block h1{margin:0;font-size:19px;color:var(--gold-bright);cursor:pointer;}
+.title-block .sub{font-size:11.5px;letter-spacing:.1em;opacity:.75;text-transform:uppercase;}
+nav.tabs{display:flex;gap:6px;flex-wrap:wrap;}
+nav.tabs button{
+  background:#2f2419;color:var(--paper);border:1px solid #4a3826;
+  padding:9px 16px;font-family:'Special Elite','Courier New',monospace;
+  font-size:13px;cursor:pointer;border-radius:4px 4px 0 0;
+  transition:.15s;letter-spacing:.03em;
+}
+nav.tabs button:hover{background:#42331f;}
+nav.tabs button.active{background:var(--paper);color:var(--ink);border-color:var(--gold);}
+.topbar-actions{display:flex;gap:8px;}
+.btn{
+  background:#2f2419;color:var(--paper);border:1px solid var(--gold);
+  padding:8px 12px;border-radius:4px;font-size:12px;cursor:pointer;
+  font-family:'Courier New',monospace;letter-spacing:.03em;
+}
+.btn:hover{background:var(--gold);color:#1c150f;}
+.btn.danger{border-color:var(--string);}
+.btn.danger:hover{background:var(--string);color:#fff;}
+.btn.primary{background:var(--gold);color:#1c150f;}
+input[type=file]{display:none;}
+
+.view{display:none;padding:26px;max-width:1400px;margin:0 auto;}
+.view.active{display:block;}
+
+/* Sub-header when a case is open */
+.case-subheader{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:linear-gradient(180deg,#3a2c1c,#2a2018);
+  padding:12px 20px;margin:-26px -26px 22px -26px;
+  border-bottom:3px solid var(--gold);
+}
+.case-subheader .cnum{color:var(--gold-bright);font-family:'Courier New',monospace;font-size:12px;}
+.case-subheader h2{margin:0;color:var(--paper);font-size:17px;}
+.case-subheader nav{display:flex;gap:6px;margin-left:auto;}
+.case-subheader nav button{
+  background:transparent;border:1px solid var(--gold);color:var(--paper);
+  padding:6px 14px;border-radius:4px;font-size:12px;cursor:pointer;font-family:'Courier New',monospace;
+}
+.case-subheader nav button.active{background:var(--gold);color:#1c150f;}
+
+/* Dossiers list */
+.filters{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;align-items:center;}
+.filters select{padding:7px 10px;border-radius:4px;border:1px solid var(--paper-dark);font-family:'Courier New',monospace;font-size:12.5px;background:var(--paper);}
+.stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px;}
+.stat-card{background:var(--paper);border:1px solid var(--paper-dark);border-radius:6px;padding:14px 20px;min-width:130px;box-shadow:var(--panel-shadow);text-align:center;}
+.stat-card .num{font-size:28px;font-weight:bold;font-family:'Special Elite',monospace;color:var(--string);}
+.stat-card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);}
+
+.case-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;}
+.case-tile{
+  background:var(--paper);border:1px solid var(--paper-dark);border-radius:8px;
+  box-shadow:var(--panel-shadow);padding:16px 18px;cursor:pointer;position:relative;
+  transition:transform .1s;
+}
+.case-tile:hover{transform:translateY(-2px);}
+.case-tile .num{font-family:'Courier New',monospace;font-size:11px;color:var(--ink-soft);}
+.case-tile h3{margin:4px 0 6px;color:var(--string);font-size:16px;}
+.case-tile .meta{font-size:12px;color:var(--ink-soft);margin-bottom:8px;}
+.case-tile .del-case{position:absolute;top:8px;right:10px;background:none;border:none;color:#a33;font-size:15px;cursor:pointer;font-weight:bold;}
+.status-pill{display:inline-block;padding:3px 10px;border-radius:12px;font-size:10.5px;color:#fff;font-family:'Courier New',monospace;}
+.status-en_cours{background:var(--status-open);}
+.status-classe{background:var(--status-closed);}
+.status-cold{background:var(--status-cold);}
+.empty-msg{color:var(--paper);opacity:.65;text-align:center;padding:50px;font-family:'Courier New',monospace;}
+
+/* Board */
+#boardWrap{
+  position:relative;overflow:hidden;border:3px solid var(--gold);border-radius:6px;height:70vh;
+  background:radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.05), transparent 60%),
+    repeating-radial-gradient(circle at 10px 10px, rgba(0,0,0,.05) 0 1px, transparent 1px 6px), #6b4f34;
+  box-shadow:var(--panel-shadow), inset 0 0 60px rgba(0,0,0,.5); cursor:grab;
+}
+#boardWrap.panning{cursor:grabbing;}
+#boardCanvas{position:absolute;top:0;left:0;transform-origin:0 0;width:3000px;height:2000px;}
+#linkSvg{position:absolute;top:0;left:0;width:3000px;height:2000px;pointer-events:none;}
+.board-toolbar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;}
+.board-toolbar .hint{font-size:12px;color:var(--paper);opacity:.7;margin-left:auto;font-family:'Courier New',monospace;}
+.pin-card{position:absolute;width:200px;background:var(--paper);border-radius:2px;box-shadow:2px 4px 10px rgba(0,0,0,.5);padding:10px 10px 8px;cursor:grab;font-size:12.5px;border:1px solid #c9b587;user-select:none;}
+.pin-card:active{cursor:grabbing;}
+.pin-card.linking{outline:2px dashed var(--string);}
+.pin-card::before{content:'';position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #e8635f, var(--string) 70%);box-shadow:0 2px 3px rgba(0,0,0,.5);}
+.pin-card h4{margin:2px 0 4px;font-family:'Special Elite',monospace;font-size:13.5px;color:var(--string);}
+.pin-card .role{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-bottom:4px;}
+.pin-card .note-txt{white-space:pre-wrap;font-size:11.5px;color:var(--ink);}
+.pin-card .del{position:absolute;top:2px;right:4px;background:none;border:none;color:#a33;font-size:14px;cursor:pointer;font-weight:bold;}
+.pin-card.note{background:#f2e6b0;}
+.pin-card.photo{padding:8px 8px 6px;}
+.pin-photo{width:100%;height:120px;object-fit:cover;border-radius:2px;cursor:zoom-in;display:block;margin-bottom:6px;border:1px solid #c9b587;}
+.pin-card.photo .note-txt{min-height:14px;font-style:italic;}
+.pin-card.photo .note-txt:empty::before{content:'Légende…';opacity:.45;}
+
+.folder{background:var(--paper);border-radius:6px;box-shadow:var(--panel-shadow);padding:24px 28px;margin-bottom:22px;border:1px solid var(--paper-dark);}
+.folder h2{margin-top:0;color:var(--string);border-bottom:2px solid var(--gold);padding-bottom:8px;font-size:20px;}
+.editable{width:100%;min-height:70px;background:transparent;border:1px dashed transparent;font-family:'Libre Baskerville',Georgia,serif;font-size:14.5px;line-height:1.6;color:var(--ink);padding:6px;resize:vertical;}
+.editable:focus{outline:none;border-color:var(--gold);background:#f4ecd4;}
+.field-row{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px;}
+.field{flex:1;min-width:180px;}
+.field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);margin-bottom:4px;}
+.field input,.field select,.field textarea{width:100%;padding:7px 9px;border:1px solid var(--paper-dark);border-radius:4px;background:#f7f0da;font-family:'Courier New',monospace;font-size:13px;color:var(--ink);}
+
+.timeline{border-left:3px solid var(--gold);margin-left:10px;padding-left:22px;}
+.tl-event{position:relative;margin-bottom:22px;}
+.tl-event::before{content:'';position:absolute;left:-29px;top:4px;width:13px;height:13px;border-radius:50%;background:var(--string);border:2px solid var(--paper);}
+.tl-event .date{font-family:'Courier New',monospace;font-weight:bold;color:var(--string);font-size:13px;}
+.tl-event .txt{font-size:14px;line-height:1.55;margin-top:3px;}
+.tl-event .del-tl{float:right;background:none;border:none;color:#a33;cursor:pointer;font-size:13px;}
+
+.chip-list{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;}
+.chip{background:#3b2a1e;color:var(--paper);padding:5px 12px;border-radius:14px;font-size:12px;font-family:'Courier New',monospace;position:relative;}
+.chip button{background:none;border:none;color:#e0a0a0;margin-left:6px;cursor:pointer;font-weight:bold;}
+.add-inline{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
+.add-inline input{flex:1;min-width:140px;padding:6px 9px;border:1px solid var(--paper-dark);border-radius:4px;font-family:'Courier New',monospace;font-size:12.5px;}
+
+.interro-card{background:#f2e6b0;border:1px solid var(--paper-dark);border-radius:6px;padding:16px 18px;margin-bottom:16px;position:relative;}
+.interro-card .who{font-family:'Special Elite',monospace;color:var(--string);font-size:14.5px;margin-bottom:4px;}
+.interro-card .meta{font-size:12px;color:var(--ink-soft);margin-bottom:8px;}
+.qa{margin-bottom:6px;font-size:13.5px;}
+.qa b{color:var(--ink-soft);}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;}
+.suspect-card{background:var(--paper);border:1px solid var(--paper-dark);border-radius:8px;box-shadow:var(--panel-shadow);padding:16px;position:relative;}
+.suspect-card h3{margin:0 0 4px;font-size:16px;color:var(--string);}
+.suspect-card .alias{font-style:italic;color:var(--ink-soft);font-size:12.5px;margin-bottom:6px;}
+.suspect-card .tag{display:inline-block;background:var(--gold);color:#2a1c05;font-size:10.5px;padding:2px 8px;border-radius:10px;margin-right:4px;margin-bottom:6px;font-family:'Courier New',monospace;text-transform:uppercase;}
+.suspect-card .danger{margin-top:6px;font-size:12px;}
+.suspect-card .dots span{display:inline-block;width:9px;height:9px;border-radius:50%;background:#c9b587;margin-right:2px;}
+.suspect-card .dots span.on{background:var(--string);}
+.suspect-card textarea.notes{width:100%;margin-top:8px;font-size:12px;min-height:50px;border:1px dashed var(--paper-dark);background:transparent;padding:4px;font-family:'Libre Baskerville',serif;}
+.suspect-card .del-s{position:absolute;top:8px;right:10px;background:none;border:none;color:#a33;font-size:16px;cursor:pointer;font-weight:bold;}
+.suspect-card .open-s{margin-top:8px;width:100%;}
+
+.modal.wide{max-width:720px;}
+.section-h{margin:18px 0 6px;color:var(--string);font-family:'Special Elite',monospace;font-size:14px;border-bottom:1px solid var(--paper-dark);padding-bottom:4px;}
+.custom-text-block{background:#f4ecd4;border:1px solid var(--paper-dark);border-radius:6px;padding:10px 12px;margin-bottom:10px;position:relative;}
+.custom-text-block input.ct-title{width:100%;font-family:'Special Elite',monospace;font-size:13px;border:none;background:transparent;color:var(--string);margin-bottom:6px;padding:2px;}
+.custom-text-block textarea.ct-content{width:100%;min-height:60px;border:1px dashed var(--paper-dark);background:transparent;font-family:'Libre Baskerville',serif;font-size:13px;padding:6px;}
+.custom-text-block .del-ct{position:absolute;top:6px;right:8px;background:none;border:none;color:#a33;font-size:14px;cursor:pointer;font-weight:bold;}
+.img-gallery{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0;}
+.img-thumb{width:130px;background:#f4ecd4;border:1px solid var(--paper-dark);border-radius:6px;padding:6px;position:relative;}
+.img-thumb img{width:100%;height:90px;object-fit:cover;border-radius:4px;cursor:pointer;display:block;}
+.img-thumb input.caption{width:100%;margin-top:5px;font-size:10.5px;border:1px dashed var(--paper-dark);background:transparent;padding:3px;font-family:'Courier New',monospace;}
+.img-thumb .del-img{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:200;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--paper);border-radius:8px;padding:26px 28px;width:100%;max-width:460px;box-shadow:0 10px 40px rgba(0,0,0,.6);max-height:88vh;overflow:auto;}
+.modal h3{margin-top:0;color:var(--string);}
+.modal .field{margin-bottom:12px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;}
+.confirm-modal{max-width:380px;text-align:center;}
+.confirm-icon{
+  width:52px;height:52px;border-radius:50%;margin:0 auto 12px;
+  background:radial-gradient(circle at 35% 30%, #e8635f, var(--string) 75%);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:24px;font-weight:bold;box-shadow:0 3px 8px rgba(0,0,0,.4), inset 0 0 0 3px rgba(255,255,255,.15);
+}
+.confirm-modal h3{text-align:center;border-bottom:none;margin-bottom:6px;}
+.confirm-modal p{color:var(--ink-soft);font-size:14px;line-height:1.5;margin:0 0 4px;}
+.confirm-modal .modal-actions{justify-content:center;}
+
+footer.confidential{text-align:center;padding:20px;color:var(--paper);opacity:.5;font-family:'Courier New',monospace;font-size:11px;letter-spacing:.15em;}
+
+@media print{
+  header.topbar,.board-toolbar,#boardWrap,.btn,.del,.del-s,.del-tl,.add-inline,.filters,.del-case{display:none !important;}
+  body{background:#fff;color:#000;}
+  .folder{box-shadow:none;border:1px solid #999;}
+}
+@media (max-width:720px){ nav.tabs{order:3;width:100%;} #boardWrap{height:58vh;} }
+
+.v2-chip{display:inline-flex;align-items:center;gap:6px;background:#4a3826;color:var(--paper);border:1px solid var(--gold);padding:6px 10px;border-radius:999px;font-size:11px;font-family:'Courier New',monospace;letter-spacing:.06em;text-transform:uppercase;}
+.save-indicator{font-size:11px;color:var(--paper);opacity:.82;font-family:'Courier New',monospace;min-width:150px;text-align:right;}
+.search-wrap{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-left:auto;}
+.search-input{padding:8px 10px;border-radius:4px;border:1px solid var(--paper-dark);font-family:'Courier New',monospace;font-size:12.5px;background:var(--paper);min-width:250px;}
+.case-tile .minor{font-size:11px;color:var(--ink-soft);margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;}
+.lock-screen{position:fixed;inset:0;background:rgba(15,10,7,.9);backdrop-filter:blur(5px);z-index:400;display:none;align-items:center;justify-content:center;padding:20px;}
+.lock-screen.show{display:flex;}
+.lock-card{width:min(560px,100%);background:linear-gradient(180deg,#2a2018,#1c150f);border:1px solid #5d452b;border-radius:10px;box-shadow:0 18px 60px rgba(0,0,0,.55);padding:28px;color:var(--paper);}
+.lock-card h2{margin:0 0 8px;color:var(--gold-bright);font-size:26px;}
+.lock-card p{color:#eadfc8;opacity:.9;line-height:1.5;}
+.lock-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+.lock-row input{flex:1;min-width:220px;padding:10px 12px;border-radius:6px;border:1px solid #7e6345;background:#f6edd7;color:#20160d;font-family:'Courier New',monospace;}
+.helper-text{font-size:11px;color:#d8c8ad;opacity:.75;margin-top:10px;font-family:'Courier New',monospace;}
+.empty-panel{background:var(--paper);border:1px solid var(--paper-dark);border-radius:8px;box-shadow:var(--panel-shadow);padding:22px;}
+.modal .list-pick{display:grid;gap:8px;max-height:320px;overflow:auto;}
+.pick-item{border:1px solid var(--paper-dark);background:#f7f0da;border-radius:6px;padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center;}
+.pick-item:hover,.pick-item.active{border-color:var(--gold);background:#f4ecd4;}
+.pick-item small{color:var(--ink-soft);font-family:'Courier New',monospace;}
+.user-row{background:#f4ecd4;border:1px solid var(--paper-dark);border-radius:8px;padding:14px 16px;margin-bottom:12px;}
+.user-row-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.user-row-head strong{font-family:'Special Elite',monospace;color:var(--string);font-size:15px;}
+.role-badge{font-size:10.5px;text-transform:uppercase;padding:2px 9px;border-radius:10px;font-family:'Courier New',monospace;background:var(--gold);color:#2a1c05;}
+.role-badge.admin{background:var(--string);color:#fff;}
+.role-badge.viewer{background:var(--status-cold);color:#fff;}
+
+/* ===== Mode lecture seule (rôle "viewer") ===== */
+.role-viewer #newCaseBtn, .role-viewer #addNote, .role-viewer #addSuspectCard, .role-viewer #addPhotoCard,
+.role-viewer #linkMode, .role-viewer #manageLinksBtn,
+.role-viewer #addActivityBtn, .role-viewer #addWeaponBtn, .role-viewer #addTlBtn, .role-viewer #addInterroBtn,
+.role-viewer #addSuspectBtn, .role-viewer #sdAddVehicleBtn, .role-viewer #sdAddCustomTextBtn,
+.role-viewer #sdAddArrestImgBtn, .role-viewer #sdAddBirdyImgBtn,
+.role-viewer #btnImportTrigger, .role-viewer #btnReset,
+.role-viewer .add-inline,
+.role-viewer .del, .role-viewer .del-s, .role-viewer .del-tl, .role-viewer .del-ct,
+.role-viewer .del-img, .role-viewer .del-case, .role-viewer .chip button {
+  display:none !important;
+}
+.role-viewer input[readonly], .role-viewer textarea[readonly],
+.role-viewer select:disabled {
+  background:#e4d7b8; color:#6a5a42; cursor:not-allowed; opacity:.85;
+}
+.role-viewer .pin-card{ cursor:default; }
+.role-viewer .suspect-card, .role-viewer .case-tile{ cursor:pointer; }
+.danger-picker{display:flex;gap:7px;margin-top:6px;}
+.dpick-dot{width:22px;height:22px;border-radius:50%;background:#c9b587;cursor:pointer;border:2px solid transparent;transition:.12s;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);}
+.dpick-dot:hover{border-color:var(--gold);transform:scale(1.1);}
+.dpick-dot.on{background:var(--string);}
+.role-viewer .dpick-dot{cursor:not-allowed;pointer-events:none;}
+.role-viewer .dpick-dot:hover{transform:none;border-color:transparent;}
+.user-row-actions{margin-left:auto;display:flex;gap:8px;}
+.case-check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;margin-top:8px;}
+.case-check-item{display:flex;align-items:center;gap:7px;font-size:12.5px;}
+@media (max-width:720px){ .search-wrap{margin-left:0;width:100%;} .search-input{min-width:100%;width:100%;} .save-indicator{text-align:left;min-width:0;} }
+
+
+.summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px;}
+.summary-item{background:#f4ebd2;border:1px solid #d0bb8d;border-radius:8px;padding:10px;}
+.summary-item .k{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#6a5032;font-family:'Courier New',monospace;}
+.summary-item .v{margin-top:4px;font-size:14px;color:#2a1b10;}
+.summary-case{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;}
+.summary-note{margin-top:10px;color:#4e3a25;line-height:1.5;white-space:pre-wrap;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="badge-mini" id="logoBtn">★</div>
+  <div class="title-block">
+    <h1 id="brandTitle">BCSO — Enquêtes</h1>
+    <div class="sub">Blaine County Sheriff Office — Confidentiel</div>
+  </div>
+  <div class="v2-chip">V2 opérationnelle</div>
+  <div class="v2-chip" id="readOnlyBadge" style="display:none;background:var(--status-cold);">👁 Lecture seule</div>
+  <nav class="tabs">
+    <button data-view="caselist" class="active">Dossiers</button>
+    <button data-view="suspects">Base suspects</button>
+    <button data-view="access" style="display:none;">Gestion des accès</button>
+  </nav>
+  <div class="topbar-actions">
+    <div class="save-indicator" id="saveIndicator">Aucune modification</div>
+    <button class="btn" id="btnLogout">Se déconnecter</button>
+    <button class="btn" id="btnExport">Exporter</button>
+    <button class="btn" id="btnImportTrigger">Importer</button>
+    <input type="file" id="btnImport" accept="application/json">
+    <button class="btn" onclick="window.print()">Imprimer</button>
+    <button class="btn danger" id="btnReset">Réinitialiser</button>
+  </div>
+</header>
+
+<!-- DOSSIERS (liste) -->
+<div class="view active" id="view-caselist">
+  <div class="stats">
+    <div class="stat-card"><div class="num" id="statTotal">0</div><div class="lbl">Total dossiers</div></div>
+    <div class="stat-card"><div class="num" id="statOpen">0</div><div class="lbl">En cours</div></div>
+    <div class="stat-card"><div class="num" id="statClosed">0</div><div class="lbl">Classés</div></div>
+    <div class="stat-card"><div class="num" id="statCold">0</div><div class="lbl">Cold cases</div></div>
+    <div class="stat-card"><div class="num" id="statSuspectsGlobal">0</div><div class="lbl">Suspects fichés</div></div>
+  </div>
+  <div class="filters">
+    <button class="btn primary" id="newCaseBtn">+ Nouvelle enquête</button>
+    <div class="search-wrap">
+      <input class="search-input" id="globalSearch" placeholder="Rechercher un dossier, un gang, un agent ou un suspect…">
+    </div>
+    <select id="filterStatus"><option value="">Statut : tous</option><option value="en_cours">En cours</option><option value="classe">Classé</option><option value="cold">Cold case</option></select>
+    <select id="filterType"><option value="">Type : tous</option></select>
+    <select id="filterGang"><option value="">Gang : tous</option></select>
+  </div>
+  <div class="case-grid" id="caseGrid"></div>
+</div>
+
+<!-- CASE WORKSPACE -->
+<div class="view" id="view-case">
+  <div class="case-subheader">
+    <button class="btn" id="backToList">← Dossiers</button>
+    <div>
+      <div class="cnum" id="chNum"></div>
+      <h2 id="chTitle"></h2>
+    </div>
+    <span class="status-pill" id="chStatus"></span>
+    <nav>
+      <button data-sub="board" class="active">Tableau d'enquête</button>
+      <button data-sub="dossier">Infos dossier</button>
+    </nav>
+  </div>
+
+  <div class="sub active" id="sub-board">
+    <div class="board-toolbar">
+      <button class="btn" id="addNote">+ Post-it</button>
+      <button class="btn" id="addSuspectCard">+ Fiche suspect</button>
+      <button class="btn" id="addPhotoCard">+ Photo preuve</button>
+      <input type="file" id="boardPhotoInput" accept="image/*" multiple>
+      <button class="btn" id="linkMode">🔗 Relier (fil rouge)</button>
+      <button class="btn" id="manageLinksBtn">🧵 Gérer les liens</button>
+      <button class="btn" id="zoomIn">Zoom +</button>
+      <button class="btn" id="zoomOut">Zoom −</button>
+      <button class="btn" id="zoomReset">Réinitialiser vue</button>
+      <span class="hint">Glissez les fiches • Molette = zoom • Glisser le fond = déplacer la vue</span>
+    </div>
+    <div id="boardWrap"><div id="boardCanvas"><svg id="linkSvg"></svg></div></div>
+  </div>
+
+  <div class="sub" id="sub-dossier" style="display:none;">
+    <div class="folder">
+      <h2>Informations du dossier</h2>
+      <div class="field-row">
+        <div class="field"><label>Nom du dossier</label><input id="caseTitleInput"></div>
+        <div class="field"><label>Type d'enquête</label>
+          <select id="caseType">
+            <option>Trafic de drogue</option><option>Fusillade</option><option>Meurtre</option>
+            <option>Braquage</option><option>Enlèvement</option><option>Extorsion</option>
+            <option>Corruption</option><option>Autre</option>
+          </select>
+        </div>
+        <div class="field"><label>Statut</label>
+          <select id="caseStatus"><option value="en_cours">En cours</option><option value="classe">Classé</option><option value="cold">Cold case</option></select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Gang / groupe</label><input id="caseGang"></div>
+        <div class="field"><label>Agent en charge</label><input id="caseAgent"></div>
+      </div>
+      <label style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);">Préambule</label>
+      <textarea class="editable" id="casePreamble"></textarea>
+    </div>
+    <div class="folder"><h2>Territoire</h2><textarea class="editable" id="caseTerritory"></textarea></div>
+    <div class="folder">
+      <h2>Activités du gang</h2>
+      <div class="chip-list" id="activitiesList"></div>
+      <div class="add-inline"><input id="newActivity" placeholder="Ajouter une activité…"><button class="btn" id="addActivityBtn">Ajouter</button></div>
+    </div>
+    <div class="folder">
+      <h2>Armes recensées</h2>
+      <div class="chip-list" id="weaponsList"></div>
+      <div class="add-inline"><input id="newWeapon" placeholder="Ajouter une arme…"><button class="btn" id="addWeaponBtn">Ajouter</button></div>
+    </div>
+    <div class="folder">
+      <h2>Chronologie</h2>
+      <div class="timeline" id="timelineList"></div>
+      <div class="add-inline">
+        <input id="newTlDate" placeholder="Date (ex: 21/07/2026)" style="max-width:160px;">
+        <input id="newTlTxt" placeholder="Description de l'événement…">
+        <button class="btn" id="addTlBtn">Ajouter</button>
+      </div>
+    </div>
+    <div class="folder">
+      <h2>Interrogatoires</h2>
+      <div id="interroList"></div>
+      <button class="btn" id="addInterroBtn">+ Nouvel interrogatoire</button>
+    </div>
+    <div class="folder" id="caseAccessFolder" style="display:none;">
+      <h2>Accès à ce dossier <span style="font-size:11px;color:var(--ink-soft);text-transform:none;font-family:'Courier New',monospace;">(visible par l'admin uniquement)</span></h2>
+      <div id="caseAccessList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SUSPECTS (base globale) -->
+<div class="view" id="view-suspects">
+  <div class="board-toolbar">
+    <button class="btn" id="addSuspectBtn">+ Nouveau suspect / organisation / témoin</button>
+    <div class="search-wrap">
+      <input class="search-input" id="suspectSearch" placeholder="Rechercher dans la base suspects…">
+    </div>
+  </div>
+  <div class="grid" id="suspectsGrid"></div>
+</div>
+
+<div class="view" id="view-access">
+  <div class="folder">
+    <h2>Créer un utilisateur</h2>
+    <div class="field-row">
+      <div class="field"><label>Identifiant</label><input id="newUserName" placeholder="ex : jdupont"></div>
+      <div class="field"><label>Mot de passe</label><input id="newUserPass" type="password"></div>
+      <div class="field"><label>Rôle</label>
+        <select id="newUserRole"><option value="user">Utilisateur</option><option value="viewer">Lecture seule</option><option value="admin">Admin</option></select>
+      </div>
+    </div>
+    <button class="btn primary" id="createUserBtn">Créer l'utilisateur</button>
+    <p style="font-size:12px;color:var(--ink-soft);margin-top:12px;line-height:1.5;">
+      ⚠️ Ce site n'a pas de serveur : les identifiants et mots de passe sont stockés uniquement dans ce
+      navigateur (et dans tes exports .json). Ce système organise l'accès entre coéquipiers de confiance,
+      il ne protège pas contre quelqu'un qui inspecterait le code ou les fichiers exportés. Ne l'utilise pas
+      pour des informations réellement confidentielles.
+    </p>
+  </div>
+  <div class="folder">
+    <h2>Utilisateurs et accès aux dossiers</h2>
+    <div id="usersList"></div>
+  </div>
+</div>
+
+<footer class="confidential">CONFIDENTIEL — BCSO CRIME INVESTIGATION DIVISION — À NE PAS DIVULGUER</footer>
+
+<div class="modal-bg" id="modalNewCase">
+  <div class="modal">
+    <h3>Nouvelle enquête</h3>
+    <div class="field"><label>Nom du dossier</label><input id="ncTitle" placeholder="ex : Enquête XYZ"></div>
+    <div class="field"><label>Type d'enquête</label>
+      <select id="ncType">
+        <option>Trafic de drogue</option><option>Fusillade</option><option>Meurtre</option>
+        <option>Braquage</option><option>Enlèvement</option><option>Extorsion</option>
+        <option>Corruption</option><option>Autre</option>
+      </select>
+    </div>
+    <div class="field"><label>Gang / groupe suspecté (optionnel)</label><input id="ncGang"></div>
+    <div class="field"><label>Agent en charge</label><input id="ncAgent"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalNewCase')">Annuler</button>
+      <button class="btn primary" id="createCaseBtn">Créer le dossier</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalInterro">
+  <div class="modal">
+    <h3>Nouvel interrogatoire</h3>
+    <div class="field"><label>Identité</label><input id="mInterroName"></div>
+    <div class="field"><label>Arme saisie (optionnel)</label><input id="mInterroWeapon"></div>
+    <div class="field"><label>Questions / réponses (format Q: ... puis R: ...)</label>
+      <textarea class="editable" id="mInterroQA" style="min-height:120px;border:1px solid var(--paper-dark);"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalInterro')">Annuler</button>
+      <button class="btn primary" id="saveInterroBtn">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalSuspect">
+  <div class="modal">
+    <h3>Nouvelle fiche</h3>
+    <div class="field"><label>Type</label>
+      <select id="nsType"><option>Suspect</option><option>Organisation</option><option>Témoin</option></select>
+    </div>
+    <div class="field"><label>Nom / Raison sociale</label><input id="nsName"></div>
+    <div class="field"><label>Alias / Surnom</label><input id="nsAlias"></div>
+    <div class="field"><label>Organisation liée</label><input id="nsOrg"></div>
+    <div class="field"><label>Dangerosité (1-5)</label><input id="nsDanger" type="number" min="1" max="5" value="2"></div>
+    <div class="field"><label>Description / notes</label><textarea id="nsNotes" style="min-height:70px;"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalSuspect')">Annuler</button>
+      <button class="btn primary" id="saveSuspectBtn">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalSuspectDetail">
+  <div class="modal wide">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <h3 id="sdName">Fiche</h3>
+      <button class="btn" onclick="closeModal('modalSuspectDetail')">Fermer</button>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Nom</label><input id="sdNameInput"></div>
+      <div class="field"><label>Alias</label><input id="sdAlias"></div>
+      <div class="field"><label>Type</label><select id="sdType"><option>Suspect</option><option>Organisation</option><option>Témoin</option></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Organisation liée</label><input id="sdOrg"></div>
+      <div class="field"><label>Dangerosité (1-5)</label>
+        <div class="danger-picker" id="sdDangerPicker">
+          <span class="dpick-dot" data-val="1" title="1"></span>
+          <span class="dpick-dot" data-val="2" title="2"></span>
+          <span class="dpick-dot" data-val="3" title="3"></span>
+          <span class="dpick-dot" data-val="4" title="4"></span>
+          <span class="dpick-dot" data-val="5" title="5"></span>
+        </div>
+      </div>
+    </div>
+
+    <h4 class="section-h">Notes libres</h4>
+    <textarea class="editable" id="sdNotes" style="border:1px solid var(--paper-dark);min-height:70px;"></textarea>
+
+    <h4 class="section-h">Véhicules</h4>
+    <div class="chip-list" id="sdVehicles"></div>
+    <div class="add-inline"><input id="sdNewVehicle" placeholder="ex : Bravado noire — plaque 12ABC34"><button class="btn" id="sdAddVehicleBtn">Ajouter</button></div>
+
+    <h4 class="section-h">Zones de texte personnalisées</h4>
+    <div id="sdCustomTexts"></div>
+    <button class="btn" id="sdAddCustomTextBtn" style="margin-top:6px;">+ Ajouter une zone de texte</button>
+
+    <h4 class="section-h">Captures d'écran — Rapports d'arrestation</h4>
+    <div class="img-gallery" id="sdArrestImages"></div>
+    <button class="btn" id="sdAddArrestImgBtn">+ Ajouter une capture</button>
+    <input type="file" id="sdArrestImgInput" accept="image/*" multiple>
+
+    <h4 class="section-h">Captures d'écran — Birdy</h4>
+    <div class="img-gallery" id="sdBirdyImages"></div>
+    <button class="btn" id="sdAddBirdyImgBtn">+ Ajouter une capture</button>
+    <input type="file" id="sdBirdyImgInput" accept="image/*" multiple>
+
+    <div class="modal-actions">
+      <button class="btn primary" onclick="closeModal('modalSuspectDetail')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalImgViewer">
+  <div class="modal" style="max-width:90vw;background:#111;padding:10px;text-align:center;">
+    <img id="imgViewerSrc" style="max-width:100%;max-height:80vh;border-radius:4px;">
+    <div class="modal-actions" style="justify-content:center;">
+      <button class="btn" onclick="closeModal('modalImgViewer')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalManageLinks">
+  <div class="modal">
+    <h3>Fils rouges de ce dossier</h3>
+    <div id="linksListWrap" style="display:grid;gap:8px;max-height:360px;overflow:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="closeModal('modalManageLinks')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalConfirm">
+  <div class="modal confirm-modal">
+    <div class="confirm-icon">✕</div>
+    <h3 id="confirmTitle">Confirmer</h3>
+    <p id="confirmMessage"></p>
+    <div class="modal-actions">
+      <button class="btn" id="confirmCancelBtn">Annuler</button>
+      <button class="btn danger" id="confirmYesBtn">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-bg" id="modalBoardSuspectPicker">
+  <div class="modal">
+    <h3>Ajouter une fiche au tableau</h3>
+    <div class="field"><label>Recherche</label><input id="boardSuspectSearch" placeholder="Nom, alias, organisation…"></div>
+    <div class="list-pick" id="boardSuspectList"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalBoardSuspectPicker')">Annuler</button>
+      <button class="btn primary" id="confirmBoardSuspectBtn">Ajouter au tableau</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalSuspectSummary">
+  <div class="modal" style="max-width:720px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <h3>Résumé du profil</h3>
+      <button class="btn" onclick="closeModal('modalSuspectSummary')">Fermer</button>
+    </div>
+    <div id="suspectSummaryContent" class="empty-panel"></div>
+    <div class="modal-actions">
+      <button class="btn" id="summaryOpenFullBtn">Ouvrir la fiche complète</button>
+      <button class="btn primary" onclick="closeModal('modalSuspectSummary')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-card">
+    <h2>Connexion</h2>
+    <p>Accès réservé aux membres du BCSO habilités. Identifiant admin par défaut : <b>admin</b> / <b>admin</b> (à changer après la première connexion).</p>
+    <div class="lock-row">
+      <input type="text" id="loginUserInput" placeholder="Identifiant" autocomplete="username">
+    </div>
+    <div class="lock-row">
+      <input type="password" id="loginPassInput" placeholder="Mot de passe" autocomplete="current-password">
+      <button class="btn primary" id="loginBtn">Se connecter</button>
+    </div>
+    <div id="loginError" style="color:#e8635f;font-size:12px;margin-top:8px;display:none;"></div>
+    <div class="helper-text">⚠️ Ce contrôle d'accès protège l'interface, pas les données : ce site n'a pas de serveur, tout reste stocké dans ce navigateur. Toute personne ayant accès à cet ordinateur/navigateur ou aux outils de développement peut techniquement contourner cet écran. Ne l'utilise pas pour des informations réellement sensibles.</div>
+  </div>
+</div>
+
+<script>
+/* ============ DEFAULT / MIGRATION DATA ============ */
+const LEGACY_LDS_CASE = {
+  number:"LSSO-ID-2026-0001", title:"ENQUÊTE LDS", type:"Braquage", status:"en_cours",
+  gang:"London Street [LDS]", agent:"[177] Karim Belkacem",
+  preamble:"Lors de notre convoi de saisies le 13/06/2026, ainsi que le convoi de fonds le 17/06/2026, nous avons été intercepté par un groupe se faisant appelé London Street [LDS].\n\nSuite à ces 2 opérations qui furent des échecs pour notre bureau, nous avons décidé d'ouvrir une enquête officielle sur ce gang.\n\nSuite au braquage du Brinks, nous avons pu interpeller 2 individus qui ont été interrogés.",
+  territory:"De nouveaux éléments sont à ajouter au dossier.\n\nAujourd'hui (18/06/2026) aux alentours de 14h20, je me suis rendu au Paradise Méchanic afin d'y rencontrer un contact.\nCe dernier restera anonyme afin de préserver les avancés de l'enquête sereinement. Il sera mentionné sous \"X\" durant l'entièreté de l'enquête.\n\nMr. X m'a reçu et a passé un appel téléphonique à un citoyen. Suite à cet échange téléphonique, j'ai pu obtenir ce qui s'avèrerait être l'emplacement du QG du gang.\n\nUne reconnaissance des lieux sera faite dans l'après-midi.\n\nLe gang a établi domicile dans la Raquette, Arena Street.",
+  activities:["Braquages de convois","Fusillades","Stupéfiants"],
+  weapons:["Armes de poing","Armes semi-automatiques","Fusils à pompe","Fusils automatiques"],
+  timeline:[
+    {date:"13/06/2026", txt:"Convoi de saisies intercepté par le gang London Street (LDS)."},
+    {date:"17/06/2026", txt:"Convoi de fonds intercepté par le LDS — décision d'ouvrir une enquête officielle sur le gang. Braquage du Brinks : 2 individus interpellés et interrogés (Kaia Speends, Malya Blackwood)."},
+    {date:"18/06/2026", txt:"14h20 — Rencontre avec un contact anonyme (\"X\") au Paradise Méchanic. Obtention de l'emplacement présumé du QG du gang : La Raquette, Arena Street."},
+    {date:"10/07/2026", txt:"Fusillade à la Raquette Arena : plusieurs unités LSPD/BCSO tentent le dialogue, les habitants ouvrent le feu sur les agents et les médecins. Plusieurs agents blessés."},
+    {date:"15/07/2026", txt:"Prise d'otage dans le nord par des individus armés en véhicules noirs. Course-poursuite jusqu'à la Raquette. Renforts demandés, nouvelle fusillade. Un agent BCSO et un habitant blessés."},
+    {date:"16/07/2026", txt:"20h55 — Prise d'otage de 2 agents BCSO (Sgt Karim Belkacem [177] et Deputy Connor O'Malley [118]) devant le Binco, route 68. Message du gang exigeant la fin des interventions conjointes LSPD/BCSO."},
+    {date:"19/07/2026", txt:"Contrôle aux frontières (Senora Freeway et Grand Ocean Highway). Agents LSPD (19, 20, 72) confrontés à 2 membres LDS refusant le contrôle. L'agent 19 disparaît — soupçon d'enlèvement. Course-poursuite jusqu'aux docks, nouvelle prise d'otage (agents 02/177/73/171), otages relâchés après négociation."}
+  ],
+  interrogations:[
+    {name:"Kaia Speends", weapon:"Glock-19", qa:[
+      {q:"Cela fait combien de temps que vous êtes en ville ?", a:"2/3 semaines"},
+      {q:"Était-ce votre voiture qui a été mise en fourrière ?", a:"La Bravado, oui"},
+      {q:"Combien étiez-vous sur l'opération ?", a:"Une dizaine"},
+      {q:"Y avait-il toute ton équipe ?", a:"Non"},
+      {q:"Que signifie LDS ?", a:"London Street"},
+      {q:"Où êtes-vous basés ?", a:"Dans le sud"},
+      {q:"Qui est le boss ?", a:"/"},
+      {q:"Quel est ton statut ?", a:"Un petit"}
+    ]},
+    {name:"Malya Blackwood", weapon:"", qa:[
+      {q:"Cela fait combien de temps que vous êtes en ville ?", a:"12/06/2026"},
+      {q:"Combien étiez-vous sur l'opération ?", a:"Une dizaine"},
+      {q:"Y avait-il toute ton équipe ?", a:"Non"},
+      {q:"Que signifie LDS ?", a:"London Street"},
+      {q:"Où êtes-vous basés ?", a:"Dans le sud"},
+      {q:"Qui est le boss ?", a:"/"},
+      {q:"Quel est ton statut ?", a:"Un petit"}
+    ]}
+  ]
+};
+const LEGACY_LDS_SUSPECTS = [
+  {id:"s1", type:"Suspect", name:"Tariq Mensah", alias:"Virus", org:"London Street [LDS]", danger:5, notes:"Lead."},
+  {id:"s2", type:"Suspect", name:"Kingsley Mensah", alias:"King", org:"London Street [LDS]", danger:5, notes:"Bras droit."},
+  {id:"s3", type:"Suspect", name:"Kaya Speends", alias:"Talk", org:"London Street [LDS]", danger:3, notes:"Lieutenant. Interrogée le 17/06/2026 suite au braquage du Brinks. Arme saisie : Glock-19."},
+  {id:"s4", type:"Suspect", name:"Loic Mensah", alias:"", org:"London Street [LDS]", danger:2, notes:"Membre."},
+  {id:"s5", type:"Suspect", name:"Nilo Speends", alias:"Rocket", org:"London Street [LDS]", danger:2, notes:"Membre."},
+  {id:"s6", type:"Suspect", name:"Malya Blackwood", alias:"", org:"London Street [LDS]", danger:2, notes:"Membre. Interrogée le 17/06/2026 suite au braquage du Brinks."},
+  {id:"s7", type:"Suspect", name:"Novak Sully", alias:"", org:"London Street [LDS]", danger:2, notes:"Membre."},
+  {id:"s8", type:"Suspect", name:"Taylor Brown", alias:"", org:"London Street [LDS]", danger:2, notes:"Membre."},
+  {id:"s9", type:"Suspect", name:"Kendra Lewis", alias:"Panda", org:"London Street [LDS]", danger:2, notes:"Membre."},
+  {id:"s10", type:"Suspect", name:"Shade Bels", alias:"", org:"London Street [LDS]", danger:2, notes:"Membre."},
+  {id:"s11", type:"Suspect", name:"Blaze Bels", alias:"", org:"London Street [LDS]", danger:2, notes:"Membre."}
+];
+const LEGACY_LDS_BOARD = {
+  cards:[
+    {id:"b1", type:"suspect", ref:"s1", x:900, y:120},{id:"b2", type:"suspect", ref:"s2", x:900, y:340},
+    {id:"b3", type:"suspect", ref:"s3", x:650, y:340},{id:"b4", type:"suspect", ref:"s4", x:1150, y:340},
+    {id:"b5", type:"suspect", ref:"s5", x:650, y:520},{id:"b6", type:"suspect", ref:"s6", x:900, y:520},
+    {id:"b7", type:"suspect", ref:"s7", x:1150, y:520},{id:"b8", type:"suspect", ref:"s8", x:400, y:520},
+    {id:"b9", type:"suspect", ref:"s9", x:1400, y:520},{id:"b10", type:"suspect", ref:"s10", x:400, y:700},
+    {id:"b11", type:"suspect", ref:"s11", x:650, y:700},
+    {id:"b12", type:"note", title:"QG du gang", text:"La Raquette, Arena Street.\nLocalisation obtenue via contact \"X\" le 18/06/2026.", x:1400, y:120},
+    {id:"b13", type:"note", title:"Territoire", text:"Zone d'activité principale : quartier de la Raquette (Arena Street / London Street), sud de l'île.", x:1400, y:300}
+  ],
+  links:[["b1","b2"],["b1","b3"],["b1","b4"],["b3","b5"],["b3","b6"],["b4","b7"],["b4","b8"],["b1","b9"],["b6","b10"],["b6","b11"],["b2","b12"]]
+};
+
+function freshEmptyCase(){
+  return { activities:[], weapons:[], timeline:[], interrogations:[], preamble:"", territory:"", board:{cards:[],links:[]} };
+}
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem('bcso_enquetes_data');
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && parsed.cases) return parsed; // already new format
+      if(parsed && parsed.caseInfo){
+        // legacy single-case format -> migrate
+        return migrateLegacy(parsed);
+      }
+    }
+  }catch(e){}
+  // brand new install -> seed with the LDS case as an example
+  return {
+    nextSeq: 2,
+    cases:[Object.assign({id:'c1', dateCreated:new Date().toISOString(), board:JSON.parse(JSON.stringify(LEGACY_LDS_BOARD))}, LEGACY_LDS_CASE)],
+    suspects: JSON.parse(JSON.stringify(LEGACY_LDS_SUSPECTS)),
+  };
+}
+function normalizeData(d){
+  // defensive: guarantee every case has a fully-formed board and arrays, so the app never
+  // crashes on a partially-formed or hand-edited/imported file.
+  if(!d.cases) d.cases = [];
+  if(!d.suspects) d.suspects = [];
+  d.cases.forEach(c=>{
+    if(!c.board) c.board = {cards:[], links:[]};
+    if(!c.board.cards) c.board.cards = [];
+    if(!c.board.links) c.board.links = [];
+    if(!c.activities) c.activities = [];
+    if(!c.weapons) c.weapons = [];
+    if(!c.timeline) c.timeline = [];
+    if(!c.interrogations) c.interrogations = [];
+    if(!c.status) c.status = 'en_cours';
+  });
+  d.suspects.forEach(s=>{
+    if(!s.vehicles) s.vehicles = [];
+    if(!s.customTexts) s.customTexts = [];
+    if(!s.arrestImages) s.arrestImages = [];
+    if(!s.birdyImages) s.birdyImages = [];
+  });
+  if(!d.nextSeq) d.nextSeq = d.cases.length+1;
+  if(!d.users || d.users.length===0){
+    d.users = [{id:'u_admin', username:'admin', passwordHash:hashString('admin'), role:'admin', allowedCaseIds:[]}];
+  }
+  d.users.forEach(u=>{ if(!u.allowedCaseIds) u.allowedCaseIds = []; });
+  return d;
+}
+function migrateLegacy(old){
+  const migratedCase = Object.assign({id:'c1', dateCreated:new Date().toISOString()},
+    {number:"LSSO-ID-2026-0001", title:old.caseInfo.title, type:old.caseInfo.type, status:old.caseInfo.status,
+     gang:old.caseInfo.gang, agent:old.caseInfo.agent, preamble:old.caseInfo.preamble, territory:old.caseInfo.territory,
+     activities:old.activities||[], weapons:old.weapons||[], timeline:old.timeline||[], interrogations:old.interrogations||[],
+     board: old.board || {cards:[],links:[]}});
+  const migratedSuspects = (old.suspects||[]).map(s=>({
+    id:s.id, type:"Suspect", name:s.name, alias:s.alias||"", org:old.caseInfo.gang||"",
+    danger:s.danger||2, notes:(s.role?s.role+". ":"")+(s.notes||"")+(s.weapon?" Arme : "+s.weapon:"")
+  }));
+  return { nextSeq:2, cases:[migratedCase], suspects:migratedSuspects };
+}
+
+let data = normalizeData(loadData());
+let currentCaseId = null;
+let saveTimer = null;
+let boardSelectedSuspectId = null;
+let currentSub = 'board';
+
+
+function setSaveIndicator(msg, dirty=false){
+  const el = document.getElementById('saveIndicator');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.color = dirty ? '#f3c46c' : '';
+}
+function markDirty(){
+  setSaveIndicator('Modifications non sauvegardées', true);
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>saveData(), 500);
+}
+function nowStamp(){
+  return new Date().toLocaleString('fr-FR');
+}
+let currentUser = null;
+
+function getSessionKey(){ return 'bcso_current_user_v1'; }
+function findUser(username){ return data.users.find(u=>u.username.toLowerCase()===username.toLowerCase()); }
+function showLockScreen(){
+  document.getElementById('lockScreen').classList.add('show');
+  document.getElementById('loginUserInput').value='';
+  document.getElementById('loginPassInput').value='';
+  document.getElementById('loginError').style.display='none';
+  document.getElementById('loginUserInput').focus();
+}
+function hideLockScreen(){ document.getElementById('lockScreen').classList.remove('show'); }
+function tryLogin(){
+  const uInput = document.getElementById('loginUserInput');
+  const pInput = document.getElementById('loginPassInput');
+  const errEl = document.getElementById('loginError');
+  const username = uInput.value.trim();
+  const password = pInput.value;
+  const user = findUser(username);
+  if(!user || user.passwordHash !== hashString(password)){
+    errEl.textContent = 'Identifiant ou mot de passe incorrect.';
+    errEl.style.display='block';
+    return;
+  }
+  currentUser = user;
+  sessionStorage.setItem(getSessionKey(), user.username);
+  hideLockScreen();
+  applyRoleToUI();
+  switchMainView('caselist');
+}
+function logout(){
+  currentUser = null;
+  sessionStorage.removeItem(getSessionKey());
+  showLockScreen();
+}
+function isViewer(){ return currentUser && currentUser.role==='viewer'; }
+const VIEWER_INPUT_WHITELIST = new Set(['globalSearch','suspectSearch','boardSuspectSearch','loginUserInput','loginPassInput','filterStatus','filterType','filterGang','newUserName','newUserPass','newUserRole']);
+function lockFieldsIfViewer(root){
+  if(!isViewer()) return;
+  const scope = root || document;
+  scope.querySelectorAll('input, textarea').forEach(el=>{
+    if(VIEWER_INPUT_WHITELIST.has(el.id)) return;
+    if(el.type==='checkbox' || el.type==='file'){ el.disabled = true; return; }
+    el.readOnly = true;
+  });
+  scope.querySelectorAll('select').forEach(el=>{
+    if(VIEWER_INPUT_WHITELIST.has(el.id)) return;
+    el.disabled = true;
+  });
+  scope.querySelectorAll('[contenteditable="true"]').forEach(el=> el.setAttribute('contenteditable','false'));
+}
+function applyRoleToUI(){
+  const isAdmin = currentUser && currentUser.role==='admin';
+  const accessBtn = document.querySelector('nav.tabs button[data-view="access"]');
+  if(accessBtn) accessBtn.style.display = isAdmin ? '' : 'none';
+  document.body.classList.toggle('role-viewer', isViewer());
+  const badge = document.getElementById('readOnlyBadge');
+  if(badge) badge.style.display = isViewer() ? '' : 'none';
+  lockFieldsIfViewer();
+}
+function initAuth(){
+  const savedUsername = sessionStorage.getItem(getSessionKey());
+  const user = savedUsername ? findUser(savedUsername) : null;
+  if(user){
+    currentUser = user;
+    hideLockScreen();
+    applyRoleToUI();
+  } else {
+    showLockScreen();
+  }
+}
+document.getElementById('loginBtn').addEventListener('click', tryLogin);
+document.getElementById('loginPassInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryLogin(); });
+document.getElementById('loginUserInput').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('loginPassInput').focus(); });
+function hashString(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++) h = ((h<<5)-h) + str.charCodeAt(i), h|=0;
+  return String(h);
+}
+function matchCaseSearch(c, q){
+  const suspectNames = (data.suspects||[]).filter(s => (s.caseIds||[]).includes(c.id) || (s.org||'').toLowerCase().includes((c.gang||'').toLowerCase())).map(s => `${s.name} ${s.alias||''} ${s.org||''}`).join(' ');
+  const raw = [c.number,c.title,c.type,c.status,c.gang,c.agent,c.preamble,c.territory,suspectNames].join(' ').toLowerCase();
+  return raw.includes(q);
+}
+function updateCaseMeta(caseObj){
+  caseObj.updatedAt = nowStamp();
+  if(!caseObj.createdAt) caseObj.createdAt = nowStamp();
+}
+function getBoardSuspectChoices(){
+  const q = (document.getElementById('boardSuspectSearch')?.value || '').trim().toLowerCase();
+  return data.suspects.filter(s=>{
+    const raw = `${s.name} ${s.alias||''} ${s.org||''} ${s.type||''}`.toLowerCase();
+    return !q || raw.includes(q);
+  });
+}
+function renderBoardSuspectPicker(){
+  const box = document.getElementById('boardSuspectList');
+  if(!box) return;
+  const items = getBoardSuspectChoices();
+  box.innerHTML = items.length ? items.map(s=>`<div class="pick-item ${boardSelectedSuspectId===s.id?'active':''}" data-pick-suspect="${s.id}"><div><strong>${esc(s.name)}</strong><br><small>${esc(s.alias||'Sans alias')} · ${esc(s.org||'Sans organisation')}</small></div><small>${esc(s.type||'Suspect')}</small></div>`).join('') : '<div class="empty-panel">Aucun résultat.</div>';
+  box.querySelectorAll('[data-pick-suspect]').forEach(el=>el.onclick=()=>{ boardSelectedSuspectId = el.dataset.pickSuspect; renderBoardSuspectPicker(); });
+}
+
+function saveData(){ localStorage.setItem('bcso_enquetes_data', JSON.stringify(data)); renderCaseListStats(); }
+function uid(prefix){ return prefix + Math.random().toString(36).slice(2,9); }
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function getCase(id){ return data.cases.find(c=>c.id===id); }
+
+/* ============ TOP NAV ============ */
+document.querySelectorAll('nav.tabs > button').forEach(btn=>{
+  btn.addEventListener('click', ()=> switchMainView(btn.dataset.view));
+});
+document.getElementById('logoBtn').addEventListener('click', ()=> switchMainView('caselist'));
+document.getElementById('brandTitle').addEventListener('click', ()=> switchMainView('caselist'));
+function switchMainView(viewName){
+  if(viewName==='access' && (!currentUser || currentUser.role!=='admin')) viewName='caselist';
+  document.querySelectorAll('nav.tabs > button').forEach(b=>b.classList.toggle('active', b.dataset.view===viewName));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+viewName).classList.add('active');
+  if(viewName==='caselist') renderCaseList();
+  if(viewName==='suspects') renderSuspects();
+  if(viewName==='access') renderAccessManager();
+}
+document.getElementById('backToList').addEventListener('click', ()=>{
+  document.querySelectorAll('nav.tabs > button').forEach(b=>b.classList.toggle('active', b.dataset.view==='caselist'));
+  switchMainView('caselist');
+});
+document.querySelectorAll('.case-subheader nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    currentSub = btn.dataset.sub;
+    document.querySelectorAll('.case-subheader nav button').forEach(b=>b.classList.toggle('active', b===btn));
+    document.getElementById('sub-board').style.display = currentSub==='board' ? 'block':'none';
+    document.getElementById('sub-dossier').style.display = currentSub==='dossier' ? 'block':'none';
+    if(currentSub==='board') requestAnimationFrame(renderBoard);
+  });
+});
+
+/* ============ DOSSIERS (liste) ============ */
+function renderCaseListStats(){
+  const visible = data.cases.filter(hasCaseAccess);
+  document.getElementById('statTotal').textContent = visible.length;
+  document.getElementById('statOpen').textContent = visible.filter(c=>c.status==='en_cours').length;
+  document.getElementById('statClosed').textContent = visible.filter(c=>c.status==='classe').length;
+  document.getElementById('statCold').textContent = visible.filter(c=>c.status==='cold').length;
+  document.getElementById('statSuspectsGlobal').textContent = data.suspects.length;
+}
+function populateFilterOptions(){
+  const typeSel = document.getElementById('filterType');
+  const gangSel = document.getElementById('filterGang');
+  const types = [...new Set(data.cases.map(c=>c.type).filter(Boolean))];
+  const gangs = [...new Set(data.cases.map(c=>c.gang).filter(Boolean))];
+  typeSel.innerHTML = '<option value="">Type : tous</option>' + types.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  gangSel.innerHTML = '<option value="">Gang : tous</option>' + gangs.map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
+}
+function hasCaseAccess(c){
+  if(!currentUser) return false;
+  if(currentUser.role==='admin') return true;
+  return (currentUser.allowedCaseIds||[]).includes(c.id);
+}
+function renderCaseList(){
+  renderCaseListStats();
+  populateFilterOptions();
+  const fStatus = document.getElementById('filterStatus').value;
+  const fType = document.getElementById('filterType').value;
+  const fGang = document.getElementById('filterGang').value;
+  const grid = document.getElementById('caseGrid');
+  grid.innerHTML='';
+  const statusLabel = {en_cours:'En cours', classe:'Classé', cold:'Cold case'};
+  let list = data.cases.slice().sort((a,b)=> (b.dateCreated||'').localeCompare(a.dateCreated||''));
+  list = list.filter(hasCaseAccess);
+  list = list.filter(c=> (!fStatus||c.status===fStatus) && (!fType||c.type===fType) && (!fGang||c.gang===fGang) );
+  if(list.length===0){ grid.innerHTML = '<div class="empty-msg">Aucun dossier ne correspond, ou tu n\'as pas encore accès à un dossier. Demande à un administrateur de t\'en donner l\'accès dans "Gestion des accès".</div>'; return; }
+  list.forEach(c=>{
+    const nSuspects = countCaseSuspects(c);
+    const canDelete = currentUser && currentUser.role==='admin';
+    const tile = document.createElement('div');
+    tile.className='case-tile';
+    tile.innerHTML = `
+      ${canDelete ? '<button class="del-case" title="Supprimer">✕</button>' : ''}
+      <div class="num">${escapeHtml(c.number)}</div>
+      <h3>${escapeHtml(c.title||'(Sans titre)')}</h3>
+      <div class="meta">${escapeHtml(c.type||'')}${c.gang?' · '+escapeHtml(c.gang):''}</div>
+      <div class="meta">${nSuspects} suspect(s) liés · ${c.timeline.length} événement(s)</div>
+      <span class="status-pill status-${c.status}">${statusLabel[c.status]||c.status}</span>
+    `;
+    tile.addEventListener('click', (e)=>{ if(e.target.closest('.del-case')) return; openCase(c.id); });
+    const delBtn = tile.querySelector('.del-case');
+    if(delBtn) delBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if(confirm(`Supprimer définitivement le dossier "${c.title}" ? Cette action est irréversible.`)){
+        data.cases = data.cases.filter(x=>x.id!==c.id);
+        data.users.forEach(u=>{ u.allowedCaseIds = (u.allowedCaseIds||[]).filter(id=>id!==c.id); });
+        saveData(); renderCaseList();
+      }
+    });
+    grid.appendChild(tile);
+  });
+}
+function countCaseSuspects(c){
+  const refs = new Set(c.board.cards.filter(bc=>bc.type==='suspect').map(bc=>bc.ref));
+  return refs.size;
+}
+document.getElementById('filterStatus').addEventListener('change', renderCaseList);
+document.getElementById('filterType').addEventListener('change', renderCaseList);
+document.getElementById('filterGang').addEventListener('change', renderCaseList);
+
+document.getElementById('newCaseBtn').addEventListener('click', ()=>{
+  document.getElementById('ncTitle').value='';
+  document.getElementById('ncType').value='Braquage';
+  document.getElementById('ncGang').value='';
+  const lastAgent = data.cases.length ? data.cases[data.cases.length-1].agent : '';
+  document.getElementById('ncAgent').value = lastAgent || '';
+  openModal('modalNewCase');
+});
+document.getElementById('createCaseBtn').addEventListener('click', ()=>{
+  if(isViewer()) return;
+  const title = document.getElementById('ncTitle').value.trim() || 'Nouvelle enquête';
+  const type = document.getElementById('ncType').value;
+  const gang = document.getElementById('ncGang').value.trim();
+  const agent = document.getElementById('ncAgent').value.trim();
+  const year = new Date().getFullYear();
+  const seq = data.nextSeq || (data.cases.length+1);
+  const number = `LSSO-ID-${year}-${String(seq).padStart(4,'0')}`;
+  data.nextSeq = seq+1;
+  const newCase = Object.assign({id:uid('c'), dateCreated:new Date().toISOString(), number, title, type, status:'en_cours', gang, agent}, freshEmptyCase());
+  data.cases.push(newCase);
+  if(currentUser && currentUser.role!=='admin'){
+    currentUser.allowedCaseIds = currentUser.allowedCaseIds || [];
+    currentUser.allowedCaseIds.push(newCase.id);
+  }
+  saveData();
+  closeModal('modalNewCase');
+  openCase(newCase.id);
+});
+
+/* ============ CASE WORKSPACE ============ */
+function openCase(id){
+  const c = getCase(id);
+  if(!c || !hasCaseAccess(c)){ alert("Tu n'as pas accès à ce dossier."); return; }
+  currentCaseId = id;
+  currentSub = 'board';
+  document.querySelectorAll('nav.tabs > button').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-case').classList.add('active');
+  document.querySelectorAll('.case-subheader nav button').forEach(b=>b.classList.toggle('active', b.dataset.sub==='board'));
+  document.getElementById('sub-board').style.display='block';
+  document.getElementById('sub-dossier').style.display='none';
+  renderCaseHeader();
+  renderDossier();
+  renderBoard();
+}
+function renderCaseHeader(){
+  const c = getCase(currentCaseId); if(!c) return;
+  const statusLabel = {en_cours:'En cours', classe:'Classé', cold:'Cold case'};
+  document.getElementById('chNum').textContent = c.number;
+  document.getElementById('chTitle').textContent = c.title;
+  const pill = document.getElementById('chStatus');
+  pill.textContent = statusLabel[c.status]||c.status;
+  pill.className = 'status-pill status-'+c.status;
+}
+
+/* ============ DOSSIER TAB ============ */
+function renderDossier(){
+  const c = getCase(currentCaseId); if(!c) return;
+  document.getElementById('caseTitleInput').value = c.title;
+  document.getElementById('caseType').value = c.type;
+  document.getElementById('caseStatus').value = c.status;
+  document.getElementById('caseGang').value = c.gang;
+  document.getElementById('caseAgent').value = c.agent;
+  document.getElementById('casePreamble').value = c.preamble;
+  document.getElementById('caseTerritory').value = c.territory;
+
+  renderChips('activitiesList', c.activities, (i)=>{ c.activities.splice(i,1); saveData(); renderDossier(); });
+  renderChips('weaponsList', c.weapons, (i)=>{ c.weapons.splice(i,1); saveData(); renderDossier(); });
+
+  const tl = document.getElementById('timelineList');
+  tl.innerHTML='';
+  c.timeline.forEach((ev,i)=>{
+    const div = document.createElement('div');
+    div.className='tl-event';
+    div.innerHTML = `<button class="del-tl" title="Supprimer">✕</button><div class="date">${escapeHtml(ev.date)}</div><div class="txt" contenteditable="true">${escapeHtml(ev.txt)}</div>`;
+    div.querySelector('.del-tl').onclick = ()=>{ c.timeline.splice(i,1); saveData(); renderDossier(); };
+    div.querySelector('.txt').addEventListener('blur', (e)=>{ c.timeline[i].txt = e.target.textContent; saveData(); });
+    tl.appendChild(div);
+  });
+
+  const il = document.getElementById('interroList');
+  il.innerHTML='';
+  c.interrogations.forEach((it,i)=>{
+    const div = document.createElement('div');
+    div.className='interro-card';
+    let qaHtml = it.qa.map(p=>`<div class="qa"><b>Q:</b> ${escapeHtml(p.q)}<br><b>R:</b> ${escapeHtml(p.a)}</div>`).join('');
+    div.innerHTML = `<button class="del-tl" title="Supprimer">✕</button><div class="who">${escapeHtml(it.name)}</div><div class="meta">${it.weapon ? 'Arme saisie : '+escapeHtml(it.weapon):''}</div>${qaHtml}`;
+    div.querySelector('.del-tl').onclick = ()=>{ c.interrogations.splice(i,1); saveData(); renderDossier(); };
+    il.appendChild(div);
+  });
+
+  renderCaseAccessSection(c);
+  lockFieldsIfViewer(document.getElementById('sub-dossier'));
+}
+function renderCaseAccessSection(c){
+  const folder = document.getElementById('caseAccessFolder');
+  const isAdmin = currentUser && currentUser.role==='admin';
+  folder.style.display = isAdmin ? 'block' : 'none';
+  if(!isAdmin) return;
+  const wrap = document.getElementById('caseAccessList');
+  const nonAdminUsers = data.users.filter(u=>u.role!=='admin');
+  if(nonAdminUsers.length===0){
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--ink-soft);">Aucun compte utilisateur (hors admin) n\'a encore été créé. Crée-en un dans "Gestion des accès".</div>';
+    return;
+  }
+  wrap.innerHTML = `<div class="case-check-grid">${nonAdminUsers.map(u=>`
+    <label class="case-check-item">
+      <input type="checkbox" data-username="${escapeHtml(u.username)}" ${ (u.allowedCaseIds||[]).includes(c.id) ? 'checked':'' }>
+      ${escapeHtml(u.username)}
+    </label>`).join('')}</div>`;
+  wrap.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const u = findUser(cb.dataset.username);
+      if(!u) return;
+      u.allowedCaseIds = u.allowedCaseIds || [];
+      if(cb.checked){ if(!u.allowedCaseIds.includes(c.id)) u.allowedCaseIds.push(c.id); }
+      else { u.allowedCaseIds = u.allowedCaseIds.filter(id=>id!==c.id); }
+      saveData();
+    });
+  });
+}
+function renderChips(elId, arr, onDel){
+  const el = document.getElementById(elId);
+  el.innerHTML='';
+  arr.forEach((txt,i)=>{
+    const chip = document.createElement('span');
+    chip.className='chip';
+    chip.innerHTML = `${escapeHtml(txt)}<button>✕</button>`;
+    chip.querySelector('button').onclick = ()=>onDel(i);
+    el.appendChild(chip);
+  });
+}
+['caseTitleInput','caseGang','caseAgent'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', e=>{
+    const c = getCase(currentCaseId); if(!c) return;
+    if(id==='caseTitleInput'){ c.title = e.target.value; renderCaseHeader(); }
+    if(id==='caseGang') c.gang = e.target.value;
+    if(id==='caseAgent') c.agent = e.target.value;
+    saveData();
+  });
+});
+document.getElementById('caseType').addEventListener('change', e=>{ const c=getCase(currentCaseId); if(c){ c.type=e.target.value; saveData(); } });
+document.getElementById('caseStatus').addEventListener('change', e=>{ const c=getCase(currentCaseId); if(c){ c.status=e.target.value; saveData(); renderCaseHeader(); } });
+document.getElementById('casePreamble').addEventListener('blur', e=>{ const c=getCase(currentCaseId); if(c){ c.preamble=e.target.value; saveData(); } });
+document.getElementById('caseTerritory').addEventListener('blur', e=>{ const c=getCase(currentCaseId); if(c){ c.territory=e.target.value; saveData(); } });
+
+document.getElementById('addActivityBtn').onclick = ()=>{
+  const c=getCase(currentCaseId); if(!c) return;
+  const v = document.getElementById('newActivity').value.trim();
+  if(v){ c.activities.push(v); document.getElementById('newActivity').value=''; saveData(); renderDossier(); }
+};
+document.getElementById('addWeaponBtn').onclick = ()=>{
+  const c=getCase(currentCaseId); if(!c) return;
+  const v = document.getElementById('newWeapon').value.trim();
+  if(v){ c.weapons.push(v); document.getElementById('newWeapon').value=''; saveData(); renderDossier(); }
+};
+document.getElementById('addTlBtn').onclick = ()=>{
+  const c=getCase(currentCaseId); if(!c) return;
+  const d = document.getElementById('newTlDate').value.trim();
+  const t = document.getElementById('newTlTxt').value.trim();
+  if(t){ c.timeline.push({date:d||'—', txt:t}); document.getElementById('newTlDate').value=''; document.getElementById('newTlTxt').value=''; saveData(); renderDossier(); }
+};
+document.getElementById('addInterroBtn').onclick = ()=> openModal('modalInterro');
+document.getElementById('saveInterroBtn').onclick = ()=>{
+  if(isViewer()) return;
+  const c=getCase(currentCaseId); if(!c) return;
+  const name = document.getElementById('mInterroName').value.trim();
+  const weapon = document.getElementById('mInterroWeapon').value.trim();
+  const raw = document.getElementById('mInterroQA').value.trim();
+  if(!name) return;
+  const qa=[];
+  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+  for(let i=0;i<lines.length;i++){
+    if(/^Q\s*:/i.test(lines[i])){
+      const q = lines[i].replace(/^Q\s*:/i,'').trim();
+      let a='';
+      if(lines[i+1] && /^R\s*:/i.test(lines[i+1])){ a = lines[i+1].replace(/^R\s*:/i,'').trim(); i++; }
+      qa.push({q,a});
+    }
+  }
+  c.interrogations.push({name, weapon, qa});
+  saveData(); renderDossier();
+  document.getElementById('mInterroName').value='';
+  document.getElementById('mInterroWeapon').value='';
+  document.getElementById('mInterroQA').value='';
+  closeModal('modalInterro');
+};
+
+/* ============ SUSPECTS (base globale) ============ */
+function renderDangerDotsStr(level){
+  let dots='';
+  for(let d=1; d<=5; d++) dots += `<span class="dots-dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:2px;background:${d<=(level||0)?'var(--string)':'#c9b587'};"></span>`;
+  return dots;
+}
+function openSuspectSummary(id){
+  const s = data.suspects.find(x => x.id === id);
+  if(!s) return;
+  const el = document.getElementById('suspectSummaryContent');
+  el.innerHTML = `
+    <div class="summary-grid">
+      <div class="summary-item"><div class="k">Nom</div><div class="v">${escapeHtml(s.name||'')}</div></div>
+      <div class="summary-item"><div class="k">Alias</div><div class="v">${escapeHtml(s.alias||'—')}</div></div>
+      <div class="summary-item"><div class="k">Type</div><div class="v">${escapeHtml(s.type||'—')}</div></div>
+      <div class="summary-item"><div class="k">Dangerosité</div><div class="v">${renderDangerDotsStr(s.danger)}</div></div>
+      <div class="summary-item" style="grid-column:1/-1;">
+        <div class="k">Organisation liée</div>
+        <div class="v">${escapeHtml(s.org||'—')}</div>
+      </div>
+    </div>
+    <div class="summary-note">
+      <div class="k">Notes</div>
+      ${escapeHtml(s.notes||'Aucune note.').replace(/\n/g,'<br>')}
+    </div>
+  `;
+  document.getElementById('summaryOpenFullBtn').onclick = ()=>{
+    closeModal('modalSuspectSummary');
+    openSuspectDetail(s.id);
+  };
+  openModal('modalSuspectSummary');
+}
+function renderSuspects(){
+  const grid = document.getElementById('suspectsGrid');
+  grid.innerHTML='';
+  if(data.suspects.length===0){ grid.innerHTML = '<div class="empty-msg">Aucune fiche enregistrée.</div>'; return; }
+  data.suspects.forEach((s,i)=>{
+    const card = document.createElement('div');
+    card.className='suspect-card';
+    let dots='';
+    for(let d=1; d<=5; d++) dots += `<span class="${d<=(s.danger||0)?'on':''}"></span>`;
+    card.innerHTML = `
+      <button class="del-s" title="Supprimer">✕</button>
+      <h3>${escapeHtml(s.name)}</h3>
+      ${s.alias?`<div class="alias">alias "${escapeHtml(s.alias)}"</div>`:''}
+      <span class="tag">${escapeHtml(s.type||'Suspect')}</span>
+      ${s.org?`<span class="tag">${escapeHtml(s.org)}</span>`:''}
+      <div class="danger">Dangerosité : <span class="dots">${dots}</span></div>
+      <button class="btn open-s">Ouvrir la fiche complète</button>
+    `;
+    card.querySelector('.del-s').onclick=(e)=>{ e.stopPropagation(); if(confirm('Supprimer cette fiche ?')){ data.suspects.splice(i,1); saveData(); renderSuspects(); } };
+    card.querySelector('.open-s').onclick=(e)=>{ e.stopPropagation(); openSuspectDetail(s.id); };
+    card.addEventListener('click', (e)=>{
+      if(e.target.closest('.del-s') || e.target.closest('.open-s')) return;
+      openSuspectSummary(s.id);
+    });
+    card.style.cursor='pointer';
+    grid.appendChild(card);
+  });
+}
+document.getElementById('addSuspectBtn').onclick = ()=>{
+  document.getElementById('nsType').value='Suspect';
+  document.getElementById('nsName').value='';
+  document.getElementById('nsAlias').value='';
+  document.getElementById('nsOrg').value='';
+  document.getElementById('nsDanger').value=2;
+  document.getElementById('nsNotes').value='';
+  openModal('modalSuspect');
+};
+document.getElementById('saveSuspectBtn').onclick = ()=>{
+  if(isViewer()) return;
+  const name = document.getElementById('nsName').value.trim();
+  if(!name){ alert('Le nom est obligatoire.'); return; }
+  const newSuspect = {
+    id:uid('s'), type:document.getElementById('nsType').value,
+    name, alias:document.getElementById('nsAlias').value.trim(),
+    org:document.getElementById('nsOrg').value.trim(),
+    danger: parseInt(document.getElementById('nsDanger').value,10)||1,
+    notes: document.getElementById('nsNotes').value.trim(),
+    vehicles:[], customTexts:[], arrestImages:[], birdyImages:[]
+  };
+  data.suspects.push(newSuspect);
+  const btn = document.getElementById('saveSuspectBtn');
+  if(btn.dataset.addToBoard === 'true'){
+    btn.dataset.addToBoard = 'false';
+    const c = getCase(currentCaseId);
+    if(c){
+      c.board.cards.push({id:uid('b'), type:'suspect', ref:newSuspect.id, x:60+Math.random()*200, y:60+Math.random()*200});
+      renderBoard();
+    }
+  }
+  saveData(); renderSuspects(); closeModal('modalSuspect');
+};
+
+/* ---- Fiche détaillée ---- */
+let currentSuspectDetailId = null;
+function openSuspectDetail(id){
+  currentSuspectDetailId = id;
+  renderSuspectDetail();
+  openModal('modalSuspectDetail');
+}
+function getCurrentSuspect(){ return data.suspects.find(x=>x.id===currentSuspectDetailId); }
+function renderSuspectDetail(){
+  const s = getCurrentSuspect(); if(!s) return;
+  document.getElementById('sdName').textContent = s.name || 'Fiche';
+  document.getElementById('sdNameInput').value = s.name;
+  document.getElementById('sdAlias').value = s.alias;
+  document.getElementById('sdType').value = s.type||'Suspect';
+  document.getElementById('sdOrg').value = s.org;
+  renderDangerPicker(s);
+  document.getElementById('sdNotes').value = s.notes||'';
+
+  renderChips('sdVehicles', s.vehicles, (i)=>{ s.vehicles.splice(i,1); saveData(); renderSuspectDetail(); renderBoard(); });
+
+  const ctWrap = document.getElementById('sdCustomTexts');
+  ctWrap.innerHTML='';
+  (s.customTexts||[]).forEach((ct,i)=>{
+    const div = document.createElement('div');
+    div.className='custom-text-block';
+    div.innerHTML = `<button class="del-ct" title="Supprimer">✕</button>
+      <input class="ct-title" value="${escapeHtml(ct.title)}" placeholder="Titre de la zone (ex : Antécédents)">
+      <textarea class="ct-content" placeholder="Texte libre…">${escapeHtml(ct.content)}</textarea>`;
+    div.querySelector('.del-ct').onclick=()=>{ s.customTexts.splice(i,1); saveData(); renderSuspectDetail(); };
+    div.querySelector('.ct-title').addEventListener('blur', e=>{ ct.title=e.target.value; saveData(); });
+    div.querySelector('.ct-content').addEventListener('blur', e=>{ ct.content=e.target.value; saveData(); });
+    ctWrap.appendChild(div);
+  });
+
+  renderImgGallery('sdArrestImages', s.arrestImages, s);
+  renderImgGallery('sdBirdyImages', s.birdyImages, s);
+  lockFieldsIfViewer(document.getElementById('modalSuspectDetail'));
+}
+function renderImgGallery(elId, arr, s){
+  const wrap = document.getElementById(elId);
+  wrap.innerHTML='';
+  arr.forEach((img,i)=>{
+    const div = document.createElement('div');
+    div.className='img-thumb';
+    div.innerHTML = `<button class="del-img" title="Supprimer">✕</button>
+      <img src="${img.dataUrl}">
+      <input class="caption" placeholder="Légende…" value="${escapeHtml(img.caption||'')}">`;
+    div.querySelector('img').addEventListener('click', ()=>{
+      document.getElementById('imgViewerSrc').src = img.dataUrl;
+      openModal('modalImgViewer');
+    });
+    div.querySelector('.del-img').onclick=()=>{ arr.splice(i,1); saveData(); renderSuspectDetail(); };
+    div.querySelector('.caption').addEventListener('blur', e=>{ img.caption=e.target.value; saveData(); });
+    wrap.appendChild(div);
+  });
+}
+function renderDangerPicker(s){
+  const picker = document.getElementById('sdDangerPicker');
+  picker.querySelectorAll('.dpick-dot').forEach(dot=>{
+    const val = parseInt(dot.dataset.val, 10);
+    dot.classList.toggle('on', val <= (s.danger||0));
+    dot.onclick = ()=>{
+      if(isViewer()) return;
+      s.danger = val;
+      saveData();
+      renderDangerPicker(s);
+      renderSuspects();
+      renderBoard();
+    };
+  });
+}
+['sdNameInput','sdAlias','sdOrg'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', e=>{
+    const s = getCurrentSuspect(); if(!s) return;
+    if(id==='sdNameInput'){ s.name=e.target.value; document.getElementById('sdName').textContent=s.name; renderBoard(); }
+    if(id==='sdAlias') s.alias=e.target.value;
+    if(id==='sdOrg') s.org=e.target.value;
+    saveData();
+  });
+});
+document.getElementById('sdType').addEventListener('change', e=>{ const s=getCurrentSuspect(); if(s){ s.type=e.target.value; saveData(); } });
+document.getElementById('sdNotes').addEventListener('blur', e=>{ const s=getCurrentSuspect(); if(s){ s.notes=e.target.value; saveData(); renderBoard(); } });
+document.getElementById('sdAddVehicleBtn').onclick=()=>{
+  const s=getCurrentSuspect(); if(!s) return;
+  const v = document.getElementById('sdNewVehicle').value.trim();
+  if(v){ s.vehicles.push(v); document.getElementById('sdNewVehicle').value=''; saveData(); renderSuspectDetail(); }
+};
+document.getElementById('sdAddCustomTextBtn').onclick=()=>{
+  const s=getCurrentSuspect(); if(!s) return;
+  s.customTexts.push({id:uid('t'), title:'Nouvelle zone', content:''});
+  saveData(); renderSuspectDetail();
+};
+function wireImgUpload(btnId, inputId, arrKey){
+  document.getElementById(btnId).onclick = ()=> document.getElementById(inputId).click();
+  document.getElementById(inputId).addEventListener('change', (e)=>{
+    const s = getCurrentSuspect(); if(!s) return;
+    const files = Array.from(e.target.files);
+    let remaining = files.length;
+    if(remaining===0) return;
+    files.forEach(file=>{
+      compressImage(file, (dataUrl)=>{
+        s[arrKey].push({id:uid('img'), dataUrl, caption:''});
+        remaining--;
+        if(remaining===0){ saveData(); renderSuspectDetail(); }
+      });
+    });
+    e.target.value='';
+  });
+}
+function compressImage(file, callback){
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const maxW = 900;
+      let w = img.width, h = img.height;
+      if(w > maxW){ h = Math.round(h*(maxW/w)); w = maxW; }
+      const canvas = document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      callback(canvas.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = ()=> alert("Impossible de lire cette image.");
+    img.src = e.target.result;
+  };
+  reader.onerror = ()=> alert("Impossible de lire ce fichier.");
+  reader.readAsDataURL(file);
+}
+wireImgUpload('sdAddArrestImgBtn','sdArrestImgInput','arrestImages');
+wireImgUpload('sdAddBirdyImgBtn','sdBirdyImgInput','birdyImages');
+
+/* ============ BOARD ============ */
+let zoom=1, panX=0, panY=0;
+let linkModeOn=false, firstLinkCard=null;
+let dragCard=null, dragOffset={x:0,y:0};
+let panning=false, panStart={x:0,y:0};
+
+function boardCard(bc){
+  const c = getCase(currentCaseId);
+  const div = document.createElement('div');
+  div.className='pin-card'+(bc.type==='note'?' note':'')+(bc.type==='photo'?' photo':'');
+  div.style.left=bc.x+'px'; div.style.top=bc.y+'px';
+  div.dataset.id=bc.id;
+  if(bc.type==='suspect'){
+    const s = data.suspects.find(x=>x.id===bc.ref);
+    if(!s){ return null; }
+    div.innerHTML=`<button class="del">✕</button><h4>${escapeHtml(s.name)}</h4><div class="role">${escapeHtml(s.type)}${s.alias?' · "'+escapeHtml(s.alias)+'"':''}</div><div class="note-txt">${escapeHtml(s.notes||'')}</div>`;
+  } else if(bc.type==='photo'){
+    div.innerHTML=`<button class="del">✕</button><img class="pin-photo" src="${bc.dataUrl}"><div class="note-txt" contenteditable="true">${escapeHtml(bc.caption||'')}</div>`;
+    div.querySelector('.pin-photo').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      document.getElementById('imgViewerSrc').src = bc.dataUrl;
+      openModal('modalImgViewer');
+    });
+    div.querySelector('.note-txt').addEventListener('blur', e=>{ bc.caption=e.target.textContent; saveData(); });
+  } else {
+    div.innerHTML=`<button class="del">✕</button><h4 contenteditable="true">${escapeHtml(bc.title||'Note')}</h4><div class="note-txt" contenteditable="true">${escapeHtml(bc.text||'')}</div>`;
+    div.querySelector('h4').addEventListener('blur', e=>{ bc.title=e.target.textContent; saveData(); });
+    div.querySelector('.note-txt').addEventListener('blur', e=>{ bc.text=e.target.textContent; saveData(); });
+  }
+  div.querySelector('.del').onclick=(e)=>{
+    e.stopPropagation();
+    c.board.cards = c.board.cards.filter(x=>x.id!==bc.id);
+    c.board.links = c.board.links.filter(l=>l[0]!==bc.id && l[1]!==bc.id);
+    saveData(); renderBoard();
+  };
+  if(bc.type==='suspect'){
+    div.addEventListener('dblclick', (e)=>{
+      if(e.target.closest('.del')) return;
+      openSuspectSummary(bc.ref);
+    });
+  }
+  div.addEventListener('mousedown', (e)=>{
+    if(isViewer()) return;
+    if(e.target.closest('.del') || e.target.isContentEditable) return;
+    if(linkModeOn){
+      e.stopPropagation();
+      if(!firstLinkCard){ firstLinkCard=bc.id; div.classList.add('linking'); }
+      else if(firstLinkCard!==bc.id){ c.board.links.push([firstLinkCard, bc.id]); firstLinkCard=null; saveData(); renderBoard(); }
+      return;
+    }
+    e.stopPropagation();
+    dragCard = bc;
+    const rect = div.getBoundingClientRect();
+    dragOffset.x = (e.clientX - rect.left)/zoom;
+    dragOffset.y = (e.clientY - rect.top)/zoom;
+  });
+  return div;
+}
+function renderBoard(){
+  const c = getCase(currentCaseId); if(!c) return;
+  const canvas = document.getElementById('boardCanvas');
+  canvas.querySelectorAll('.pin-card').forEach(n=>n.remove());
+  c.board.cards.forEach(bc=>{ const el = boardCard(bc); if(el) canvas.appendChild(el); });
+  drawLinks();
+  applyTransform();
+  lockFieldsIfViewer(document.getElementById('boardCanvas'));
+}
+function drawLinks(){
+  const c = getCase(currentCaseId); if(!c) return;
+  const svg = document.getElementById('linkSvg');
+  svg.innerHTML='';
+  c.board.links.forEach(([a,b])=>{
+    const ca = c.board.cards.find(x=>x.id===a);
+    const cb = c.board.cards.find(x=>x.id===b);
+    if(!ca||!cb) return;
+    const x1=ca.x+100, y1=ca.y+40, x2=cb.x+100, y2=cb.y+40;
+
+    const visual = document.createElementNS('http://www.w3.org/2000/svg','line');
+    visual.setAttribute('x1',x1); visual.setAttribute('y1',y1);
+    visual.setAttribute('x2',x2); visual.setAttribute('y2',y2);
+    visual.setAttribute('stroke','#9c1f1f'); visual.setAttribute('stroke-width','2.5');
+    visual.setAttribute('style','pointer-events:none;');
+    svg.appendChild(visual);
+
+    // wide, near-invisible line layered on top so the link is much easier to click/tap,
+    // with a translucent highlight on hover so you can see exactly what you're about to remove
+    const hit = document.createElementNS('http://www.w3.org/2000/svg','line');
+    hit.setAttribute('x1',x1); hit.setAttribute('y1',y1);
+    hit.setAttribute('x2',x2); hit.setAttribute('y2',y2);
+    hit.setAttribute('stroke','#ff5555'); hit.setAttribute('stroke-width','16');
+    hit.setAttribute('stroke-opacity','0');
+    hit.setAttribute('style', isViewer() ? 'pointer-events:none;' : 'pointer-events:auto;cursor:pointer;');
+    hit.addEventListener('mouseenter', ()=> hit.setAttribute('stroke-opacity','0.35'));
+    hit.addEventListener('mouseleave', ()=> hit.setAttribute('stroke-opacity','0'));
+    hit.addEventListener('click', ()=>{
+      if(isViewer()) return;
+      customConfirm('Ce fil rouge sera retiré du tableau.', ()=>{
+        c.board.links = c.board.links.filter(l=>!(l[0]===a&&l[1]===b)); saveData(); renderBoard();
+      });
+    });
+    svg.appendChild(hit);
+  });
+}
+function cardLabel(bc){
+  if(!bc) return '(élément supprimé)';
+  if(bc.type==='suspect'){
+    const s = data.suspects.find(x=>x.id===bc.ref);
+    return s ? (s.name + (s.alias?' ("'+s.alias+'")':'')) : '(fiche supprimée)';
+  }
+  return bc.title || 'Note sans titre';
+}
+function renderLinksManager(){
+  const c = getCase(currentCaseId); if(!c) return;
+  const wrap = document.getElementById('linksListWrap');
+  wrap.innerHTML='';
+  if(c.board.links.length===0){ wrap.innerHTML = '<div class="empty-panel">Aucun fil rouge sur ce tableau pour l\'instant.</div>'; return; }
+  c.board.links.forEach(([a,b],i)=>{
+    const ca = c.board.cards.find(x=>x.id===a);
+    const cb = c.board.cards.find(x=>x.id===b);
+    const row = document.createElement('div');
+    row.className='pick-item';
+    row.style.cursor='default';
+    row.innerHTML = `<span>${escapeHtml(cardLabel(ca))} &nbsp;🧵&nbsp; ${escapeHtml(cardLabel(cb))}</span><button class="btn danger" style="padding:5px 10px;">Supprimer</button>`;
+    row.querySelector('button').onclick = ()=>{
+      c.board.links.splice(i,1);
+      saveData(); renderBoard(); renderLinksManager();
+    };
+    wrap.appendChild(row);
+  });
+}
+document.getElementById('manageLinksBtn').addEventListener('click', ()=>{
+  renderLinksManager();
+  openModal('modalManageLinks');
+});
+function applyTransform(){ document.getElementById('boardCanvas').style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`; }
+
+const boardWrap = document.getElementById('boardWrap');
+boardWrap.addEventListener('mousemove', (e)=>{
+  if(dragCard){
+    const wrapRect = boardWrap.getBoundingClientRect();
+    const x = (e.clientX - wrapRect.left - panX)/zoom - dragOffset.x;
+    const y = (e.clientY - wrapRect.top - panY)/zoom - dragOffset.y;
+    dragCard.x = Math.max(0,x); dragCard.y = Math.max(0,y);
+    const el = boardWrap.querySelector(`.pin-card[data-id="${dragCard.id}"]`);
+    if(el){ el.style.left=dragCard.x+'px'; el.style.top=dragCard.y+'px'; }
+    drawLinks();
+  } else if(panning){ panX = e.clientX - panStart.x; panY = e.clientY - panStart.y; applyTransform(); }
+});
+window.addEventListener('mouseup', ()=>{ if(dragCard) saveData(); dragCard=null; panning=false; boardWrap.classList.remove('panning'); });
+boardWrap.addEventListener('mousedown', (e)=>{
+  if(e.target===boardWrap || e.target.id==='boardCanvas' || e.target.id==='linkSvg'){
+    panning=true; panStart={x:e.clientX-panX, y:e.clientY-panY}; boardWrap.classList.add('panning');
+  }
+});
+boardWrap.addEventListener('wheel', (e)=>{
+  e.preventDefault();
+  const delta = e.deltaY>0?-0.08:0.08;
+  zoom = Math.min(2.5, Math.max(0.3, zoom+delta));
+  applyTransform();
+},{passive:false});
+document.getElementById('zoomIn').onclick=()=>{ zoom=Math.min(2.5,zoom+0.15); applyTransform(); };
+document.getElementById('zoomOut').onclick=()=>{ zoom=Math.max(0.3,zoom-0.15); applyTransform(); };
+document.getElementById('zoomReset').onclick=()=>{ zoom=1; panX=0; panY=0; applyTransform(); };
+document.getElementById('addNote').onclick=()=>{
+  const c=getCase(currentCaseId); if(!c) return;
+  c.board.cards.push({id:uid('b'), type:'note', title:'Nouvelle note', text:'', x: 60+Math.random()*200, y:60+Math.random()*200});
+  saveData(); renderBoard();
+};
+document.getElementById('addSuspectCard').onclick=()=>{
+  const c=getCase(currentCaseId); if(!c) return;
+  openModal('modalBoardSuspectPicker');
+  document.getElementById('boardSuspectSearch').value='';
+  renderBoardSuspectPicker();
+};
+document.getElementById('addPhotoCard').onclick=()=>{
+  const c=getCase(currentCaseId); if(!c) return;
+  document.getElementById('boardPhotoInput').click();
+};
+document.getElementById('boardPhotoInput').addEventListener('change', (e)=>{
+  const c=getCase(currentCaseId); if(!c) return;
+  const files = Array.from(e.target.files);
+  if(files.length===0) return;
+  let offset = 0;
+  files.forEach(file=>{
+    compressImage(file, (dataUrl)=>{
+      c.board.cards.push({id:uid('b'), type:'photo', dataUrl, caption:'', x:80+offset, y:80+offset});
+      offset += 30;
+      saveData(); renderBoard();
+    });
+  });
+  e.target.value='';
+});
+function renderBoardSuspectPicker(){
+  const list = document.getElementById('boardSuspectList');
+  const choices = getBoardSuspectChoices();
+  list.innerHTML='';
+  const createBtn = document.createElement('div');
+  createBtn.className='pick-item';
+  createBtn.style.borderStyle='dashed';
+  createBtn.innerHTML = '<span>+ Créer une nouvelle fiche…</span>';
+  createBtn.onclick = ()=>{
+    closeModal('modalBoardSuspectPicker');
+    document.getElementById('nsType').value='Suspect';
+    document.getElementById('nsName').value='';
+    document.getElementById('nsAlias').value='';
+    document.getElementById('nsOrg').value='';
+    document.getElementById('nsDanger').value=2;
+    document.getElementById('nsNotes').value='';
+    document.getElementById('saveSuspectBtn').dataset.addToBoard='true';
+    openModal('modalSuspect');
+  };
+  list.appendChild(createBtn);
+  if(choices.length===0){
+    const empty = document.createElement('div');
+    empty.className='pick-item';
+    empty.innerHTML = '<span style="opacity:.7;">Aucune fiche existante. Crée-en une ci-dessus.</span>';
+    list.appendChild(empty);
+    return;
+  }
+  choices.forEach(s=>{
+    const item = document.createElement('div');
+    item.className='pick-item';
+    item.innerHTML = `<span>${escapeHtml(s.name)}${s.alias?' ('+escapeHtml(s.alias)+')':''}</span><small>${escapeHtml(s.org||'')}</small>`;
+    item.onclick = ()=>{
+      const c=getCase(currentCaseId); if(!c) return;
+      c.board.cards.push({id:uid('b'), type:'suspect', ref:s.id, x:60+Math.random()*200, y:60+Math.random()*200});
+      saveData(); renderBoard(); closeModal('modalBoardSuspectPicker');
+    };
+    list.appendChild(item);
+  });
+}
+document.getElementById('boardSuspectSearch')?.addEventListener('input', renderBoardSuspectPicker);
+document.getElementById('confirmBoardSuspectBtn')?.addEventListener('click', ()=>closeModal('modalBoardSuspectPicker'));
+document.getElementById('linkMode').onclick=(e)=>{
+  linkModeOn=!linkModeOn; firstLinkCard=null;
+  e.target.style.background = linkModeOn? 'var(--string)':'';
+  e.target.style.color = linkModeOn? '#fff':'';
+  renderBoard();
+};
+
+/* ============ EXPORT / IMPORT / RESET ============ */
+document.getElementById('btnExport').onclick=()=>{
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bcso-enquetes-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+};
+document.getElementById('btnImportTrigger').onclick=()=> document.getElementById('btnImport').click();
+document.getElementById('btnImport').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      const imported = JSON.parse(ev.target.result);
+      if(!imported.cases || !imported.suspects){ alert("Fichier invalide pour ce format."); return; }
+      data = normalizeData(imported);
+      saveData();
+      switchMainView('caselist');
+      alert('Dossiers importés avec succès.');
+    }catch(err){ alert("Fichier invalide."); }
+  };
+  reader.readAsText(file);
+  e.target.value='';
+});
+document.getElementById('btnReset').onclick=()=>{
+  if(confirm("Réinitialiser TOUS les dossiers et la base suspects ? Cette action est irréversible (pense à exporter avant). Les comptes utilisateurs ne sont pas affectés.")){
+    const keepUsers = data.users;
+    data = normalizeData({ nextSeq:2, cases:[Object.assign({id:'c1', dateCreated:new Date().toISOString(), board:JSON.parse(JSON.stringify(LEGACY_LDS_BOARD))}, LEGACY_LDS_CASE)], suspects:JSON.parse(JSON.stringify(LEGACY_LDS_SUSPECTS)), users:keepUsers });
+    saveData();
+    switchMainView('caselist');
+  }
+};
+
+/* ============ GESTION DES ACCÈS (admin) ============ */
+function renderAccessManager(){
+  const wrap = document.getElementById('usersList');
+  wrap.innerHTML='';
+  data.users.forEach(u=>{
+    const row = document.createElement('div');
+    row.className='user-row';
+    const isAdmin = u.role==='admin';
+    const isViewerRole = u.role==='viewer';
+    const roleLabel = isAdmin ? 'Admin' : (isViewerRole ? 'Lecture seule' : 'Utilisateur');
+    const isSelf = currentUser && currentUser.username===u.username;
+    row.innerHTML = `
+      <div class="user-row-head">
+        <strong>${escapeHtml(u.username)}</strong>
+        <span class="role-badge ${isAdmin?'admin':''} ${isViewerRole?'viewer':''}">${roleLabel}</span>
+        <div class="user-row-actions">
+          <button class="btn" data-act="pass">Changer le mot de passe</button>
+          <button class="btn danger" data-act="del">Supprimer</button>
+        </div>
+      </div>
+      ${isAdmin
+        ? '<div style="font-size:12px;color:var(--ink-soft);">Accès à tous les dossiers (compte admin).</div>'
+        : `<div class="case-check-grid">${
+            data.cases.length===0
+              ? '<span style="font-size:12px;color:var(--ink-soft);">Aucun dossier créé pour l\'instant.</span>'
+              : data.cases.map(c=>`
+                <label class="case-check-item">
+                  <input type="checkbox" data-case-id="${c.id}" ${ (u.allowedCaseIds||[]).includes(c.id) ? 'checked':'' }>
+                  ${escapeHtml(c.title)} <span style="opacity:.6;">(${escapeHtml(c.number)})</span>
+                </label>`).join('')
+          }</div>`
+      }
+    `;
+    row.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const caseId = cb.dataset.caseId;
+        u.allowedCaseIds = u.allowedCaseIds || [];
+        if(cb.checked){ if(!u.allowedCaseIds.includes(caseId)) u.allowedCaseIds.push(caseId); }
+        else { u.allowedCaseIds = u.allowedCaseIds.filter(id=>id!==caseId); }
+        saveData();
+      });
+    });
+    row.querySelector('[data-act="pass"]').addEventListener('click', ()=>{
+      const newPass = prompt(`Nouveau mot de passe pour "${u.username}" :`);
+      if(newPass){ u.passwordHash = hashString(newPass); saveData(); alert('Mot de passe mis à jour.'); }
+    });
+    row.querySelector('[data-act="del"]').addEventListener('click', ()=>{
+      if(isSelf){ alert("Tu ne peux pas supprimer le compte avec lequel tu es actuellement connecté."); return; }
+      const adminCount = data.users.filter(x=>x.role==='admin').length;
+      if(isAdmin && adminCount<=1){ alert("Impossible de supprimer ce compte : c'est le dernier compte admin restant. Crée ou promeus un autre admin d'abord, sinon plus personne ne pourra gérer les accès."); return; }
+      customConfirm(`Le compte "${u.username}" sera supprimé définitivement.`, ()=>{
+        data.users = data.users.filter(x=>x.username!==u.username);
+        saveData(); renderAccessManager();
+      });
+    });
+    wrap.appendChild(row);
+  });
+}
+document.getElementById('createUserBtn').addEventListener('click', ()=>{
+  const username = document.getElementById('newUserName').value.trim();
+  const password = document.getElementById('newUserPass').value;
+  const role = document.getElementById('newUserRole').value;
+  if(!username || !password){ alert('Identifiant et mot de passe sont obligatoires.'); return; }
+  if(findUser(username)){ alert('Cet identifiant existe déjà.'); return; }
+  data.users.push({id:uid('u'), username, passwordHash:hashString(password), role, allowedCaseIds:[]});
+  saveData();
+  document.getElementById('newUserName').value='';
+  document.getElementById('newUserPass').value='';
+  document.getElementById('newUserRole').value='user';
+  renderAccessManager();
+});
+
+/* ============ MODAL ============ */
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+/* Boîte de confirmation stylisée (remplace window.confirm pour rester dans le thème du site) */
+function customConfirm(message, onYes, opts={}){
+  document.getElementById('confirmMessage').textContent = message;
+  document.getElementById('confirmTitle').textContent = opts.title || 'Confirmer la suppression';
+  document.getElementById('confirmYesBtn').textContent = opts.confirmLabel || 'Supprimer';
+  const yesBtn = document.getElementById('confirmYesBtn');
+  const cancelBtn = document.getElementById('confirmCancelBtn');
+  const newYes = yesBtn.cloneNode(true);
+  yesBtn.parentNode.replaceChild(newYes, yesBtn);
+  newYes.addEventListener('click', ()=>{ closeModal('modalConfirm'); onYes(); });
+  cancelBtn.onclick = ()=> closeModal('modalConfirm');
+  openModal('modalConfirm');
+}
+
+/* ============ INIT ============ */
+if(!data.cases || data.cases.length===0){ data.cases=[]; }
+if(!data.suspects) data.suspects=[];
+if(!data.nextSeq) data.nextSeq = data.cases.length+1;
+document.getElementById('btnLogout').addEventListener('click', logout);
+initAuth();
+renderCaseList();
+</script>
+</body>
+</html>
