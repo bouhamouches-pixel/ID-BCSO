@@ -240,6 +240,26 @@ footer.confidential{text-align:center;padding:20px;color:var(--paper);opacity:.5
 .user-row-head strong{font-family:'Special Elite',monospace;color:var(--string);font-size:15px;}
 .role-badge{font-size:10.5px;text-transform:uppercase;padding:2px 9px;border-radius:10px;font-family:'Courier New',monospace;background:var(--gold);color:#2a1c05;}
 .role-badge.admin{background:var(--string);color:#fff;}
+.role-badge.viewer{background:var(--status-cold);color:#fff;}
+
+/* ===== Mode lecture seule (rôle "viewer") ===== */
+.role-viewer #newCaseBtn, .role-viewer #addNote, .role-viewer #addSuspectCard,
+.role-viewer #linkMode, .role-viewer #manageLinksBtn,
+.role-viewer #addActivityBtn, .role-viewer #addWeaponBtn, .role-viewer #addTlBtn, .role-viewer #addInterroBtn,
+.role-viewer #addSuspectBtn, .role-viewer #sdAddVehicleBtn, .role-viewer #sdAddCustomTextBtn,
+.role-viewer #sdAddArrestImgBtn, .role-viewer #sdAddBirdyImgBtn,
+.role-viewer #btnImportTrigger, .role-viewer #btnReset,
+.role-viewer .add-inline,
+.role-viewer .del, .role-viewer .del-s, .role-viewer .del-tl, .role-viewer .del-ct,
+.role-viewer .del-img, .role-viewer .del-case, .role-viewer .chip button {
+  display:none !important;
+}
+.role-viewer input[readonly], .role-viewer textarea[readonly],
+.role-viewer select:disabled {
+  background:#e4d7b8; color:#6a5a42; cursor:not-allowed; opacity:.85;
+}
+.role-viewer .pin-card{ cursor:default; }
+.role-viewer .suspect-card, .role-viewer .case-tile{ cursor:pointer; }
 .user-row-actions{margin-left:auto;display:flex;gap:8px;}
 .case-check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;margin-top:8px;}
 .case-check-item{display:flex;align-items:center;gap:7px;font-size:12.5px;}
@@ -263,6 +283,7 @@ footer.confidential{text-align:center;padding:20px;color:var(--paper);opacity:.5
     <div class="sub">Blaine County Sheriff Office — Confidentiel</div>
   </div>
   <div class="v2-chip">V2 opérationnelle</div>
+  <div class="v2-chip" id="readOnlyBadge" style="display:none;background:var(--status-cold);">👁 Lecture seule</div>
   <nav class="tabs">
     <button data-view="caselist" class="active">Dossiers</button>
     <button data-view="suspects">Base suspects</button>
@@ -402,7 +423,7 @@ footer.confidential{text-align:center;padding:20px;color:var(--paper);opacity:.5
       <div class="field"><label>Identifiant</label><input id="newUserName" placeholder="ex : jdupont"></div>
       <div class="field"><label>Mot de passe</label><input id="newUserPass" type="password"></div>
       <div class="field"><label>Rôle</label>
-        <select id="newUserRole"><option value="user">Utilisateur</option><option value="admin">Admin</option></select>
+        <select id="newUserRole"><option value="user">Utilisateur</option><option value="viewer">Lecture seule</option><option value="admin">Admin</option></select>
       </div>
     </div>
     <button class="btn primary" id="createUserBtn">Créer l'utilisateur</button>
@@ -778,10 +799,30 @@ function logout(){
   sessionStorage.removeItem(getSessionKey());
   showLockScreen();
 }
+function isViewer(){ return currentUser && currentUser.role==='viewer'; }
+const VIEWER_INPUT_WHITELIST = new Set(['globalSearch','suspectSearch','boardSuspectSearch','loginUserInput','loginPassInput','filterStatus','filterType','filterGang','newUserName','newUserPass','newUserRole']);
+function lockFieldsIfViewer(root){
+  if(!isViewer()) return;
+  const scope = root || document;
+  scope.querySelectorAll('input, textarea').forEach(el=>{
+    if(VIEWER_INPUT_WHITELIST.has(el.id)) return;
+    if(el.type==='checkbox' || el.type==='file'){ el.disabled = true; return; }
+    el.readOnly = true;
+  });
+  scope.querySelectorAll('select').forEach(el=>{
+    if(VIEWER_INPUT_WHITELIST.has(el.id)) return;
+    el.disabled = true;
+  });
+  scope.querySelectorAll('[contenteditable="true"]').forEach(el=> el.setAttribute('contenteditable','false'));
+}
 function applyRoleToUI(){
   const isAdmin = currentUser && currentUser.role==='admin';
   const accessBtn = document.querySelector('nav.tabs button[data-view="access"]');
   if(accessBtn) accessBtn.style.display = isAdmin ? '' : 'none';
+  document.body.classList.toggle('role-viewer', isViewer());
+  const badge = document.getElementById('readOnlyBadge');
+  if(badge) badge.style.display = isViewer() ? '' : 'none';
+  lockFieldsIfViewer();
 }
 function initAuth(){
   const savedUsername = sessionStorage.getItem(getSessionKey());
@@ -938,6 +979,7 @@ document.getElementById('newCaseBtn').addEventListener('click', ()=>{
   openModal('modalNewCase');
 });
 document.getElementById('createCaseBtn').addEventListener('click', ()=>{
+  if(isViewer()) return;
   const title = document.getElementById('ncTitle').value.trim() || 'Nouvelle enquête';
   const type = document.getElementById('ncType').value;
   const gang = document.getElementById('ncGang').value.trim();
@@ -1020,6 +1062,7 @@ function renderDossier(){
   });
 
   renderCaseAccessSection(c);
+  lockFieldsIfViewer(document.getElementById('sub-dossier'));
 }
 function renderCaseAccessSection(c){
   const folder = document.getElementById('caseAccessFolder');
@@ -1091,6 +1134,7 @@ document.getElementById('addTlBtn').onclick = ()=>{
 };
 document.getElementById('addInterroBtn').onclick = ()=> openModal('modalInterro');
 document.getElementById('saveInterroBtn').onclick = ()=>{
+  if(isViewer()) return;
   const c=getCase(currentCaseId); if(!c) return;
   const name = document.getElementById('mInterroName').value.trim();
   const weapon = document.getElementById('mInterroWeapon').value.trim();
@@ -1184,6 +1228,7 @@ document.getElementById('addSuspectBtn').onclick = ()=>{
   openModal('modalSuspect');
 };
 document.getElementById('saveSuspectBtn').onclick = ()=>{
+  if(isViewer()) return;
   const name = document.getElementById('nsName').value.trim();
   if(!name){ alert('Le nom est obligatoire.'); return; }
   const newSuspect = {
@@ -1243,6 +1288,7 @@ function renderSuspectDetail(){
 
   renderImgGallery('sdArrestImages', s.arrestImages, s);
   renderImgGallery('sdBirdyImages', s.birdyImages, s);
+  lockFieldsIfViewer(document.getElementById('modalSuspectDetail'));
 }
 function renderImgGallery(elId, arr, s){
   const wrap = document.getElementById(elId);
@@ -1357,6 +1403,7 @@ function boardCard(bc){
     });
   }
   div.addEventListener('mousedown', (e)=>{
+    if(isViewer()) return;
     if(e.target.closest('.del') || e.target.isContentEditable) return;
     if(linkModeOn){
       e.stopPropagation();
@@ -1379,6 +1426,7 @@ function renderBoard(){
   c.board.cards.forEach(bc=>{ const el = boardCard(bc); if(el) canvas.appendChild(el); });
   drawLinks();
   applyTransform();
+  lockFieldsIfViewer(document.getElementById('boardCanvas'));
 }
 function drawLinks(){
   const c = getCase(currentCaseId); if(!c) return;
@@ -1404,10 +1452,11 @@ function drawLinks(){
     hit.setAttribute('x2',x2); hit.setAttribute('y2',y2);
     hit.setAttribute('stroke','#ff5555'); hit.setAttribute('stroke-width','16');
     hit.setAttribute('stroke-opacity','0');
-    hit.setAttribute('style','pointer-events:auto;cursor:pointer;');
+    hit.setAttribute('style', isViewer() ? 'pointer-events:none;' : 'pointer-events:auto;cursor:pointer;');
     hit.addEventListener('mouseenter', ()=> hit.setAttribute('stroke-opacity','0.35'));
     hit.addEventListener('mouseleave', ()=> hit.setAttribute('stroke-opacity','0'));
     hit.addEventListener('click', ()=>{
+      if(isViewer()) return;
       customConfirm('Ce fil rouge sera retiré du tableau.', ()=>{
         c.board.links = c.board.links.filter(l=>!(l[0]===a&&l[1]===b)); saveData(); renderBoard();
       });
@@ -1577,11 +1626,13 @@ function renderAccessManager(){
     const row = document.createElement('div');
     row.className='user-row';
     const isAdmin = u.role==='admin';
+    const isViewerRole = u.role==='viewer';
+    const roleLabel = isAdmin ? 'Admin' : (isViewerRole ? 'Lecture seule' : 'Utilisateur');
     const isSelf = currentUser && currentUser.username===u.username;
     row.innerHTML = `
       <div class="user-row-head">
         <strong>${escapeHtml(u.username)}</strong>
-        <span class="role-badge ${isAdmin?'admin':''}">${isAdmin?'Admin':'Utilisateur'}</span>
+        <span class="role-badge ${isAdmin?'admin':''} ${isViewerRole?'viewer':''}">${roleLabel}</span>
         <div class="user-row-actions">
           <button class="btn" data-act="pass">Changer le mot de passe</button>
           <button class="btn danger" data-act="del" ${isAdmin?'title="Impossible de supprimer un compte admin depuis ici"':''}>Supprimer</button>
