@@ -462,9 +462,27 @@ function loadData(){
   // brand new install -> seed with the LDS case as an example
   return {
     nextSeq: 2,
-    cases:[Object.assign({id:'c1', dateCreated:new Date().toISOString()}, LEGACY_LDS_CASE)],
+    cases:[Object.assign({id:'c1', dateCreated:new Date().toISOString(), board:JSON.parse(JSON.stringify(LEGACY_LDS_BOARD))}, LEGACY_LDS_CASE)],
     suspects: JSON.parse(JSON.stringify(LEGACY_LDS_SUSPECTS)),
   };
+}
+function normalizeData(d){
+  // defensive: guarantee every case has a fully-formed board and arrays, so the app never
+  // crashes on a partially-formed or hand-edited/imported file.
+  if(!d.cases) d.cases = [];
+  if(!d.suspects) d.suspects = [];
+  d.cases.forEach(c=>{
+    if(!c.board) c.board = {cards:[], links:[]};
+    if(!c.board.cards) c.board.cards = [];
+    if(!c.board.links) c.board.links = [];
+    if(!c.activities) c.activities = [];
+    if(!c.weapons) c.weapons = [];
+    if(!c.timeline) c.timeline = [];
+    if(!c.interrogations) c.interrogations = [];
+    if(!c.status) c.status = 'en_cours';
+  });
+  if(!d.nextSeq) d.nextSeq = d.cases.length+1;
+  return d;
 }
 function migrateLegacy(old){
   const migratedCase = Object.assign({id:'c1', dateCreated:new Date().toISOString()},
@@ -479,7 +497,7 @@ function migrateLegacy(old){
   return { nextSeq:2, cases:[migratedCase], suspects:migratedSuspects };
 }
 
-let data = loadData();
+let data = normalizeData(loadData());
 let currentCaseId = null;
 let currentSub = 'board';
 
@@ -910,7 +928,7 @@ document.getElementById('btnImport').addEventListener('change', (e)=>{
     try{
       const imported = JSON.parse(ev.target.result);
       if(!imported.cases || !imported.suspects){ alert("Fichier invalide pour ce format."); return; }
-      data = imported;
+      data = normalizeData(imported);
       saveData();
       switchMainView('caselist');
       alert('Dossiers importés avec succès.');
@@ -921,7 +939,7 @@ document.getElementById('btnImport').addEventListener('change', (e)=>{
 });
 document.getElementById('btnReset').onclick=()=>{
   if(confirm("Réinitialiser TOUS les dossiers et la base suspects ? Cette action est irréversible (pense à exporter avant).")){
-    data = { nextSeq:2, cases:[Object.assign({id:'c1', dateCreated:new Date().toISOString()}, LEGACY_LDS_CASE)], suspects:JSON.parse(JSON.stringify(LEGACY_LDS_SUSPECTS)) };
+    data = normalizeData({ nextSeq:2, cases:[Object.assign({id:'c1', dateCreated:new Date().toISOString(), board:JSON.parse(JSON.stringify(LEGACY_LDS_BOARD))}, LEGACY_LDS_CASE)], suspects:JSON.parse(JSON.stringify(LEGACY_LDS_SUSPECTS)) });
     saveData();
     switchMainView('caselist');
   }
