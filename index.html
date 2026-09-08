@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BCSO — Portail agents</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">★</div>
+        <div>
+          <strong>BCSO</strong>
+          <span>Blaine County Sheriff's Office</span>
+        </div>
+      </div>
+
+      <button class="profile-card" id="openProfile">
+        <img id="sidebarAvatar" class="avatar" alt="Avatar agent" />
+        <div class="profile-meta">
+          <strong id="sidebarName">K. Belkacem</strong>
+          <span id="sidebarRank">Captain</span>
+        </div>
+        <span class="profile-edit">✎</span>
+      </button>
+
+      <div class="nav-label">BCSO</div>
+      <nav class="nav">
+        <button class="nav-item active" data-view="services">
+          <span>⏱</span><span>Services</span>
+        </button>
+        <button class="nav-item" data-view="agenda">
+          <span>📅</span><span>Agenda</span>
+        </button>
+        <button class="nav-item" data-view="myReports">
+          <span>📄</span><span>Mes rapports</span>
+        </button>
+        <button class="nav-item" data-view="reportsDb">
+          <span>🗃</span><span>BD Rapports</span>
+        </button>
+        <button class="nav-item" data-view="complaints">
+          <span>⚖</span><span>Plaintes</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="demo-pill">MODE DÉMO</div>
+        <small>Données enregistrées localement dans le navigateur.</small>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobileMenu">☰</button>
+        <div>
+          <p class="eyebrow">Portail agents</p>
+          <h1 id="pageTitle">Services</h1>
+        </div>
+
+        <div class="topbar-actions">
+          <div class="on-duty-count">
+            <span class="muted">Agents en service</span>
+            <strong id="agentsOnDuty">09</strong>
+          </div>
+          <button class="duty-btn off" id="dutyToggle">
+            <span class="status-dot"></span>
+            <span id="dutyLabel">Prendre mon service</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="view active" id="view-services">
+        <div class="hero-grid">
+          <div class="panel service-status-card">
+            <div>
+              <p class="eyebrow">Statut actuel</p>
+              <h2 id="serviceState">Hors service</h2>
+              <p class="muted" id="serviceSubtitle">Aucun service en cours.</p>
+            </div>
+            <div class="live-timer" id="liveTimer">00 h 00 min</div>
+          </div>
+
+          <div class="stats-grid">
+            <article class="stat-card">
+              <span>Cette semaine</span>
+              <strong id="weeklyServices">0</strong>
+              <small>services</small>
+            </article>
+            <article class="stat-card">
+              <span>Temps hebdomadaire</span>
+              <strong id="weeklyTime">0 h 00</strong>
+              <small>cumul</small>
+            </article>
+            <article class="stat-card">
+              <span>Total services</span>
+              <strong id="totalServices">0</strong>
+              <small>depuis le début</small>
+            </article>
+            <article class="stat-card">
+              <span>Temps cumulé</span>
+              <strong id="totalTime">0 h 00</strong>
+              <small>tous services</small>
+            </article>
+          </div>
+        </div>
+
+        <div class="content-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Activité</p>
+                <h3>Temps de service — 7 derniers jours</h3>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="serviceChart" width="800" height="320"></canvas>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Historique</p>
+                <h3>Derniers services</h3>
+              </div>
+            </div>
+            <div id="serviceHistory" class="history-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="view-agenda">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">BCSO</p>
+            <h2>Agenda</h2>
+            <p class="muted">Événements programmés par la supervision.</p>
+          </div>
+          <div class="filters">
+            <button class="chip active">Tous</button>
+            <button class="chip">Cette semaine</button>
+            <button class="chip">Ce mois</button>
+          </div>
+        </div>
+        <div id="eventsList" class="cards-list"></div>
+      </section>
+
+      <section class="view" id="view-myReports">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Dossiers personnels</p>
+            <h2>Mes rapports</h2>
+            <p class="muted">Retrouvez tous les rapports que vous avez rédigés.</p>
+          </div>
+          <button class="primary-btn" id="newReportBtn">+ Créer un rapport</button>
+        </div>
+        <div class="toolbar panel-lite">
+          <input id="myReportSearch" type="search" placeholder="Rechercher un rapport..." />
+          <select id="myReportFilter">
+            <option value="">Tous les types</option>
+            <option>Rapport d'arrestation</option>
+            <option>Rapport d'intervention</option>
+            <option>Rapport d'incident</option>
+            <option>Rapport de patrouille</option>
+            <option>Autre</option>
+          </select>
+        </div>
+        <div id="myReportsList" class="cards-list"></div>
+      </section>
+
+      <section class="view" id="view-reportsDb">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Base de données</p>
+            <h2>BD Rapports</h2>
+            <p class="muted">Tous les rapports enregistrés au sein du BCSO.</p>
+          </div>
+        </div>
+        <div class="toolbar panel-lite">
+          <input id="dbSearch" type="search" placeholder="N° de rapport, titre, auteur..." />
+          <select id="dbTypeFilter">
+            <option value="">Tous les types</option>
+            <option>Rapport d'arrestation</option>
+            <option>Rapport d'intervention</option>
+            <option>Rapport d'incident</option>
+            <option>Rapport de patrouille</option>
+            <option>Autre</option>
+          </select>
+        </div>
+        <div id="reportsDbList" class="cards-list"></div>
+      </section>
+
+      <section class="view" id="view-complaints">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Suivi</p>
+            <h2>Plaintes</h2>
+            <p class="muted">Suivi des plaintes enregistrées et de leur prise en charge.</p>
+          </div>
+        </div>
+        <div class="toolbar panel-lite">
+          <input id="complaintSearch" type="search" placeholder="Rechercher une plainte..." />
+          <select id="complaintStatusFilter">
+            <option value="">Tous les statuts</option>
+            <option>En attente</option>
+            <option>En cours</option>
+            <option>En attente d'informations</option>
+            <option>Traitée</option>
+            <option>Classée</option>
+          </select>
+        </div>
+        <div id="complaintsList" class="cards-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal" id="profileModal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="modal-close" data-close="profileModal">×</button>
+      <p class="eyebrow">Profil agent</p>
+      <h2>Personnaliser mon profil</h2>
+
+      <div class="profile-editor">
+        <img id="profilePreview" class="avatar xl" alt="Prévisualisation avatar" />
+        <div>
+          <label class="upload-btn">
+            Changer l'avatar
+            <input id="avatarInput" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+          </label>
+          <button class="secondary-btn" id="restoreAvatar">Restaurer l'avatar Discord</button>
+          <p class="muted small">PNG, JPG/JPEG ou WebP — 5 Mo maximum. L'image sera redimensionnée en 512 × 512 px et compressée.</p>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <label>
+          Nom affiché
+          <input id="profileName" value="K. Belkacem" />
+        </label>
+        <label>
+          Grade
+          <input id="profileRank" value="Captain" disabled />
+        </label>
+      </div>
+      <p class="muted small">Le grade sera verrouillé et synchronisé avec Discord lorsque l'authentification sera ajoutée.</p>
+      <div class="modal-actions">
+        <button class="secondary-btn" data-close="profileModal">Annuler</button>
+        <button class="primary-btn" id="saveProfile">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="reportModal" aria-hidden="true">
+    <div class="modal-card wide">
+      <button class="modal-close" data-close="reportModal">×</button>
+      <p class="eyebrow">Rapports</p>
+      <h2>Nouveau rapport</h2>
+      <form id="reportForm">
+        <div class="form-grid two">
+          <label>
+            Type de rapport
+            <select id="reportType" required>
+              <option value="">Sélectionner</option>
+              <option>Rapport d'arrestation</option>
+              <option>Rapport d'intervention</option>
+              <option>Rapport d'incident</option>
+              <option>Rapport de patrouille</option>
+              <option>Autre</option>
+            </select>
+          </label>
+          <label>
+            Date et heure
+            <input id="reportDate" type="datetime-local" required />
+          </label>
+        </div>
+
+        <label>
+          Titre / objet
+          <input id="reportTitle" required placeholder="Ex. Interpellation Route 68" />
+        </label>
+
+        <div class="form-grid two">
+          <label>
+            Lieu
+            <input id="reportLocation" placeholder="Lieu de l'intervention" />
+          </label>
+          <label>
+            Personne(s) concernée(s)
+            <input id="reportPersons" placeholder="Nom(s)" />
+          </label>
+        </div>
+
+        <label>
+          Résumé des faits
+          <textarea id="reportSummary" rows="6" required placeholder="Décrivez les faits..."></textarea>
+        </label>
+
+        <div class="form-grid two">
+          <label>
+            Infractions retenues
+            <textarea id="reportOffenses" rows="4"></textarea>
+          </label>
+          <label>
+            Éléments / preuves
+            <textarea id="reportEvidence" rows="4"></textarea>
+          </label>
+        </div>
+
+        <label>
+          Observations
+          <textarea id="reportNotes" rows="3"></textarea>
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" data-close="reportModal">Annuler</button>
+          <button type="submit" class="primary-btn">Enregistrer le rapport</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
