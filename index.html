@@ -77,6 +77,18 @@
         </button>
       </nav>
 
+
+      <button class="nav-label bcsa-label nav-section-toggle" type="button" data-nav-section="bcsa" aria-expanded="true">
+        <span>BCSA</span><span class="nav-section-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <nav class="nav bcsa-nav nav-section" data-nav-content="bcsa">
+        <button class="nav-item" data-view="bcsaQuestionnaire"><span>📝</span><span>Questionnaire</span></button>
+        <button class="nav-item" data-view="bcsaWorkshops"><span>🛠</span><span>Ateliers</span></button>
+        <button class="nav-item" data-view="bcsaBadges"><span>🪪</span><span>Matricules</span></button>
+        <button class="nav-item" data-view="bcsaAgents"><span>👥</span><span>Panel agents</span></button>
+        <button class="nav-item" data-view="bcsaPatrolReports"><span>🚓</span><span>Rapports de patrouilles</span></button>
+      </nav>
+
       <div class="sidebar-footer">
         <div class="demo-pill">MODE DÉMO</div>
         <small>Données enregistrées localement dans le navigateur.</small>
@@ -401,6 +413,60 @@
         <div class="toolbar panel-lite"><input id="supWarrantSearch" type="search" placeholder="N° de mandat, individu..."/><select id="supWarrantStatus"><option value="">Tous les statuts</option><option>Actif</option><option>Levée</option></select></div>
         <div id="supWarrantsTable" class="agents-table-wrap"></div>
       </section>
+
+      <section class="view" id="view-bcsaQuestionnaire">
+        <div class="section-head">
+          <div><p class="eyebrow">Blaine County Sheriff Academy</p><h2>Questionnaires de recrutement</h2><p class="muted">Conduite et archivage des entretiens de recrutement BCSA.</p></div>
+          <button class="primary-btn" id="bcsaNewInterviewBtn">+ Nouvel entretien</button>
+        </div>
+        <div class="supervision-summary">
+          <article class="stat-card"><span>Total</span><strong id="bcsaInterviewTotal">0</strong><small>entretiens</small></article>
+          <article class="stat-card"><span>Admis</span><strong id="bcsaInterviewAdmitted">0</strong><small>à la BCSA</small></article>
+          <article class="stat-card"><span>Complémentaires</span><strong id="bcsaInterviewExtra">0</strong><small>à revoir</small></article>
+          <article class="stat-card"><span>Refusés</span><strong id="bcsaInterviewRejected">0</strong><small>candidatures</small></article>
+        </div>
+        <div class="toolbar panel-lite"><input id="bcsaInterviewSearch" type="search" placeholder="Rechercher un candidat ou recruteur..."><select id="bcsaInterviewFilter"><option value="">Toutes les décisions</option><option>Admis à la BCSA</option><option>Refusé</option><option>Entretien complémentaire requis</option><option>En cours</option></select></div>
+        <div id="bcsaInterviewList" class="cards-list"></div>
+      </section>
+
+      <section class="view" id="view-bcsaWorkshops">
+        <div class="section-head">
+          <div><p class="eyebrow">Blaine County Sheriff Academy</p><h2>Ateliers Sheriff Academy</h2><p class="muted">Validation des ateliers obligatoires par candidat.</p></div>
+          <button class="primary-btn" id="bcsaAddCandidateBtn">+ Ajouter un candidat</button>
+        </div>
+        <section class="panel">
+          <div class="panel-header"><div><p class="eyebrow">Candidats</p><h3>Suivi des ateliers</h3></div><input id="bcsaWorkshopSearch" class="compact-search" type="search" placeholder="Rechercher un candidat..."></div>
+          <div id="bcsaWorkshopTable" class="agents-table-wrap bcsa-workshop-wrap"></div>
+        </section>
+      </section>
+
+      <section class="view" id="view-bcsaBadges">
+        <div class="section-head"><div><p class="eyebrow">Blaine County Sheriff Academy</p><h2>Matricules</h2><p class="muted">Répertoire des matricules BCSO de #100 à #199.</p></div></div>
+        <div class="supervision-summary bcsa-badge-summary">
+          <article class="stat-card"><span>Plage</span><strong>#100–#199</strong><small>100 matricules</small></article>
+          <article class="stat-card"><span>Disponibles</span><strong id="bcsaBadgeAvailable">0</strong><small>libres</small></article>
+          <article class="stat-card"><span>Attribués</span><strong id="bcsaBadgeAssigned">0</strong><small>agents</small></article>
+          <article class="stat-card"><span>Taux d'attribution</span><strong id="bcsaBadgeRate">0%</strong><small>de la plage</small></article>
+        </div>
+        <div class="toolbar panel-lite"><input id="bcsaBadgeSearch" type="search" placeholder="Rechercher un matricule ou un agent..."><select id="bcsaBadgeFilter"><option value="">Tous</option><option value="available">Disponibles</option><option value="assigned">Attribués</option></select></div>
+        <div id="bcsaBadgeGrid" class="bcsa-badge-grid"></div>
+      </section>
+
+      <section class="view" id="view-bcsaAgents">
+        <div class="section-head"><div><p class="eyebrow">Blaine County Sheriff Academy</p><h2>Panel agents</h2><p class="muted">Suivi des Deputy Trainee et Deputy I.</p></div></div>
+        <div class="toolbar bcsa-agent-toolbar panel-lite"><input id="bcsaAgentSearch" type="search" placeholder="Nom, matricule..."><select id="bcsaAgentGradeFilter"><option value="">Tous les grades</option><option>Deputy Trainee</option><option>Deputy I</option></select><select id="bcsaAgentFileFilter"><option value="">Toutes les fiches</option><option value="linked">Fiche BCSA liée</option><option value="unlinked">Sans fiche BCSA</option></select></div>
+        <div id="bcsaAgentsTable" class="agents-table-wrap"></div>
+      </section>
+
+      <section class="view" id="view-bcsaPatrolReports">
+        <div class="section-head">
+          <div><p class="eyebrow">Blaine County Sheriff Academy</p><h2>Rapports de patrouilles</h2><p class="muted">Comptes rendus des patrouilles supervisées des Trainee et Deputy I.</p></div>
+          <button class="primary-btn" id="bcsaNewPatrolReportBtn">+ Nouveau rapport</button>
+        </div>
+        <div class="toolbar panel-lite"><input id="bcsaPatrolSearch" type="search" placeholder="Rechercher un agent ou examinateur..."><select id="bcsaPatrolOpinionFilter"><option value="">Tous les avis</option><option>Très favorable</option><option>Favorable</option><option>Mitigé</option><option>Défavorable</option></select></div>
+        <div id="bcsaPatrolReportsList" class="bcsa-patrol-grid"></div>
+      </section>
+
     </main>
   </div>
 
@@ -622,6 +688,56 @@
         <label>Agent en charge<select id="complaintManageAgent"></select></label>
         <label>Statut<select id="complaintManageStatus"><option>En attente</option><option>En cours</option><option>En attente d'informations</option><option>Traitée</option><option>Classée</option></select></label>
         <div class="modal-actions"><button type="button" class="secondary-btn" data-close="complaintManageModal">Annuler</button><button type="submit" class="primary-btn">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+
+  <div class="modal" id="bcsaInterviewModal" aria-hidden="true">
+    <div class="modal-card extra-wide bcsa-document-modal">
+      <button class="modal-close" data-close="bcsaInterviewModal">×</button>
+      <p class="eyebrow">BCSA</p><h2 id="bcsaInterviewModalTitle">Questionnaire d'entretien de recrutement</h2>
+      <form id="bcsaInterviewForm"><input type="hidden" id="bcsaInterviewId">
+        <div class="form-grid three"><label>Nom du candidat<input id="bcsaInterviewCandidate" required></label><label>Date<input id="bcsaInterviewDate" type="date" required></label><label>Recruteur<input id="bcsaInterviewRecruiter" required></label></div>
+        <div id="bcsaQuestionsContainer" class="bcsa-questions"></div>
+        <section class="bcsa-decision-block"><h3>Décision finale</h3>
+          <div class="radio-cards"><label><input type="radio" name="bcsaDecision" value="Admis à la BCSA"> <span>Admis à la BCSA</span></label><label><input type="radio" name="bcsaDecision" value="Refusé"> <span>Refusé</span></label><label><input type="radio" name="bcsaDecision" value="Entretien complémentaire requis"> <span>Entretien complémentaire requis</span></label></div>
+          <label>Appréciation générale<textarea id="bcsaInterviewOverall" rows="4" placeholder="Avis du recruteur..."></textarea></label>
+        </section>
+        <div class="modal-actions"><button type="button" class="secondary-btn" id="bcsaSaveInterviewDraft">Enregistrer le brouillon</button><button type="submit" class="primary-btn">Clôturer l'entretien</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="bcsaWorkshopDetailModal" aria-hidden="true">
+    <div class="modal-card"><button class="modal-close" data-close="bcsaWorkshopDetailModal">×</button><p class="eyebrow">BCSA — Atelier</p><h2 id="bcsaWorkshopDetailTitle">Validation</h2>
+      <form id="bcsaWorkshopDetailForm"><input type="hidden" id="bcsaWorkshopCandidateId"><input type="hidden" id="bcsaWorkshopKey"><div id="bcsaWorkshopSummary" class="force-service-agent"></div><label>Commentaire<textarea id="bcsaWorkshopComment" rows="4" placeholder="Optionnel..."></textarea></label><div class="modal-actions"><button type="button" class="danger-outline" id="bcsaWorkshopInvalidateBtn">Retirer la validation</button><button type="submit" class="primary-btn">Enregistrer</button></div></form>
+    </div>
+  </div>
+
+  <div class="modal" id="bcsaAddCandidateModal" aria-hidden="true">
+    <div class="modal-card"><button class="modal-close" data-close="bcsaAddCandidateModal">×</button><p class="eyebrow">BCSA</p><h2>Ajouter un candidat</h2><form id="bcsaAddCandidateForm"><label>Nom du candidat<input id="bcsaCandidateName" required placeholder="Ex. J. Bright"></label><div class="modal-actions"><button type="button" class="secondary-btn" data-close="bcsaAddCandidateModal">Annuler</button><button type="submit" class="primary-btn">Ajouter</button></div></form></div>
+  </div>
+
+  <div class="modal" id="bcsaBadgeAssignModal" aria-hidden="true">
+    <div class="modal-card"><button class="modal-close" data-close="bcsaBadgeAssignModal">×</button><p class="eyebrow">BCSA — Matricules</p><h2 id="bcsaBadgeAssignTitle">Attribuer le matricule</h2><form id="bcsaBadgeAssignForm"><input type="hidden" id="bcsaBadgeNumber"><label>Agent<select id="bcsaBadgeAgentSelect" required></select></label><div class="modal-actions"><button type="button" class="secondary-btn" data-close="bcsaBadgeAssignModal">Annuler</button><button type="submit" class="primary-btn">Attribuer</button></div></form></div>
+  </div>
+
+  <div class="modal" id="bcsaAgentFileModal" aria-hidden="true">
+    <div class="modal-card extra-wide"><button class="modal-close" data-close="bcsaAgentFileModal">×</button><p class="eyebrow">BCSA — Dossier agent</p><div id="bcsaAgentFileContent"></div></div>
+  </div>
+
+  <div class="modal" id="bcsaPatrolReportModal" aria-hidden="true">
+    <div class="modal-card extra-wide bcsa-document-modal"><button class="modal-close" data-close="bcsaPatrolReportModal">×</button><p class="eyebrow">BCSA</p><h2 id="bcsaPatrolModalTitle">Rapport de patrouille</h2>
+      <form id="bcsaPatrolReportForm"><input type="hidden" id="bcsaPatrolReportId">
+        <div class="form-grid two"><label>Date<input id="bcsaPatrolDate" type="date" required></label><label>Agent supervisé<select id="bcsaPatrolTrainee" required></select></label></div>
+        <div class="form-grid three"><label>Matricule examinateur<input id="bcsaPatrolExamBadge" readonly></label><label>Grade examinateur<input id="bcsaPatrolExamRank" readonly></label><label>Durée de la patrouille<input id="bcsaPatrolDuration" placeholder="Ex. 3h00" required></label></div>
+        <label>Interventions réalisées<textarea id="bcsaPatrolInterventions" rows="5" required placeholder="Décrivez les interventions réalisées..."></textarea></label>
+        <div class="form-grid two"><label>Points positifs<textarea id="bcsaPatrolPositive" rows="5" required></textarea></label><label>Points à améliorer<textarea id="bcsaPatrolImprove" rows="5" required></textarea></label></div>
+        <fieldset class="bcsa-fieldset"><legend>Compétences travaillées</legend><div id="bcsaPatrolSkills" class="bcsa-check-grid"></div><label class="bcsa-other-skill">Autre<input id="bcsaPatrolOtherSkill" placeholder="Préciser..."></label></fieldset>
+        <label>Appréciation générale<textarea id="bcsaPatrolOverall" rows="5" required></textarea></label>
+        <fieldset class="bcsa-fieldset"><legend>Avis de l'examinateur</legend><div class="radio-cards"><label><input type="radio" name="bcsaPatrolOpinion" value="Très favorable" required><span>Très favorable</span></label><label><input type="radio" name="bcsaPatrolOpinion" value="Favorable"><span>Favorable</span></label><label><input type="radio" name="bcsaPatrolOpinion" value="Mitigé"><span>Mitigé</span></label><label><input type="radio" name="bcsaPatrolOpinion" value="Défavorable"><span>Défavorable</span></label></div></fieldset>
+        <div class="modal-actions"><button type="button" class="secondary-btn" id="bcsaPatrolSaveDraft">Enregistrer le brouillon</button><button type="submit" class="primary-btn">Finaliser le rapport</button></div>
       </form>
     </div>
   </div>
