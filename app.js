@@ -18,9 +18,11 @@ const STORAGE = {
 const defaultAvatar = createDefaultAvatar();
 
 const defaultProfile = {
-  name: "K. Belkacem",
-  rank: "Captain",
-  avatar: null
+  name: "Agent BCSO",
+  rank: "Non synchronisé",
+  avatar: null,
+  discordAvatar: null,
+  discordId: null
 };
 
 const seedReports = [
@@ -197,8 +199,8 @@ $("#saveProfile").addEventListener("click", () => {
 });
 
 $("#restoreAvatar").addEventListener("click", () => {
-  profile.avatar = null;
-  $("#profilePreview").src = defaultAvatar;
+  profile.avatar = profile.discordAvatar || null;
+  $("#profilePreview").src = profile.avatar || defaultAvatar;
   save(STORAGE.profile, profile);
   applyProfile();
 });
@@ -1516,7 +1518,7 @@ const COMMAND_RANKS=['Captain','Commander','Undersheriff','Sheriff'];
 function siteSlug(v){return String(v||'page').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,50)||'page'}
 function uid(prefix){return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`}
 function auditSite(action,detail){siteAudit.unshift({id:uid('AUD'),action,detail,by:profile.name,at:new Date().toISOString()});siteAudit=siteAudit.slice(0,80);save(SITE_STORAGE.audit,siteAudit)}
-function canManageSite(){return COMMAND_RANKS.includes(profile.rank)||true /* mode démo : Firebase imposera le rôle réel */}
+function canManageSite(){return Boolean(window.BCSO_AUTH?.claims?.siteManager) || COMMAND_RANKS.includes(profile.rank)}
 function splitRoles(v){return String(v||'').split(',').map(x=>x.trim()).filter(Boolean)}
 function siteTemplateLabel(t){return ({documentation:'Documentation',table:'Tableau / Registre',form:'Formulaire',dashboard:'Dashboard',custom:'Page personnalisée'})[t]||t}
 function siteStatusBadge(s){return `<span class="badge ${s==='published'?'green':'gold'}">${s==='published'?'Publié':'Brouillon'}</span>`}

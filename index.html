@@ -10,6 +10,18 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
+  <div class="auth-gate" id="authGate">
+    <div class="auth-card">
+      <div class="auth-star">★</div>
+      <p class="eyebrow">Blaine County Sheriff's Office</p>
+      <h1>Portail agents</h1>
+      <p class="auth-copy">Connectez-vous avec votre compte Discord. L'accès est réservé aux membres disposant du rôle BCSO.</p>
+      <button class="discord-login-btn" id="discordLoginBtn" type="button">◉ Se connecter avec Discord</button>
+      <div class="auth-status" id="authStatus">Vérification de la session…</div>
+    </div>
+  </div>
+
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
@@ -126,8 +138,8 @@
       <div id="dynamicSidebarMount"></div>
 
       <div class="sidebar-footer">
-        <div class="demo-pill">MODE DÉMO</div>
-        <small>Données enregistrées localement dans le navigateur.</small>
+        <div class="demo-pill">FIREBASE AUTH</div>
+        <small>Identité et accès synchronisés avec Discord.</small>
       </div>
     </aside>
 
@@ -140,6 +152,7 @@
         </div>
 
         <div class="topbar-actions">
+          <button class="secondary-btn auth-logout-btn" id="logoutBtn" type="button" hidden>Déconnexion</button>
           <div class="on-duty-count">
             <span class="muted">Agents en service</span>
             <strong id="agentsOnDuty">09</strong>
@@ -1115,5 +1128,7 @@
 
 
   <script src="app.js"></script>
+  <script type="module" src="firebase-auth.js"></script>
+  <script type="module" src="auth-ui.js"></script>
 </body>
 </html>
