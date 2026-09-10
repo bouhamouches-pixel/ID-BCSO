@@ -9,7 +9,8 @@ const STORAGE = {
   events: "bcso_demo_events",
   complaints: "bcso_demo_complaints",
   warrants: "bcso_demo_warrants",
-  navSections: "bcso_demo_nav_sections"
+  navSections: "bcso_demo_nav_sections",
+  materialRequests: "bcso_demo_material_requests"
 };
 
 const defaultAvatar = createDefaultAvatar();
@@ -125,7 +126,7 @@ function applyProfile() {
 applyProfile();
 
 // PANELS REPLIABLES DE LA SIDEBAR
-const navSectionState = load(STORAGE.navSections, { bcso: true, supervision: true, bcsa: true });
+const navSectionState = load(STORAGE.navSections, { bcso: true, aides: true, supervision: true, bcsa: true, investigation: true, seb: true });
 
 function setNavSection(section, expanded, persist = true) {
   const toggle = document.querySelector(`[data-nav-section="${section}"]`);
@@ -260,18 +261,14 @@ function compressAvatar(file) {
 // SERVICES
 $("#dutyToggle").addEventListener("click", () => {
   if (!activeService) {
-    activeService = { start: new Date().toISOString() };
-    save(STORAGE.activeService, activeService);
+    openEquipmentCheck();
   } else {
-    sessions.unshift({
-      start: activeService.start,
-      end: new Date().toISOString()
-    });
+    sessions.unshift({ start: activeService.start, end: new Date().toISOString() });
     activeService = null;
     save(STORAGE.activeService, activeService);
     save(STORAGE.serviceSessions, sessions);
+    renderServices();
   }
-  renderServices();
 });
 
 function startOfWeek(d = new Date()) {
@@ -1293,3 +1290,85 @@ $("#sebUndoLine").onclick=()=>{const b=getSebBoard(currentSebOperationId);if(seb
 $("#sebZoomIn").onclick=()=>{sebZoom=Math.min(1.8,sebZoom+.1);applySebZoom()}; $("#sebZoomOut").onclick=()=>{sebZoom=Math.max(.45,sebZoom-.1);applySebZoom()}; $("#sebResetView").onclick=centerSebBoard;
 $("#sebClearBoardBtn").onclick=()=>{if(!confirm("Effacer tous les marqueurs et tracés de cette carte ? Le fond de carte sera conservé."))return;const b=getSebBoard(currentSebOperationId);b.markers=[];b.lines=[];sebDraftLine=null;save(SEB_STORAGE.boards,sebBoards);renderSebBoard()};
 sebRenderOperations();
+
+
+// ==================== PROCEDURES & AIDES ====================
+const PROCEDURES = [
+  {id:"rappels-proceduraux",title:"Rappels procéduraux",category:"Rapports",desc:"Règles essentielles concernant les rapports, les avocats, les saisies et l'individualisation des faits.",body:`
+    <h3>Avocat & interrogatoire</h3>
+    <div class="doc-step">Finir le rapport avant d'appeler l'avocat si celui-ci est demandé.</div>
+    <div class="doc-step">Si le suspect demande un avocat, aucun interrogatoire ne doit être effectué avant son arrivée.</div>
+    <h3>Statut des rapports</h3>
+    <div class="doc-step">Pour les rapports en <strong>cours de rédaction</strong>, un statut dédié a été ajouté.</div>
+    <div class="doc-warning"><strong>Vice de forme :</strong> un rapport ne doit plus être modifié une fois le statut <strong>« En cours »</strong> attribué.</div>
+    <div class="doc-step"><strong>Relire le rapport</strong> avant son envoi afin d'éviter les erreurs de date, d'identité ou de qualification.</div>
+    <h3>Rapports groupés</h3>
+    <div class="doc-step">Les chefs d'inculpation doivent être détaillés individuellement pour <strong>chaque suspect</strong>.</div>
+    <div class="doc-step">Les saisies doivent être attribuées individuellement à <strong>chaque suspect</strong>.</div>
+    <div class="doc-step">L'implication de chaque suspect doit être précisée lorsqu'elle est connue : conducteur, braqueur, négociateur, tireur, etc.</div>
+    <div class="doc-step">Éviter les formulations générales visant tout un groupe lorsqu'il est possible d'identifier les actions de chaque individu.</div>
+    <div class="doc-tip"><strong>À retenir :</strong> tout chef d'inculpation doit pouvoir être justifié par des faits, témoignages ou preuves mentionnés dans le rapport.</div>`},
+  {id:"braquages",title:"Procédure — Braquages",category:"Interventions",desc:"Procédure applicable aux Fleeca, conteneurs, bijouteries et autres scènes de braquage.",body:`
+    <h3>1. Avant arrivée</h3><div class="doc-step">Port du gilet pare-balles obligatoire.</div><div class="doc-step">Vérification de l'équipement.</div><div class="doc-step">Premier <strong>SITREP</strong> à l'approche.</div>
+    <h3>2. Sécurisation de la scène</h3><div class="doc-step">Mise en place du périmètre externe par les premiers intervenants.</div><div class="doc-step">Mise en place du périmètre interne à l'arrivée du <strong>TARV</strong>, si disponible.</div><div class="doc-step">Positionnement des unités conformément à la formation négociation.</div><div class="doc-step">Éviter les déplacements inutiles dans la zone.</div>
+    <h3>3. Phase de négociation</h3><div class="doc-step">Désignation du négociateur et du co-négociateur.</div><div class="doc-step"><strong>Utilisation de la fiche co-négociateur.</strong></div>
+    <h3>4. Libération des otages</h3><div class="doc-step">Identification des otages, palpation de sécurité, premiers témoignages et vérification des blessures.</div><div class="doc-step">Prise en charge EMS si nécessaire.</div>
+    <h3>5. Interpellations</h3><div class="doc-step">Contrôle et identification des suspects.</div><div class="doc-step">Palpation systématique.</div><div class="doc-step">Inventaire individuel des saisies.</div><div class="doc-step">Test de poudre si usage d'arme à feu.</div>
+    <h3>6. Gel de la scène</h3><div class="doc-step">Photographies de la scène, des véhicules, des armes et des impacts.</div><div class="doc-step">Préservation des preuves jusqu'à la fin de l'intervention.</div>
+    <h3>7. Rapport</h3><div class="doc-step">Identifier précisément le rôle de chaque suspect : conducteur, négociateur, braqueur.</div><div class="doc-step">Détail individuel des saisies.</div>`},
+  {id:"fusillade",title:"Procédure Fusillade — Premiers intervenants",category:"Interventions",desc:"Conduite à tenir pour les premières unités arrivant sur une scène impliquant des tirs ou individus armés.",body:`
+    <h3>1. Équipement</h3><div class="doc-step">Port du gilet pare-balles et vérification de l'armement.</div>
+    <h3>2. Arrivée sur les lieux</h3><div class="doc-step">Effectuer un <strong>SITREP initial</strong>, évaluer la menace et demander des renforts si nécessaire.</div>
+    <h3>3. Sécurisation</h3><div class="doc-step">Levée de doute, recherche de suspects armés, sécurisation des civils et neutralisation de toute menace active.</div>
+    <h3>4. Prise en charge des victimes</h3><div class="doc-step">Identifier les blessés, débuter les premiers soins si possible et faire intervenir les EMS.</div>
+    <h3>5. Gel de la scène</h3><div class="doc-step">Établir un périmètre de sécurité et interdire l'accès aux personnes non autorisées.</div><div class="doc-step">Photographier la scène, les armes, impacts et véhicules. Éviter tout déplacement non nécessaire.</div>
+    <h3>6. Identification</h3><div class="doc-step">Identifier victimes, témoins et suspects, contrôler les personnes présentes et recueillir les premières informations.</div>
+    <h3>7. Enquête préliminaire</h3><div class="doc-step">Recherche d'armes, <strong>test de poudre systématique</strong>, recensement des saisies, version des faits et témoignages.</div>
+    <h3>8. Compte-rendu</h3><div class="doc-step"><strong>SITREP final</strong>, transmission à la CID et rédaction du rapport si arrestation, usage de la force ou procédure judiciaire.</div>`}
+];
+
+const HELP_SHEETS = [
+  {id:"controle-routier",title:"Contrôle routier",category:"Patrouille",desc:"Pense-bête pour conduire un contrôle routier et choisir la mesure adaptée.",body:`<div class="doc-step"><strong>Étape 1</strong> — Identifier le motif du contrôle</div><div class="doc-step"><strong>Étape 2</strong> — Vérifier l'identité</div><div class="doc-step"><strong>Étape 3</strong> — Vérifier le permis</div><div class="doc-step"><strong>Étape 4</strong> — Vérifier le véhicule (recherché, volé, signalé...)</div><div class="doc-step"><strong>Étape 5</strong> — Une infraction est constatée ?</div><div class="doc-flow-choice"><span><strong>Oui</strong> → Avertissement / Verbalisation / Interpellation</span><span><strong>Non</strong> → Fin du contrôle</span></div><div class="doc-step"><strong>Étape 6</strong> — Rédiger un rapport si nécessaire</div><div class="doc-warning"><strong>⚠ Points de vigilance</strong><br>• Un contrôle routier peut évoluer rapidement en interpellation.<br>• Garder un œil sur les passagers, pas uniquement le conducteur.<br>• Rester attentif à l'environnement : circulation, piétons et véhicules arrivant sur les lieux.</div>`},
+  {id:"arrestation",title:"Arrestation",category:"Intervention",desc:"Étapes essentielles à respecter lors d'une arrestation.",body:`${["Sécuriser l'individu","Palpation de sécurité","Menottage","Retrait du masque / élément dissimulant le visage","Vérifier l'identité","Lecture des droits Miranda","Fouille complète","Inventaire des saisies","Procédure / Rapport"].map((x,i)=>`<div class="doc-step"><strong>Étape ${i+1}</strong> — ${x}</div>`).join("")}<div class="doc-warning"><strong>⚠ Points de vigilance</strong><br>• Ne jamais tourner le dos à un individu non maîtrisé.<br>• Rester attentif aux personnes présentes autour de l'intervention.<br>• Vérifier que tous les individus sont sécurisés avant de reprendre disponible.</div>`},
+  {id:"controle-identite",title:"Contrôle d'identité",category:"Patrouille",desc:"Pense-bête pour un contrôle d'identité justifié et sécurisé.",body:`${["Identifier le motif du contrôle","Demander une pièce d'identité","Vérifier l'identité dans la tablette","Vérifier si la personne est recherchée"].map((x,i)=>`<div class="doc-step"><strong>Étape ${i+1}</strong> — ${x}</div>`).join("")}<div class="doc-step"><strong>Étape 5</strong> — Décision : fin du contrôle / arrestation / verbalisation</div><div class="doc-warning"><strong>⚠ Points de vigilance</strong><br>• Un contrôle d'identité doit toujours être justifié.<br>• Être attentif au comportement de l'individu : stress, fuite, gestes suspects...<br>• Garder une distance de sécurité pendant toute l'interaction.</div>`},
+  {id:"blesse",title:"Assistance à un blessé",category:"Secours",desc:"Étapes de sécurisation, évaluation et coordination avec les EMS.",body:`${["Sécuriser et baliser la zone","Évaluer l'état de la victime","Contacter les EMS","Effectuer les premiers gestes si nécessaire","Informer les EMS : état de conscience, blessures visibles et circonstances de l'intervention","Assister les EMS si nécessaire"].map((x,i)=>`<div class="doc-step"><strong>Étape ${i+1}</strong> — ${x}</div>`).join("")}<div class="doc-warning"><strong>⚠ Points de vigilance</strong><br>• Ne jamais intervenir sur une zone non sécurisée.<br>• Laisser les EMS assurer la prise en charge médicale.<br>• Continuer à protéger la victime et les EMS pendant toute l'intervention.</div>`},
+  {id:"rapport",title:"Rédaction d'un rapport",category:"Rapports",desc:"Choisir le bon rapport, utiliser les tags et éviter les erreurs de procédure.",body:`<div class="doc-step"><strong>Étape 1</strong> — Identifier le type de rapport</div><div class="doc-flow-choice"><span>Arrestation → <strong>Rapport d'arrestation</strong></span><span>Intervention importante / cas lourd → <strong>Rapport d'intervention</strong></span><span>Sinon → Rapport non nécessaire</span></div>${["Renseigner les personnes impliquées : agents, suspects, civils","Sélectionner le type d'intervention","Ajouter les tags adaptés","Rédiger les faits chronologiquement","Renseigner chefs d'accusation, preuves / saisies, éléments particuliers et décision","Relire et vérifier les informations","Appliquer le statut adapté"].map((x,i)=>`<div class="doc-step"><strong>Étape ${i+2}</strong> — ${x}</div>`).join("")}<h3>Utilisation des tags</h3><div class="doc-tip"><strong>LSPD/BCSO</strong> — rapports du département.<br><strong>En rédaction</strong> — rapport en cours de rédaction.<br><strong>En cours</strong> — individu en attente de comparution. Ne plus modifier le rapport.<br><strong>Clôturé</strong> — procédure terminée.<br><strong>En appel</strong> — procédure faisant l'objet d'un appel.<br><strong>Suspendu</strong> — procédure / dossier suspendu.<br><strong>CID</strong> — affaire pouvant intéresser l'investigation.<br><strong>Possession de drogue</strong> — saisie de stupéfiants.<br><strong>Fabrication de drogue</strong> — production de stupéfiants.<br><strong>Formation</strong> — rapport lié à une formation.</div><div class="doc-warning"><strong>⚠ Points de vigilance</strong><br>• Rédiger les faits dans l'ordre chronologique.<br>• Rester factuel, précis et objectif.<br>• Éviter répétitions et informations sans intérêt pour la procédure.<br>• En arrestation groupée, individualiser les faits, saisies et chefs d'accusation.<br>• Distinguer faits constatés, éléments saisis et déclarations.<br>• Vérifier la cohérence générale du rapport.<br>• Faire une dernière relecture avant de passer le rapport « En cours ».</div>`},
+  {id:"co-negociateur",title:"Fiche co-négociateur",category:"Négociation",desc:"Fiche interactive à compléter pendant une négociation de braquage.",interactive:"co"}
+];
+
+function renderDocCards(data,containerId,searchId,categoryId){
+  const q=($(searchId)?.value||"").trim().toLowerCase(),cat=$(categoryId)?.value||"";
+  const rows=data.filter(x=>(!cat||x.category===cat)&&[x.title,x.desc,x.category].join(" ").toLowerCase().includes(q));
+  $(containerId).innerHTML=rows.map(x=>`<article class="doc-card"><span class="doc-category">${escapeHtml(x.category)}</span><h3>${escapeHtml(x.title)}</h3><p>${escapeHtml(x.desc)}</p><div class="doc-card-actions"><button class="secondary-btn" data-open-doc="${x.id}">Ouvrir</button></div></article>`).join("")||'<div class="empty-state">Aucun résultat.</div>';
+  $$('[data-open-doc]').forEach(b=>b.onclick=()=>openDocById(b.dataset.openDoc));
+}
+function openDocById(id){const d=[...PROCEDURES,...HELP_SHEETS].find(x=>x.id===id);if(!d)return;if(d.interactive==="co"){openModal("coNegotiatorModal");return}$("#docDetailCategory").textContent=d.category;$("#docDetailTitle").textContent=d.title;$("#docDetailBody").innerHTML=d.body;openModal("docDetailModal")}
+function renderProcedures(){renderDocCards(PROCEDURES,"#procedureCards","#procedureSearch","#procedureCategory")}
+function renderHelpSheets(){renderDocCards(HELP_SHEETS,"#helpSheetCards","#helpSheetSearch","#helpSheetCategory")}
+$("#procedureSearch").oninput=renderProcedures;$("#procedureCategory").onchange=renderProcedures;$("#helpSheetSearch").oninput=renderHelpSheets;$("#helpSheetCategory").onchange=renderHelpSheets;
+renderProcedures();renderHelpSheets();
+
+const RADIO_GROUPS=[
+  {title:"Indicatifs de patrouille",rows:[["Lincoln","Patrouille seule"],["Adam","Patrouille à 2 agents"],["Tango","Patrouille à 3 agents"],["X-Ray","Patrouille à 4 agents"],["Mary","Patrouille à moto"],["ASU","Patrouille en hélicoptère"],["Hubert","Patrouille en bateau"],["Victor","Patrouille à vélo"],["Baker","Patrouille en banalisée"],["Kilo","Patrouille en K-9"],["Charlie","Patrouille avec un VIP"],["Ranger","Patrouille Park Ranger"],["Highway","Patrouille Highway Patrol"]]},
+  {title:"Codes opérationnels",rows:[["Code 2","Prioritaire, sans sirène."],["Code 3","Urgent, gyrophare et sirène activés."],["Code 4","Aucune assistance nécessaire, situation stable."],["Code 5","En surveillance, d'autres unités doivent éviter les lieux."],["Code 6","Arrivée sur les lieux."],["Code 99","Agent en danger, besoin d'aide en urgence (10-99)."],["Banane","Mot en cas d'incapacité de dire code 10-99."]]},
+  {title:"Ten-Codes",rows:[["10-3","Arrivée sur fréquence"],["10-4","Bien reçu"],["10-5","Négatif"],["10-7","Indisponible"],["10-8","Prise de service"],["10-9","Répéter le call"],["10-10","Fin de service"],["10-12","Attente de dispatch"],["10-15","Suspect arrêté"],["10-19","En route vers..."],["10-20","Votre localisation"],["10-21","Appel téléphonique"],["10-22","Retour en patrouille"],["10-31","Tir d'arme à feu"],["10-35","Demande de renfort"],["10-37","Cambriolage en cours"],["10-38","Contrôle routier"],["10-39","Braquage (ATM / SUP)"],["10-40","Braquage de banque"],["10-41","Prise de patrouille"],["10-42","Fin de patrouille"],["10-50","Accident"],["10-52","Appel EMS"],["10-56","Refus d'obtempérer"],["10-57","Vol de véhicule"],["10-59","Vol de sac à main"],["10-60","Vente de drogue"],["10-61","Braquage de Fleeca"],["10-62","Braquage de bijouterie"],["10-63","Braquage de container"],["10-64","Braquage d'Ammunation"]]}
+];
+function renderRadioCodes(){const q=($("#radioCodeSearch")?.value||"").toLowerCase();$("#radioCodesContent").innerHTML=RADIO_GROUPS.map(g=>{const rows=g.rows.filter(r=>r.join(" ").toLowerCase().includes(q));if(!rows.length)return"";return `<section class="radio-section"><h3>${escapeHtml(g.title)}</h3><table class="radio-table"><thead><tr><th>Code / Call</th><th>Description</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r[0])}</td><td>${escapeHtml(r[1])}</td></tr>`).join("")}</tbody></table></section>`}).join("")||'<div class="empty-state">Aucun code trouvé.</div>'}
+$("#radioCodeSearch").oninput=renderRadioCodes;renderRadioCodes();
+
+// Fiche co-négociateur
+function coText(){return `🧾 FICHE CO-NÉGOCIATEUR\n\n📍 Braquage : ${$("#coBraquage").value}\n📍 Lieu : ${$("#coLieu").value}\n🕒 Heure : ${$("#coHeure").value}\n\n👥 Nombre de braqueurs : ${$("#coBraqueurs").value}\n🧍 Nombre d’otages / identités : ${$("#coOtages").value}\n🔫 Armement : ${$("#coArmement").value}\n\n📢 Revendications :\n${$("#coRevendications").value}\n\n🚔 Contre-proposition BCSO :\n${$("#coContre").value}\n\n✅ Accord retenu :\n${$("#coAccord").value}\n\n📝 Notes importantes :\n${$("#coNotes").value}`}
+$("#resetCoNegotiator").onclick=()=>{if(confirm("Réinitialiser la fiche ?"))$("#coNegotiatorForm").reset()};$("#copyCoNegotiator").onclick=async()=>{try{await navigator.clipboard.writeText(coText());alert("Fiche copiée dans le presse-papiers.")}catch{alert(coText())}};
+
+// ==================== MATERIEL A LA PRISE DE SERVICE ====================
+const REQUIRED_EQUIPMENT=["Glock-22 Police","34 munitions","2 Tests GSR","Taser","10 batteries Taser","Gazeuse","5 recharges gazeuse","2 menottes","1 clé","2 bandages","2 garrots","Pistolet radar","Lampe torche","Radio","Matraque","Mégaphone","Paire de jumelles","Appareil photo","Balise","Gilet pare-balles","Herse"];
+const MATERIAL_CATALOG=["Glock-22 Police","Munitions","Test GSR","Taser","Batterie Taser","Gazeuse","Recharge gazeuse","Menottes","Clé de menottes","Bandage","Garrot","Pistolet radar","Lampe torche","Radio","Matraque","Mégaphone","Paire de jumelles","Appareil photo","Balise","Gilet pare-balles","Herse"];
+let materialRequests=load(STORAGE.materialRequests,[]),materialDraft=[];save(STORAGE.materialRequests,materialRequests);
+function openEquipmentCheck(){materialDraft=[];$("#equipmentRequiredList").innerHTML=REQUIRED_EQUIPMENT.map(x=>`<div class="equipment-chip">✓ ${escapeHtml(x)}</div>`).join("");$("#materialRequestItem").innerHTML=MATERIAL_CATALOG.map(x=>`<option>${escapeHtml(x)}</option>`).join("");renderMaterialDraft();openModal("equipmentCheckModal")}
+function renderMaterialDraft(){$("#materialRequestDraft").innerHTML=materialDraft.length?materialDraft.map((x,i)=>`<div class="material-draft-item"><span><strong>${x.qty} ×</strong> ${escapeHtml(x.item)}</span><button type="button" data-remove-material="${i}">Retirer</button></div>`).join(""):'<span class="muted">Aucun matériel manquant sélectionné.</span>';$$('[data-remove-material]').forEach(b=>b.onclick=()=>{materialDraft.splice(+b.dataset.removeMaterial,1);renderMaterialDraft()})}
+$("#addMaterialRequestItem").onclick=()=>{const item=$("#materialRequestItem").value,qty=Math.max(1,parseInt($("#materialRequestQty").value,10)||1);const existing=materialDraft.find(x=>x.item===item);if(existing)existing.qty+=qty;else materialDraft.push({item,qty});$("#materialRequestQty").value=1;renderMaterialDraft()};
+function beginDuty(){activeService={start:new Date().toISOString()};save(STORAGE.activeService,activeService);closeModal("equipmentCheckModal");renderServices()}
+$("#startDutyAllGood").onclick=beginDuty;
+$("#startDutyWithRequest").onclick=()=>{if(!materialDraft.length){alert("Sélectionnez au moins un équipement manquant ou utilisez « J'ai tout mon équipement ».");return}materialRequests.unshift({id:`MAT-${Date.now()}`,agent:profile.name,rank:profile.rank,date:new Date().toISOString(),items:materialDraft.map(x=>({...x})),status:"En attente"});save(STORAGE.materialRequests,materialRequests);renderMaterialNotifications();beginDuty()};
+function renderMaterialNotifications(){const pending=materialRequests.filter(r=>r.status!=="Délivrée").length;$("#materialNotificationCount").textContent=pending;$("#materialNotificationsBtn").classList.toggle("has-alert",pending>0);$("#materialNotificationsList").innerHTML=materialRequests.length?materialRequests.map(r=>`<article class="material-request-card"><div class="request-head"><div><strong>${escapeHtml(r.agent)}</strong><div class="muted">${escapeHtml(r.rank)} • ${formatDate(r.date)}</div></div><span class="request-status">${escapeHtml(r.status)}</span></div><ul class="request-items">${r.items.map(x=>`<li>${x.qty} × ${escapeHtml(x.item)}</li>`).join("")}</ul><div class="request-actions">${r.status==="En attente"?`<button class="secondary-btn" data-material-status="${r.id}|Prise en charge">Prendre en charge</button>`:""}${r.status!=="Délivrée"?`<button class="primary-btn" data-material-status="${r.id}|Délivrée">Marquer comme délivrée</button>`:""}</div></article>`).join(""):'<div class="empty-state">Aucune demande de matériel.</div>';$$('[data-material-status]').forEach(b=>b.onclick=()=>{const [id,status]=b.dataset.materialStatus.split("|");const r=materialRequests.find(x=>x.id===id);if(r){r.status=status;r.updatedAt=new Date().toISOString();save(STORAGE.materialRequests,materialRequests);renderMaterialNotifications()}})}
+$("#materialNotificationsBtn").onclick=()=>{renderMaterialNotifications();openModal("materialNotificationsModal")};renderMaterialNotifications();

@@ -53,6 +53,16 @@
         </button>
       </nav>
 
+      <button class="nav-label aides-label nav-section-toggle" type="button" data-nav-section="aides" aria-expanded="true">
+        <span>AIDES</span><span class="nav-section-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <nav class="nav aides-nav nav-section" data-nav-content="aides">
+        <button class="nav-item" data-view="procedures"><span>📋</span><span>Procédures</span></button>
+        <button class="nav-item" data-view="helpSheets"><span>💡</span><span>Fiches d'aide</span></button>
+        <button class="nav-item" data-view="radioCodes"><span>📻</span><span>Codes radio</span></button>
+        <button class="nav-item" data-view="miranda"><span>⚖️</span><span>Droits Miranda</span></button>
+      </nav>
+
       <button class="nav-label supervision-label nav-section-toggle" type="button" data-nav-section="supervision" aria-expanded="true">
         <span>SUPERVISION</span><span class="nav-section-chevron" aria-hidden="true">⌄</span>
       </button>
@@ -126,6 +136,7 @@
             <span class="muted">Agents en service</span>
             <strong id="agentsOnDuty">09</strong>
           </div>
+          <button class="material-alert-btn" id="materialNotificationsBtn" title="Demandes de matériel">🔔 <span id="materialNotificationCount">0</span></button>
           <button class="duty-btn off" id="dutyToggle">
             <span class="status-dot"></span>
             <span id="dutyLabel">Prendre mon service</span>
@@ -291,6 +302,37 @@
           </select>
         </div>
         <div id="complaintsList" class="cards-list"></div>
+      </section>
+
+      <section class="view" id="view-procedures">
+        <div class="section-heading"><div><p class="eyebrow">Procédures & Aides</p><h2>Procédures</h2><p class="muted">Consultez rapidement les rappels procéduraux et procédures opérationnelles du BCSO.</p></div></div>
+        <div class="toolbar panel-lite docs-toolbar"><input id="procedureSearch" type="search" placeholder="Rechercher une procédure..."><select id="procedureCategory"><option value="">Toutes les catégories</option><option>Rapports</option><option>Interventions</option></select></div>
+        <div id="procedureCards" class="docs-card-grid"></div>
+      </section>
+
+      <section class="view" id="view-helpSheets">
+        <div class="section-heading"><div><p class="eyebrow">Procédures & Aides</p><h2>Fiches d'aide</h2><p class="muted">Pense-bêtes courts et pratiques pour les situations courantes.</p></div></div>
+        <div class="toolbar panel-lite docs-toolbar"><input id="helpSheetSearch" type="search" placeholder="Rechercher une fiche d'aide..."><select id="helpSheetCategory"><option value="">Toutes les catégories</option><option>Patrouille</option><option>Intervention</option><option>Secours</option><option>Rapports</option><option>Négociation</option></select></div>
+        <div id="helpSheetCards" class="docs-card-grid"></div>
+      </section>
+
+      <section class="view" id="view-radioCodes">
+        <div class="section-heading"><div><p class="eyebrow">Procédures & Aides</p><h2>Codes radio</h2><p class="muted">Indicatifs de patrouille, codes opérationnels et Ten-Codes.</p></div></div>
+        <div class="toolbar panel-lite"><input id="radioCodeSearch" type="search" placeholder="Rechercher un code, un call ou une signification..."></div>
+        <div id="radioCodesContent" class="radio-code-layout"></div>
+      </section>
+
+      <section class="view" id="view-miranda">
+        <div class="section-heading"><div><p class="eyebrow">Procédures & Aides</p><h2>Droits Miranda</h2><p class="muted">Texte de lecture lors d'une arrestation.</p></div></div>
+        <article class="panel miranda-card">
+          <h3>Droits Miranda</h3>
+          <p>Monsieur/Madame <strong>(citer le nom et le prénom de la personne)</strong>, nous sommes le <strong>… / … / …</strong>. Il est <strong>… h …</strong>.</p>
+          <p>Vous êtes en état d'arrestation pour :</p><div class="miranda-fill">Chef(s) d'accusation : ________________________________</div>
+          <p>Sachez que le(s) chef(s) d'accusation pourront être modifiés. Vous avez le droit de garder le silence. Tout ce que vous direz pourra et sera retenu contre vous devant une cour de justice. Vous avez le droit à un avocat et à ce qu'il soit présent lors de votre interrogatoire. Si vous n'en avez pas les moyens, un avocat vous sera commis d'office.</p>
+          <p>Durant votre temps d'arrestation, vous avez le droit à des soins médicaux si vous en ressentez le besoin, ainsi qu'à de la nourriture. Vous pouvez décider à tout moment d'exercer vos droits, de ne répondre à aucune question et de ne faire aucune déposition.</p>
+          <div class="miranda-question">Avez-vous bien compris vos droits ? <strong>Réponse obligatoire</strong></div>
+          <div class="miranda-question">Souhaitez-vous faire valoir vos droits ? <strong>Réponse obligatoire</strong></div>
+        </article>
       </section>
 
       <section class="view" id="view-agentManagement">
@@ -932,6 +974,32 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+
+  <div class="modal" id="docDetailModal" aria-hidden="true">
+    <div class="modal-card wide docs-detail-modal"><button class="modal-close" data-close="docDetailModal">×</button><p class="eyebrow" id="docDetailCategory">Procédure</p><h2 id="docDetailTitle"></h2><div id="docDetailBody" class="doc-detail-body"></div></div>
+  </div>
+
+  <div class="modal" id="equipmentCheckModal" aria-hidden="true">
+    <div class="modal-card wide"><button class="modal-close" data-close="equipmentCheckModal">×</button><p class="eyebrow">Prise de service</p><h2>Vérification de l'équipement</h2><p class="muted">Avant de prendre votre service, vérifiez que vous disposez du matériel nécessaire.</p>
+      <div class="equipment-summary" id="equipmentRequiredList"></div>
+      <div class="material-request-box"><div class="panel-header"><div><p class="eyebrow">Demande de matériel</p><h3>Matériel manquant</h3></div></div>
+        <div class="material-request-row"><select id="materialRequestItem"></select><input id="materialRequestQty" type="number" min="1" max="99" value="1"><button class="secondary-btn" id="addMaterialRequestItem" type="button">+ Ajouter</button></div>
+        <div id="materialRequestDraft" class="material-request-draft"></div>
+      </div>
+      <div class="modal-actions"><button type="button" class="secondary-btn" data-close="equipmentCheckModal">Annuler</button><button type="button" class="secondary-btn" id="startDutyAllGood">✓ J'ai tout mon équipement</button><button type="button" class="primary-btn" id="startDutyWithRequest">Envoyer la demande et prendre mon service</button></div>
+    </div>
+  </div>
+
+  <div class="modal" id="materialNotificationsModal" aria-hidden="true">
+    <div class="modal-card wide"><button class="modal-close" data-close="materialNotificationsModal">×</button><p class="eyebrow">Supervision</p><h2>Demandes de matériel</h2><p class="muted">Demandes envoyées lors des prises de service. En production, elles pourront aussi être transmises sur Discord.</p><div id="materialNotificationsList" class="material-notification-list"></div></div>
+  </div>
+
+  <div class="modal" id="coNegotiatorModal" aria-hidden="true">
+    <div class="modal-card wide"><button class="modal-close" data-close="coNegotiatorModal">×</button><p class="eyebrow">Fiche d'aide — Négociation</p><h2>Fiche co-négociateur</h2>
+      <form id="coNegotiatorForm"><div class="form-grid three"><label>Braquage<input id="coBraquage"></label><label>Lieu<input id="coLieu"></label><label>Heure<input id="coHeure" type="time"></label></div><div class="form-grid three"><label>Nombre de braqueurs<input id="coBraqueurs" type="number" min="0"></label><label>Otages / identités<textarea id="coOtages" rows="2"></textarea></label><label>Armement<textarea id="coArmement" rows="2"></textarea></label></div><label>Revendications<textarea id="coRevendications" rows="3"></textarea></label><label>Contre-proposition BCSO<textarea id="coContre" rows="3"></textarea></label><label>Accord retenu<textarea id="coAccord" rows="3"></textarea></label><label>Notes importantes<textarea id="coNotes" rows="4"></textarea></label><div class="modal-actions"><button type="button" class="secondary-btn" id="resetCoNegotiator">Réinitialiser</button><button type="button" class="primary-btn" id="copyCoNegotiator">Copier la fiche</button></div></form>
     </div>
   </div>
 
