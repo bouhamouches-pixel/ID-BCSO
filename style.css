@@ -302,4 +302,43 @@ label { display: grid; gap: 7px; color: #d7dbe0; font-size: 13px; margin-bottom:
 /* Supervision complète */
 #view-agendaManagement .record-card,#view-reportSupervision .agents-table-wrap,#view-complaintManagement .agents-table-wrap,#view-warrantManagement .agents-table-wrap{box-shadow:var(--shadow)}
 #view-agendaManagement .toolbar,#view-reportSupervision .toolbar,#view-complaintManagement .toolbar,#view-warrantManagement .toolbar{margin-bottom:16px}
+
+/* Sections repliables de la barre latérale */
+.nav-section-toggle {
+  width: calc(100% - 4px);
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  text-align: left;
+  padding: 7px 8px;
+  border-radius: 8px;
+  transition: background .18s ease, color .18s ease;
+}
+.nav-section-toggle:hover {
+  background: rgba(255,255,255,.035);
+  color: var(--text);
+}
+.nav-section-toggle.supervision-label { color: #d8c28f; }
+.nav-section-chevron {
+  font-size: 14px;
+  line-height: 1;
+  transition: transform .2s ease;
+}
+.nav-section-toggle[aria-expanded="false"] .nav-section-chevron { transform: rotate(-90deg); }
+.nav-section {
+  max-height: 520px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height .25s ease, opacity .18s ease, margin .25s ease;
+}
+.nav-section.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
 @media(max-height:850px){.profile-card{margin:12px 0}.nav-item{padding:10px 13px}.nav-label{margin-top:2px}.supervision-label{margin-top:14px}.sidebar-footer{margin-top:14px}}

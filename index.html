@@ -29,8 +29,10 @@
         <span class="profile-edit">✎</span>
       </button>
 
-      <div class="nav-label">BCSO</div>
-      <nav class="nav">
+      <button class="nav-label nav-section-toggle" type="button" data-nav-section="bcso" aria-expanded="true">
+        <span>BCSO</span><span class="nav-section-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <nav class="nav nav-section" data-nav-content="bcso">
         <button class="nav-item active" data-view="services">
           <span>⏱</span><span>Services</span>
         </button>
@@ -51,8 +53,10 @@
         </button>
       </nav>
 
-      <div class="nav-label supervision-label">SUPERVISION</div>
-      <nav class="nav supervision-nav">
+      <button class="nav-label supervision-label nav-section-toggle" type="button" data-nav-section="supervision" aria-expanded="true">
+        <span>SUPERVISION</span><span class="nav-section-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <nav class="nav supervision-nav nav-section" data-nav-content="supervision">
         <button class="nav-item" data-view="agentManagement">
           <span>👥</span><span>Gestion des agents</span>
         </button>

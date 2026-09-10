@@ -8,7 +8,8 @@ const STORAGE = {
   reports: "bcso_demo_reports",
   events: "bcso_demo_events",
   complaints: "bcso_demo_complaints",
-  warrants: "bcso_demo_warrants"
+  warrants: "bcso_demo_warrants",
+  navSections: "bcso_demo_nav_sections"
 };
 
 const defaultAvatar = createDefaultAvatar();
@@ -122,6 +123,29 @@ function applyProfile() {
   $("#profileRank").value = profile.rank;
 }
 applyProfile();
+
+// PANELS REPLIABLES DE LA SIDEBAR
+const navSectionState = load(STORAGE.navSections, { bcso: true, supervision: true });
+
+function setNavSection(section, expanded, persist = true) {
+  const toggle = document.querySelector(`[data-nav-section="${section}"]`);
+  const content = document.querySelector(`[data-nav-content="${section}"]`);
+  if (!toggle || !content) return;
+
+  toggle.setAttribute("aria-expanded", String(expanded));
+  content.classList.toggle("collapsed", !expanded);
+  navSectionState[section] = expanded;
+  if (persist) save(STORAGE.navSections, navSectionState);
+}
+
+$$('.nav-section-toggle').forEach(toggle => {
+  const section = toggle.dataset.navSection;
+  setNavSection(section, navSectionState[section] !== false, false);
+  toggle.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    setNavSection(section, !expanded);
+  });
+});
 
 $$(".nav-item").forEach(btn => {
   btn.addEventListener("click", () => {
