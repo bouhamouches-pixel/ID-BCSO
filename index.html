@@ -43,6 +43,9 @@
         <button class="nav-item" data-view="reportsDb">
           <span>🗃</span><span>BD Rapports</span>
         </button>
+        <button class="nav-item" data-view="warrants">
+          <span>🚨</span><span>Mandats d'arrêt</span>
+        </button>
         <button class="nav-item" data-view="complaints">
           <span>⚖</span><span>Plaintes</span>
         </button>
@@ -195,6 +198,23 @@
         <div id="reportsDbList" class="cards-list"></div>
       </section>
 
+      <section class="view" id="view-warrants">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Avis de recherche</p>
+            <h2>Mandats d'arrêt</h2>
+            <p class="muted">Mandats actuellement en vigueur au sein du BCSO.</p>
+          </div>
+          <button class="primary-btn" id="newWarrantBtn">+ Nouveau mandat</button>
+        </div>
+        <div class="toolbar warrant-toolbar panel-lite">
+          <input id="warrantSearch" type="search" placeholder="Rechercher un individu, une infraction..." />
+          <select id="warrantPriorityFilter"><option value="">Toutes les priorités</option><option>Priorité élevée</option><option>Priorité normale</option></select>
+          <select id="warrantStatusFilter"><option value="">Tous les statuts</option><option>Actif</option><option>Levée</option></select>
+        </div>
+        <div id="warrantsList" class="warrants-grid"></div>
+      </section>
+
       <section class="view" id="view-complaints">
         <div class="section-head">
           <div>
@@ -252,6 +272,30 @@
         <button class="secondary-btn" data-close="profileModal">Annuler</button>
         <button class="primary-btn" id="saveProfile">Enregistrer</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal" id="warrantModal" aria-hidden="true">
+    <div class="modal-card wide">
+      <button class="modal-close" data-close="warrantModal">×</button>
+      <p class="eyebrow">Mandats d'arrêt</p>
+      <h2 id="warrantModalTitle">Nouveau mandat</h2>
+      <form id="warrantForm">
+        <input type="hidden" id="warrantEditId" />
+        <div class="form-grid two">
+          <label>Nom et prénom de l'individu<input id="warrantName" required placeholder="Ex. John William" /></label>
+          <label>Date de naissance<input id="warrantDob" type="date" /></label>
+        </div>
+        <div class="form-grid two">
+          <label>Dangerosité<select id="warrantDanger"><option>Faible</option><option>Moyenne</option><option>Élevée</option><option selected>Maximum</option></select></label>
+          <label>Priorité<select id="warrantPriority"><option>Priorité normale</option><option selected>Priorité élevée</option></select></label>
+        </div>
+        <label>Qualification / faits reprochés<textarea id="warrantCharges" rows="5" required placeholder="Liste des faits reprochés..."></textarea></label>
+        <label>Informations complémentaires<textarea id="warrantNotes" rows="4" placeholder="Consignes, circonstances particulières..."></textarea></label>
+        <label>Image du mandat (optionnel)<input id="warrantImage" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+        <p class="muted small">PNG, JPG/JPEG ou WebP — 5 Mo maximum. Pour cette démo, l'image est compressée et stockée localement dans le navigateur.</p>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="warrantModal">Annuler</button><button type="submit" class="primary-btn">Enregistrer le mandat</button></div>
+      </form>
     </div>
   </div>
 
