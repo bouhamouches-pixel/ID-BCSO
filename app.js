@@ -1239,7 +1239,10 @@ const SEB_MARKERS={
 function renderSebBoard(){
   const o=sebOperations.find(x=>x.id===currentSebOperationId);if(!o)return;const b=getSebBoard(o.id);
   $("#sebBoardOperationStatus").value=o.status; $("#sebBoardBriefing").innerHTML=sebBriefingHtml(o);
-  const bg=$("#sebMapBackground");bg.style.backgroundImage=b.background?`url("${b.background}")`:"none";$("#sebMapStage").classList.toggle("has-bg",!!b.background);
+  const bg=$("#sebMapBackground"),forge=$("#sebForgeMap");
+  bg.style.backgroundImage=b.background?`url("${b.background}")`:"none";
+  $("#sebMapStage").classList.toggle("has-bg",!!b.background);
+  if(forge) forge.classList.toggle("hidden",!!b.background);
   $("#sebMapMarkers").innerHTML=(b.markers||[]).map(sebMarkerHtml).join("");
   renderSebLines(); $$('.seb-map-marker').forEach(makeSebMarkerDraggable); $$('.seb-marker-remove').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const board=getSebBoard(currentSebOperationId);board.markers=board.markers.filter(m=>m.id!==btn.dataset.sebRemove);save(SEB_STORAGE.boards,sebBoards);renderSebBoard()});
 }
@@ -1282,7 +1285,7 @@ $("#sebBoardOperationStatus").onchange=()=>{const o=sebOperations.find(x=>x.id==
 $("#sebBoardEditOperation").onclick=()=>{closeModal("sebBoardModal");openSebOperationForm(currentSebOperationId)};
 $$('[data-seb-marker]').forEach(b=>b.onclick=()=>addSebMarker(b.dataset.sebMarker)); $("#sebAddNoteBtn").onclick=()=>addSebMarker("note");
 $("#sebMapImageInput").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>8*1024*1024){alert("Carte limitée à 8 Mo pour la démo.");e.target.value="";return}const data=await fileToDataUrl(f);getSebBoard(currentSebOperationId).background=data;save(SEB_STORAGE.boards,sebBoards);renderSebBoard();e.target.value=""};
-$("#sebClearMapBtn").onclick=()=>{if(!confirm("Retirer le fond de carte de cette opération ?"))return;getSebBoard(currentSebOperationId).background=null;save(SEB_STORAGE.boards,sebBoards);renderSebBoard()};
+$("#sebClearMapBtn").onclick=()=>{if(!confirm("Revenir à la carte Forge par défaut pour cette opération ?"))return;getSebBoard(currentSebOperationId).background=null;save(SEB_STORAGE.boards,sebBoards);renderSebBoard()};
 $$('[data-seb-tool]').forEach(b=>b.onclick=()=>setSebTool(b.dataset.sebTool)); $("#sebMapStage").addEventListener("click",handleSebStageClick); $("#sebMapStage").addEventListener("dblclick",e=>{if(sebTool==="route"){e.preventDefault();finishSebRoute()}}); initSebPan();
 $("#sebFinishRoute").onclick=finishSebRoute;
 $("#sebUndoLine").onclick=()=>{const b=getSebBoard(currentSebOperationId);if(sebDraftLine){sebDraftLine=null;renderSebLines();return}b.lines.pop();save(SEB_STORAGE.boards,sebBoards);renderSebLines()};

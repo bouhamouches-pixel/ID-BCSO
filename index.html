@@ -910,11 +910,12 @@
             <button class="seb-side-action" data-seb-marker="squad">👥 Escouade</button><button class="seb-side-action" id="sebAddNoteBtn">📝 Note</button>
           </div>
           <label class="seb-side-action seb-file-action">🗺 Importer carte / plan<input id="sebMapImageInput" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>
-          <button class="seb-side-action" id="sebClearMapBtn">Retirer le fond de carte</button>
+          <button class="seb-side-action" id="sebClearMapBtn">Revenir à la carte Forge</button>
         </aside>
         <div class="seb-map-wrap" id="sebMapWrap">
           <div id="sebMapStage" class="seb-map-stage">
-            <div id="sebMapBackground" class="seb-map-background"><div class="seb-map-placeholder"><strong>Carte opérationnelle</strong><span>Importez une carte de San Andreas, une vue aérienne ou un plan de bâtiment.</span></div></div>
+            <iframe id="sebForgeMap" class="seb-forge-map" src="https://forge.plebmasters.de/map?x=-163.66636663666446&amp;y=6461.746174617462&amp;z=0&amp;b=Realmap&amp;o=" title="Carte tactique GTA V — Pleb Masters Forge" loading="eager" referrerpolicy="no-referrer"></iframe>
+            <div id="sebMapBackground" class="seb-map-background"><div class="seb-map-placeholder"><strong>Carte opérationnelle</strong><span>La carte Forge est chargée par défaut. Vous pouvez aussi importer un plan personnalisé.</span></div></div>
             <svg id="sebMapLines" class="seb-map-lines"></svg>
             <div id="sebMapMarkers"></div>
           </div>
