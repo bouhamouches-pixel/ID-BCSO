@@ -1170,3 +1170,122 @@ $("#invNewSuspectBtn").onclick=()=>openInvSuspectForm();$("#invSuspectSearch").o
 $("#invSuspectForm").onsubmit=e=>{e.preventDefault();const id=$("#invSuspectId").value||invNextId("SUS",invSuspects),old=invSuspects.find(x=>x.id===id),obj={id,name:$("#invSuspectName").value.trim(),alias:$("#invSuspectAlias").value.trim(),danger:$("#invSuspectDanger").value,grouped:$("#invSuspectGrouped").value,group:$("#invSuspectGrouped").value==="yes"?$("#invSuspectGroup").value.trim():"",role:$("#invSuspectRole").value.trim(),vehicles:$("#invSuspectVehicles").value.trim(),notes:$("#invSuspectNotes").value.trim(),caseIds:old?.caseIds||[],createdBy:old?.createdBy||profile.name,updatedAt:new Date().toISOString()};const duplicate=invSuspects.find(s=>s.id!==id&&s.name.toLowerCase()===obj.name.toLowerCase());if(duplicate&&!confirm(`Une fiche existe déjà pour ${duplicate.name}. Créer / enregistrer quand même ?`))return;const i=invSuspects.findIndex(x=>x.id===id);if(i>=0)invSuspects[i]=obj;else invSuspects.unshift(obj);save(INV_STORAGE.suspects,invSuspects);closeModal("invSuspectModal");invRenderAll()};
 $("#invBoardCaseStatus").onchange=()=>{const c=invCases.find(x=>x.id===currentInvCaseId);if(c){c.status=$("#invBoardCaseStatus").value;c.updatedAt=new Date().toISOString();save(INV_STORAGE.cases,invCases);invRenderAll()}};$("#invBoardEditCase").onclick=()=>{closeModal("invBoardModal");openInvCaseForm(currentInvCaseId)};$("#invAddSuspectToBoard").onclick=()=>openInvPicker("suspect");$("#invImportReportBtn").onclick=()=>openInvPicker("report");$("#invAddNoteBtn").onclick=()=>{const t=prompt("Titre de la note :","Note enquêteur");if(t===null)return;const body=prompt("Contenu de la note :","");if(body===null)return;addInvNode("Note",t,body)};$("#invBoardImageInput").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>5*1024*1024){alert("Image limitée à 5 Mo.");e.target.value="";return}const data=await fileToDataUrl(f);addInvNode("Image",f.name,"",null,data);e.target.value=""};$("#invZoomIn").onclick=()=>{invZoom=Math.min(1.6,invZoom+.1);applyInvZoom()};$("#invZoomOut").onclick=()=>{invZoom=Math.max(.5,invZoom-.1);applyInvZoom()};$("#invResetView").onclick=centerInvBoard;
 invRenderAll();
+
+// ==================== SEB — SPECIAL ENFORCEMENT BUREAU ====================
+const SEB_STORAGE = {
+  operations: "bcso_demo_seb_operations",
+  boards: "bcso_demo_seb_boards"
+};
+const seedSebOperations = [
+  {
+    id:"SEB-2026-0001", title:"Intervention — Sandy Shores", lead:"K. Belkacem",
+    status:"En préparation", priority:"Élevée", date:"2026-09-12T22:00",
+    objective:"Interpellation de plusieurs individus retranchés et sécurisation des lieux.",
+    threats:"Présence possible d'armes longues. Nombre d'individus à confirmer.",
+    teams:"Alpha — entrée principale\nBravo — couverture / seconde entrée",
+    equipment:"Bouclier balistique, bélier, médical tactique.",
+    instructions:"Priorité à la sécurisation des civils et à la coordination radio.",
+    createdAt:"2026-09-10T02:20:00", updatedAt:"2026-09-10T02:20:00"
+  }
+];
+let sebOperations = load(SEB_STORAGE.operations, seedSebOperations);
+let sebBoards = load(SEB_STORAGE.boards, {});
+let currentSebOperationId = null, sebZoom = 1, sebTool = "select", sebDraftLine = null;
+save(SEB_STORAGE.operations, sebOperations); save(SEB_STORAGE.boards, sebBoards);
+
+function sebNextId(){const y=new Date().getFullYear(),nums=sebOperations.filter(o=>o.id.startsWith(`SEB-${y}-`)).map(o=>parseInt(o.id.split("-").pop(),10)||0);return `SEB-${y}-${String(Math.max(0,...nums)+1).padStart(4,"0")}`}
+function sebStatusClass(s){return s==="Prête"?"ready":s==="En cours"?"live":s==="En préparation"?"prep":s==="Annulée"?"cancel":"done"}
+function sebRenderOperations(){
+  const q=($("#sebOperationSearch")?.value||"").toLowerCase(), st=$("#sebOperationStatus")?.value||"", pr=$("#sebOperationPriority")?.value||"";
+  const rows=sebOperations.filter(o=>(!st||o.status===st)&&(!pr||o.priority===pr)&&[o.id,o.title,o.lead,o.objective].join(" ").toLowerCase().includes(q));
+  $("#sebPrepCount").textContent=sebOperations.filter(o=>o.status==="En préparation").length;
+  $("#sebReadyCount").textContent=sebOperations.filter(o=>o.status==="Prête").length;
+  $("#sebLiveCount").textContent=sebOperations.filter(o=>o.status==="En cours").length;
+  $("#sebDoneCount").textContent=sebOperations.filter(o=>o.status==="Terminée").length;
+  $("#sebOperationsList").innerHTML=rows.map(o=>`<article class="seb-operation-card ${o.priority==="Critique"?"critical":o.priority==="Élevée"?"high":""}">
+    <div class="seb-operation-top"><div><div class="seb-operation-id">${escapeHtml(o.id)}</div><h3>${escapeHtml(o.title)}</h3></div><span class="seb-state ${sebStatusClass(o.status)}">${escapeHtml(o.status)}</span></div>
+    <div class="seb-operation-meta"><span>Priorité : <strong>${escapeHtml(o.priority)}</strong></span><span>Lead : ${escapeHtml(o.lead)}</span>${o.date?`<span>${formatDate(o.date)}</span>`:""}</div>
+    <p class="seb-operation-summary">${escapeHtml(o.objective||"Aucun objectif renseigné.")}</p>
+    <div class="seb-operation-actions"><button class="primary-btn" data-seb-open="${o.id}">Ouvrir la carte</button><button class="secondary-btn" data-seb-edit="${o.id}">Modifier</button><button class="danger-outline" data-seb-delete="${o.id}">Supprimer</button></div>
+  </article>`).join("")||'<div class="inv-empty">Aucune opération ne correspond aux filtres.</div>';
+  $$('[data-seb-open]').forEach(b=>b.onclick=()=>openSebBoard(b.dataset.sebOpen));
+  $$('[data-seb-edit]').forEach(b=>b.onclick=()=>openSebOperationForm(b.dataset.sebEdit));
+  $$('[data-seb-delete]').forEach(b=>b.onclick=()=>deleteSebOperation(b.dataset.sebDelete));
+}
+function openSebOperationForm(id=null){
+  const o=id?sebOperations.find(x=>x.id===id):null; $("#sebOperationForm").reset();
+  $("#sebOperationId").value=o?.id||""; $("#sebOperationModalTitle").textContent=o?`Modifier ${o.id}`:"Nouvelle opération";
+  $("#sebOperationTitle").value=o?.title||""; $("#sebOperationLead").value=o?.lead||profile.name;
+  $("#sebOperationFormStatus").value=o?.status||"En préparation"; $("#sebOperationFormPriority").value=o?.priority||"Normale";
+  $("#sebOperationDate").value=o?.date||""; $("#sebOperationObjective").value=o?.objective||""; $("#sebOperationThreats").value=o?.threats||"";
+  $("#sebOperationTeams").value=o?.teams||""; $("#sebOperationEquipment").value=o?.equipment||""; $("#sebOperationInstructions").value=o?.instructions||"";
+  openModal("sebOperationModal");
+}
+function deleteSebOperation(id){const o=sebOperations.find(x=>x.id===id);if(!o||!confirm(`Supprimer définitivement ${o.id} — ${o.title} ?`))return;sebOperations=sebOperations.filter(x=>x.id!==id);delete sebBoards[id];save(SEB_STORAGE.operations,sebOperations);save(SEB_STORAGE.boards,sebBoards);sebRenderOperations()}
+function getSebBoard(id){if(!sebBoards[id])sebBoards[id]={background:null,markers:[],lines:[]};return sebBoards[id]}
+function openSebBoard(id){
+  const o=sebOperations.find(x=>x.id===id); if(!o)return; currentSebOperationId=id; sebZoom=1; sebTool="select"; sebDraftLine=null;
+  $("#sebBoardOperationId").textContent=o.id; $("#sebBoardOperationTitle").textContent=o.title; $("#sebBoardOperationStatus").value=o.status;
+  setSebTool("select"); renderSebBoard(); openModal("sebBoardModal"); requestAnimationFrame(centerSebBoard);
+}
+function sebBriefingHtml(o){const items=[["Objectif",o.objective],["Menaces",o.threats],["Escouades",o.teams],["Équipement",o.equipment],["Consignes",o.instructions]];return items.map(([k,v])=>`<div class="seb-briefing-card"><span>${k}</span><p>${escapeHtml(v||"—")}</p></div>`).join("")}
+function centerSebBoard(){const stage=$("#sebMapStage"),wrap=$("#sebMapWrap");stage.style.left=`${Math.max(20,(wrap.clientWidth-1800*sebZoom)/2)}px`;stage.style.top=`${Math.max(20,(wrap.clientHeight-1200*sebZoom)/2)}px`;applySebZoom()}
+function applySebZoom(){const stage=$("#sebMapStage");stage.style.transform=`scale(${sebZoom})`;$("#sebZoomLabel").textContent=`${Math.round(sebZoom*100)}%`}
+const SEB_MARKERS={
+  entry:{label:"Point d'entrée",icon:"↪",color:"#55c98f"},exit:{label:"Point de sortie",icon:"↩",color:"#67b7ff"},suspect:{label:"Position suspect",icon:"!",color:"#f05f67"},
+  hostage:{label:"Otage",icon:"●",color:"#f6c64d"},rally:{label:"Rassemblement",icon:"◆",color:"#ad82ef"},vehicle:{label:"Véhicule",icon:"▣",color:"#fb9852"},
+  overwatch:{label:"Overwatch",icon:"◎",color:"#59cbd4"},objective:{label:"Objectif",icon:"★",color:"#f5d65f"},squad:{label:"Escouade",icon:"A",color:"#e7edf0"},note:{label:"Note",icon:"N",color:"#c6a86d"}
+};
+function renderSebBoard(){
+  const o=sebOperations.find(x=>x.id===currentSebOperationId);if(!o)return;const b=getSebBoard(o.id);
+  $("#sebBoardOperationStatus").value=o.status; $("#sebBoardBriefing").innerHTML=sebBriefingHtml(o);
+  const bg=$("#sebMapBackground");bg.style.backgroundImage=b.background?`url("${b.background}")`:"none";$("#sebMapStage").classList.toggle("has-bg",!!b.background);
+  $("#sebMapMarkers").innerHTML=(b.markers||[]).map(sebMarkerHtml).join("");
+  renderSebLines(); $$('.seb-map-marker').forEach(makeSebMarkerDraggable); $$('.seb-marker-remove').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const board=getSebBoard(currentSebOperationId);board.markers=board.markers.filter(m=>m.id!==btn.dataset.sebRemove);save(SEB_STORAGE.boards,sebBoards);renderSebBoard()});
+}
+function sebMarkerHtml(m){const def=SEB_MARKERS[m.kind]||SEB_MARKERS.note;return `<div class="seb-map-marker" data-seb-marker-id="${m.id}" style="left:${m.x}px;top:${m.y}px;--marker:${m.color||def.color}"><button class="seb-marker-remove" data-seb-remove="${m.id}">×</button><span class="seb-marker-icon">${escapeHtml(m.icon||def.icon)}</span><strong>${escapeHtml(m.label||def.label)}</strong>${m.detail?`<small>${escapeHtml(m.detail)}</small>`:""}</div>`}
+function renderSebLines(preview=null){
+  const b=getSebBoard(currentSebOperationId),svg=$("#sebMapLines");
+  const defs=`<defs><marker id="sebArrowHead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#ffd34d"/></marker></defs>`;
+  const lines=(b.lines||[]).map(l=>{if(l.type==="route")return `<polyline class="seb-line" points="${l.points.map(p=>`${p.x},${p.y}`).join(" ")}"/>`;return `<line class="seb-line seb-line-arrow" x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}"/>`}).join("");
+  const pv=preview?(preview.type==="route"?`<polyline class="seb-line-preview" points="${preview.points.map(p=>`${p.x},${p.y}`).join(" ")}"/>`:`<line class="seb-line-preview" x1="${preview.x1}" y1="${preview.y1}" x2="${preview.x2}" y2="${preview.y2}"/>`):"";
+  svg.innerHTML=defs+lines+pv;
+}
+function addSebMarker(kind){
+  const def=SEB_MARKERS[kind]||SEB_MARKERS.note; let label=def.label,detail="";
+  if(kind==="squad"){label=prompt("Nom de l'escouade :","Alpha")||"Alpha";detail=prompt("Membres / mission :","")||""}
+  else if(kind==="note"){label=prompt("Titre de la note :","Note")||"Note";detail=prompt("Contenu :","")||""}
+  else detail=prompt(`${def.label} — précision (optionnel) :`,"")||"";
+  const b=getSebBoard(currentSebOperationId),i=b.markers.length;b.markers.push({id:`seb-m-${Date.now()}-${i}`,kind,label,detail,icon:def.icon,color:def.color,x:900+(i%4)*60,y:600+(i%3)*60});save(SEB_STORAGE.boards,sebBoards);renderSebBoard();
+}
+function makeSebMarkerDraggable(el){
+  el.onpointerdown=e=>{if(sebTool!=="select"||e.target.closest("button"))return;e.stopPropagation();const startX=e.clientX,startY=e.clientY,ox=parseFloat(el.style.left),oy=parseFloat(el.style.top);el.setPointerCapture?.(e.pointerId);const move=ev=>{el.style.left=`${Math.max(0,Math.min(1800,ox+(ev.clientX-startX)/sebZoom))}px`;el.style.top=`${Math.max(0,Math.min(1200,oy+(ev.clientY-startY)/sebZoom))}px`};const up=()=>{el.removeEventListener("pointermove",move);el.removeEventListener("pointerup",up);const m=getSebBoard(currentSebOperationId).markers.find(x=>x.id===el.dataset.sebMarkerId);if(m){m.x=parseFloat(el.style.left);m.y=parseFloat(el.style.top);save(SEB_STORAGE.boards,sebBoards)}};el.addEventListener("pointermove",move);el.addEventListener("pointerup",up)};
+}
+function setSebTool(tool){sebTool=tool;sebDraftLine=null;$$('[data-seb-tool]').forEach(b=>b.classList.toggle("active",b.dataset.sebTool===tool));$("#sebMapStage").classList.toggle("tool-line",tool==="line");$("#sebMapStage").classList.toggle("tool-route",tool==="route");renderSebLines()}
+function sebStagePoint(e){const stage=$("#sebMapStage"),r=stage.getBoundingClientRect();return{x:Math.max(0,Math.min(1800,(e.clientX-r.left)/sebZoom)),y:Math.max(0,Math.min(1200,(e.clientY-r.top)/sebZoom))}}
+function handleSebStageClick(e){
+  if(e.target.closest('.seb-map-marker'))return;const p=sebStagePoint(e),b=getSebBoard(currentSebOperationId);
+  if(sebTool==="line"){
+    if(!sebDraftLine){sebDraftLine={type:"line",x1:p.x,y1:p.y,x2:p.x,y2:p.y};renderSebLines(sebDraftLine)}else{sebDraftLine.x2=p.x;sebDraftLine.y2=p.y;b.lines.push(sebDraftLine);sebDraftLine=null;save(SEB_STORAGE.boards,sebBoards);renderSebLines()}
+  } else if(sebTool==="route"){
+    if(!sebDraftLine)sebDraftLine={type:"route",points:[p]}; else sebDraftLine.points.push(p); renderSebLines(sebDraftLine);
+  }
+}
+function finishSebRoute(){if(sebTool!=="route"||!sebDraftLine||sebDraftLine.points.length<2)return;getSebBoard(currentSebOperationId).lines.push(sebDraftLine);sebDraftLine=null;save(SEB_STORAGE.boards,sebBoards);renderSebLines()}
+function initSebPan(){
+  const stage=$("#sebMapStage");stage.addEventListener("pointerdown",e=>{if(sebTool!=="move"||e.target.closest('.seb-map-marker'))return;e.preventDefault();const sx=e.clientX,sy=e.clientY,sl=parseFloat(stage.style.left)||0,st=parseFloat(stage.style.top)||0;stage.setPointerCapture?.(e.pointerId);const move=ev=>{stage.style.left=`${sl+(ev.clientX-sx)}px`;stage.style.top=`${st+(ev.clientY-sy)}px`};const up=()=>{stage.removeEventListener("pointermove",move);stage.removeEventListener("pointerup",up)};stage.addEventListener("pointermove",move);stage.addEventListener("pointerup",up)})
+}
+
+$("#sebNewOperationBtn").onclick=()=>openSebOperationForm(); $("#sebOperationSearch").oninput=sebRenderOperations; $("#sebOperationStatus").onchange=sebRenderOperations; $("#sebOperationPriority").onchange=sebRenderOperations;
+$("#sebOperationForm").onsubmit=e=>{e.preventDefault();const id=$("#sebOperationId").value||sebNextId(),old=sebOperations.find(x=>x.id===id),obj={id,title:$("#sebOperationTitle").value.trim(),lead:$("#sebOperationLead").value.trim(),status:$("#sebOperationFormStatus").value,priority:$("#sebOperationFormPriority").value,date:$("#sebOperationDate").value,objective:$("#sebOperationObjective").value.trim(),threats:$("#sebOperationThreats").value.trim(),teams:$("#sebOperationTeams").value.trim(),equipment:$("#sebOperationEquipment").value.trim(),instructions:$("#sebOperationInstructions").value.trim(),createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};const i=sebOperations.findIndex(x=>x.id===id);if(i>=0)sebOperations[i]=obj;else sebOperations.unshift(obj);save(SEB_STORAGE.operations,sebOperations);closeModal("sebOperationModal");sebRenderOperations();if(currentSebOperationId===id){$("#sebBoardOperationTitle").textContent=obj.title;renderSebBoard()}};
+$("#sebBoardOperationStatus").onchange=()=>{const o=sebOperations.find(x=>x.id===currentSebOperationId);if(o){o.status=$("#sebBoardOperationStatus").value;o.updatedAt=new Date().toISOString();save(SEB_STORAGE.operations,sebOperations);sebRenderOperations();renderSebBoard()}};
+$("#sebBoardEditOperation").onclick=()=>{closeModal("sebBoardModal");openSebOperationForm(currentSebOperationId)};
+$$('[data-seb-marker]').forEach(b=>b.onclick=()=>addSebMarker(b.dataset.sebMarker)); $("#sebAddNoteBtn").onclick=()=>addSebMarker("note");
+$("#sebMapImageInput").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>8*1024*1024){alert("Carte limitée à 8 Mo pour la démo.");e.target.value="";return}const data=await fileToDataUrl(f);getSebBoard(currentSebOperationId).background=data;save(SEB_STORAGE.boards,sebBoards);renderSebBoard();e.target.value=""};
+$("#sebClearMapBtn").onclick=()=>{if(!confirm("Retirer le fond de carte de cette opération ?"))return;getSebBoard(currentSebOperationId).background=null;save(SEB_STORAGE.boards,sebBoards);renderSebBoard()};
+$$('[data-seb-tool]').forEach(b=>b.onclick=()=>setSebTool(b.dataset.sebTool)); $("#sebMapStage").addEventListener("click",handleSebStageClick); $("#sebMapStage").addEventListener("dblclick",e=>{if(sebTool==="route"){e.preventDefault();finishSebRoute()}}); initSebPan();
+$("#sebFinishRoute").onclick=finishSebRoute;
+$("#sebUndoLine").onclick=()=>{const b=getSebBoard(currentSebOperationId);if(sebDraftLine){sebDraftLine=null;renderSebLines();return}b.lines.pop();save(SEB_STORAGE.boards,sebBoards);renderSebLines()};
+$("#sebZoomIn").onclick=()=>{sebZoom=Math.min(1.8,sebZoom+.1);applySebZoom()}; $("#sebZoomOut").onclick=()=>{sebZoom=Math.max(.45,sebZoom-.1);applySebZoom()}; $("#sebResetView").onclick=centerSebBoard;
+$("#sebClearBoardBtn").onclick=()=>{if(!confirm("Effacer tous les marqueurs et tracés de cette carte ? Le fond de carte sera conservé."))return;const b=getSebBoard(currentSebOperationId);b.markers=[];b.lines=[];sebDraftLine=null;save(SEB_STORAGE.boards,sebBoards);renderSebBoard()};
+sebRenderOperations();

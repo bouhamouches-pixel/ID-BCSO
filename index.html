@@ -98,6 +98,15 @@
         <button class="nav-item" data-view="investigationDatabase"><span>🕵️</span><span>Base de données</span></button>
       </nav>
 
+
+
+      <button class="nav-label seb-label nav-section-toggle" type="button" data-nav-section="seb" aria-expanded="true">
+        <span>SEB</span><span class="nav-section-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <nav class="nav seb-nav nav-section" data-nav-content="seb">
+        <button class="nav-item" data-view="sebOperations"><span>🛡️</span><span>Opérations</span></button>
+      </nav>
+
       <div class="sidebar-footer">
         <div class="demo-pill">MODE DÉMO</div>
         <small>Données enregistrées localement dans le navigateur.</small>
@@ -514,6 +523,27 @@
         <div id="invSuspectsList" class="inv-suspect-grid"></div>
       </section>
 
+
+      <section class="view" id="view-sebOperations">
+        <div class="section-head">
+          <div><p class="eyebrow">Special Enforcement Bureau</p><h2>Opérations</h2><p class="muted">Préparation tactique et cartes opérationnelles du SEB.</p></div>
+          <button class="primary-btn" id="sebNewOperationBtn">+ Nouvelle opération</button>
+        </div>
+        <div class="supervision-summary">
+          <article class="stat-card"><span>En préparation</span><strong id="sebPrepCount">0</strong><small>opérations</small></article>
+          <article class="stat-card"><span>Prêtes</span><strong id="sebReadyCount">0</strong><small>briefing validé</small></article>
+          <article class="stat-card"><span>En cours</span><strong id="sebLiveCount">0</strong><small>opérations actives</small></article>
+          <article class="stat-card"><span>Terminées</span><strong id="sebDoneCount">0</strong><small>archives</small></article>
+        </div>
+        <div class="toolbar panel-lite seb-toolbar">
+          <input id="sebOperationSearch" type="search" placeholder="N° d’opération, nom, responsable...">
+          <select id="sebOperationStatus"><option value="">Tous les statuts</option><option>En préparation</option><option>Prête</option><option>En cours</option><option>Terminée</option><option>Annulée</option></select>
+          <select id="sebOperationPriority"><option value="">Toutes les priorités</option><option>Normale</option><option>Élevée</option><option>Critique</option></select>
+        </div>
+        <div id="sebOperationsList" class="seb-operation-grid"></div>
+      </section>
+
+
     </main>
   </div>
 
@@ -844,6 +874,65 @@
   <div class="modal" id="invPickerModal" aria-hidden="true">
     <div class="modal-card wide"><button class="modal-close" data-close="invPickerModal">×</button><p class="eyebrow">Investigation Division</p><h2 id="invPickerTitle">Ajouter au dossier</h2><input id="invPickerSearch" type="search" placeholder="Rechercher..."><div id="invPickerList" class="inv-picker-list"></div></div>
   </div>
+
+
+  <div class="modal" id="sebOperationModal" aria-hidden="true">
+    <div class="modal-card wide"><button class="modal-close" data-close="sebOperationModal">×</button><p class="eyebrow">Special Enforcement Bureau</p><h2 id="sebOperationModalTitle">Nouvelle opération</h2>
+      <form id="sebOperationForm"><input type="hidden" id="sebOperationId">
+        <div class="form-grid two"><label>Nom de l’opération<input id="sebOperationTitle" required placeholder="Ex. Intervention — Sandy Shores"></label><label>Responsable / Lead<input id="sebOperationLead" required placeholder="Ex. K. Belkacem"></label></div>
+        <div class="form-grid three"><label>Statut<select id="sebOperationFormStatus"><option>En préparation</option><option>Prête</option><option>En cours</option><option>Terminée</option><option>Annulée</option></select></label><label>Priorité<select id="sebOperationFormPriority"><option>Normale</option><option>Élevée</option><option>Critique</option></select></label><label>Date prévue<input id="sebOperationDate" type="datetime-local"></label></div>
+        <label>Objectif principal<textarea id="sebOperationObjective" rows="3" placeholder="Objectif de l’opération..."></textarea></label>
+        <div class="form-grid two"><label>Menaces connues<textarea id="sebOperationThreats" rows="4" placeholder="Individus armés, explosifs, otages..."></textarea></label><label>Effectifs / escouades<textarea id="sebOperationTeams" rows="4" placeholder="Alpha, Bravo, Charlie..."></textarea></label></div>
+        <div class="form-grid two"><label>Équipement particulier<textarea id="sebOperationEquipment" rows="3" placeholder="Bouclier, bélier, drone, médical..."></textarea></label><label>Consignes<textarea id="sebOperationInstructions" rows="3" placeholder="Consignes du Lead..."></textarea></label></div>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="sebOperationModal">Annuler</button><button class="primary-btn" type="submit">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal seb-board-modal" id="sebBoardModal" aria-hidden="true">
+    <div class="seb-board-shell">
+      <div class="seb-board-topbar">
+        <button class="secondary-btn" data-close="sebBoardModal">← Opérations</button>
+        <div><small id="sebBoardOperationId">SEB-2026-0001</small><strong id="sebBoardOperationTitle">Opération</strong></div>
+        <select id="sebBoardOperationStatus"><option>En préparation</option><option>Prête</option><option>En cours</option><option>Terminée</option><option>Annulée</option></select>
+        <button class="secondary-btn" id="sebBoardEditOperation">Modifier le briefing</button>
+      </div>
+      <div class="seb-board-layout">
+        <aside class="seb-board-side">
+          <h3>Briefing</h3>
+          <div id="sebBoardBriefing" class="seb-briefing"></div>
+          <h3 class="seb-side-heading">Éléments tactiques</h3>
+          <div class="seb-tactical-grid">
+            <button class="seb-side-action" data-seb-marker="entry">↪ Entrée</button><button class="seb-side-action" data-seb-marker="exit">↩ Sortie</button>
+            <button class="seb-side-action" data-seb-marker="suspect">⚠ Suspect</button><button class="seb-side-action" data-seb-marker="hostage">● Otage</button>
+            <button class="seb-side-action" data-seb-marker="rally">◆ Rassemblement</button><button class="seb-side-action" data-seb-marker="vehicle">▣ Véhicule</button>
+            <button class="seb-side-action" data-seb-marker="overwatch">◎ Overwatch</button><button class="seb-side-action" data-seb-marker="objective">★ Objectif</button>
+            <button class="seb-side-action" data-seb-marker="squad">👥 Escouade</button><button class="seb-side-action" id="sebAddNoteBtn">📝 Note</button>
+          </div>
+          <label class="seb-side-action seb-file-action">🗺 Importer carte / plan<input id="sebMapImageInput" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>
+          <button class="seb-side-action" id="sebClearMapBtn">Retirer le fond de carte</button>
+        </aside>
+        <div class="seb-map-wrap" id="sebMapWrap">
+          <div id="sebMapStage" class="seb-map-stage">
+            <div id="sebMapBackground" class="seb-map-background"><div class="seb-map-placeholder"><strong>Carte opérationnelle</strong><span>Importez une carte de San Andreas, une vue aérienne ou un plan de bâtiment.</span></div></div>
+            <svg id="sebMapLines" class="seb-map-lines"></svg>
+            <div id="sebMapMarkers"></div>
+          </div>
+          <div class="seb-board-tools">
+            <button class="seb-tool active" data-seb-tool="select">⌖ Sélection</button>
+            <button class="seb-tool" data-seb-tool="move">✋ Déplacer</button>
+            <button class="seb-tool" data-seb-tool="line">↗ Flèche</button>
+            <button class="seb-tool" data-seb-tool="route">✎ Tracé</button>
+            <button id="sebFinishRoute">✓ Terminer tracé</button><button id="sebUndoLine">↶</button>
+            <span class="seb-tool-sep"></span>
+            <button id="sebZoomOut">−</button><span id="sebZoomLabel">100%</span><button id="sebZoomIn">+</button><button id="sebResetView">Centrer</button>
+            <button class="danger-outline" id="sebClearBoardBtn">Effacer le tableau</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <script src="app.js"></script>
 </body>
