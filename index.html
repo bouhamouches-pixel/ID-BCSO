@@ -88,6 +88,9 @@
         <button class="nav-item" data-view="warrantManagement">
           <span>🚨</span><span>Gestion des mandats</span>
         </button>
+        <button class="nav-item" data-view="siteManagement">
+          <span>⚙️</span><span>Gestion du site</span>
+        </button>
       </nav>
 
 
@@ -119,6 +122,8 @@
       <nav class="nav seb-nav nav-section" data-nav-content="seb">
         <button class="nav-item" data-view="sebOperations"><span>🛡️</span><span>Opérations</span></button>
       </nav>
+
+      <div id="dynamicSidebarMount"></div>
 
       <div class="sidebar-footer">
         <div class="demo-pill">MODE DÉMO</div>
@@ -495,6 +500,36 @@
         </div>
         <div class="toolbar panel-lite"><input id="supWarrantSearch" type="search" placeholder="N° de mandat, individu..."/><select id="supWarrantStatus"><option value="">Tous les statuts</option><option>Actif</option><option>Levée</option></select></div>
         <div id="supWarrantsTable" class="agents-table-wrap"></div>
+      </section>
+
+      <section class="view" id="view-siteManagement">
+        <div class="section-head">
+          <div><p class="eyebrow">Supervision — État-major</p><h2>Gestion du site</h2><p class="muted">Créez des catégories, spécialisations et pages sans modifier le code source. Les changements publiés apparaissent automatiquement dans le portail.</p></div>
+          <div class="head-actions"><button class="secondary-btn" id="sitePreviewToggle">👁 Aperçu public</button><button class="primary-btn" id="newSiteCategoryBtn">+ Nouvelle catégorie</button></div>
+        </div>
+        <div class="site-manager-notice"><span>🛡️</span><div><strong>Administration contrôlée</strong><p>Dans la version Firebase, cette page sera réservée aux rôles État-major autorisés. Aucun JavaScript n'est éditable depuis le portail : les pages utilisent des modèles sécurisés.</p></div></div>
+        <div class="stats-grid four site-stats">
+          <article><span>Catégories dynamiques</span><strong id="siteCategoryCount">0</strong></article>
+          <article><span>Pages publiées</span><strong id="sitePublishedCount">0</strong></article>
+          <article><span>Brouillons</span><strong id="siteDraftCount">0</strong></article>
+          <article><span>Modifications</span><strong id="siteAuditCount">0</strong></article>
+        </div>
+        <div class="site-manager-grid">
+          <section class="panel-card">
+            <div class="panel-card-head"><div><h3>Structure du portail</h3><p class="muted">Catégories et pages créées par l'état-major.</p></div><button class="secondary-btn" id="newSitePageBtn">+ Nouvelle page</button></div>
+            <div id="siteStructureList" class="site-structure-list"></div>
+          </section>
+          <aside class="panel-card site-settings-card">
+            <h3>Paramètres rapides</h3>
+            <label>Nom court du portail<input id="sitePortalName" maxlength="30" placeholder="BCSO"></label>
+            <label>Sous-titre<input id="sitePortalSubtitle" maxlength="70" placeholder="Blaine County Sheriff's Office"></label>
+            <label>Message interne<textarea id="sitePortalNotice" rows="4" placeholder="Message facultatif affiché aux agents..."></textarea></label>
+            <button class="primary-btn" id="saveSiteSettings">Enregistrer les paramètres</button>
+            <hr>
+            <h3>Historique</h3>
+            <div id="siteAuditList" class="site-audit-list"></div>
+          </aside>
+        </div>
       </section>
 
       <section class="view" id="view-bcsaQuestionnaire">
@@ -1000,6 +1035,34 @@
     </div>
   </div>
 
+
+  <div class="modal" id="siteCategoryModal" aria-hidden="true">
+    <div class="modal-card wide"><button class="modal-close" data-close="siteCategoryModal">×</button><p class="eyebrow">Gestion du site</p><h2 id="siteCategoryModalTitle">Nouvelle catégorie</h2>
+      <form id="siteCategoryForm"><input type="hidden" id="siteCategoryId">
+        <div class="form-grid two"><label>Nom de la catégorie<input id="siteCategoryName" required maxlength="40" placeholder="Ex. PARK RANGER"></label><label>Icône<input id="siteCategoryIcon" maxlength="8" placeholder="🌲"></label></div>
+        <div class="form-grid two"><label>Type<select id="siteCategoryType"><option value="specialization">Spécialisation</option><option value="general">Catégorie générale</option></select></label><label>Statut<select id="siteCategoryStatus"><option value="draft">Brouillon</option><option value="published">Publié</option></select></label></div>
+        <label>Rôles Discord autorisés <span class="muted">(séparés par des virgules)</span><input id="siteCategoryRoles" placeholder="Park Ranger, Captain, Undersheriff, Sheriff"></label>
+        <label class="toggle-line"><input type="checkbox" id="siteCategoryCommandAccess" checked> Toujours autoriser l'État-major</label>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="siteCategoryModal">Annuler</button><button class="primary-btn" type="submit">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="sitePageModal" aria-hidden="true">
+    <div class="modal-card wide"><button class="modal-close" data-close="sitePageModal">×</button><p class="eyebrow">Gestion du site</p><h2 id="sitePageModalTitle">Nouvelle page</h2>
+      <form id="sitePageForm"><input type="hidden" id="sitePageId">
+        <div class="form-grid two"><label>Titre<input id="sitePageTitleInput" required maxlength="55" placeholder="Ex. Registre des interventions"></label><label>Icône<input id="sitePageIcon" maxlength="8" placeholder="📋"></label></div>
+        <div class="form-grid two"><label>Catégorie<select id="sitePageCategory" required></select></label><label>Modèle<select id="sitePageTemplate"><option value="documentation">Documentation</option><option value="table">Tableau / Registre</option><option value="form">Formulaire</option><option value="dashboard">Dashboard statistiques</option><option value="custom">Page personnalisée</option></select></label></div>
+        <div class="form-grid two"><label>Statut<select id="sitePageStatus"><option value="draft">Brouillon</option><option value="published">Publié</option></select></label><label>Ordre<input id="sitePageOrder" type="number" min="1" value="1"></label></div>
+        <label>Description courte<input id="sitePageDescription" maxlength="140" placeholder="Présentez rapidement le contenu de la page"></label>
+        <label>Contenu<textarea id="sitePageContent" rows="10" placeholder="Le format dépend du modèle sélectionné."></textarea></label>
+        <div id="siteTemplateHelp" class="template-help"></div>
+        <div class="modal-actions"><button type="button" class="secondary-btn" id="previewSitePageBtn">Prévisualiser</button><button type="button" class="secondary-btn" data-close="sitePageModal">Annuler</button><button class="primary-btn" type="submit">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="sitePagePreviewModal" aria-hidden="true"><div class="modal-card extra-wide"><button class="modal-close" data-close="sitePagePreviewModal">×</button><p class="eyebrow">Prévisualisation</p><div id="sitePagePreviewContent"></div></div></div>
 
   <div class="modal" id="convocationModal" aria-hidden="true">
     <div class="modal-card wide"><button class="modal-close" data-close="convocationModal">×</button><p class="eyebrow">Supervision — Gestion des effectifs</p><h2>Émettre une convocation officielle</h2>

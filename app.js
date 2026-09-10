@@ -1508,3 +1508,89 @@ if($("#startDutyWithRequest")) $("#startDutyWithRequest").onclick=()=>{
 // Rafraîchir les pages ajoutées lors de la navigation.
 $$('.nav-item').forEach(btn=>btn.addEventListener('click',()=>{if(btn.dataset.view==='materialManagement')renderMaterialManagement();}));
 renderMaterialNotifications();renderNotificationsCenter();renderNotificationBadge();
+
+// ===== GESTION DYNAMIQUE DU SITE =====
+const SITE_STORAGE={categories:'bcso_site_categories',pages:'bcso_site_pages',settings:'bcso_site_settings',audit:'bcso_site_audit',preview:'bcso_site_preview'};
+let siteCategories=load(SITE_STORAGE.categories,[]),sitePages=load(SITE_STORAGE.pages,[]),siteSettings=load(SITE_STORAGE.settings,{portalName:'BCSO',subtitle:"Blaine County Sheriff's Office",notice:''}),siteAudit=load(SITE_STORAGE.audit,[]),sitePreview=load(SITE_STORAGE.preview,false);
+const COMMAND_RANKS=['Captain','Commander','Undersheriff','Sheriff'];
+function siteSlug(v){return String(v||'page').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,50)||'page'}
+function uid(prefix){return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`}
+function auditSite(action,detail){siteAudit.unshift({id:uid('AUD'),action,detail,by:profile.name,at:new Date().toISOString()});siteAudit=siteAudit.slice(0,80);save(SITE_STORAGE.audit,siteAudit)}
+function canManageSite(){return COMMAND_RANKS.includes(profile.rank)||true /* mode démo : Firebase imposera le rôle réel */}
+function splitRoles(v){return String(v||'').split(',').map(x=>x.trim()).filter(Boolean)}
+function siteTemplateLabel(t){return ({documentation:'Documentation',table:'Tableau / Registre',form:'Formulaire',dashboard:'Dashboard',custom:'Page personnalisée'})[t]||t}
+function siteStatusBadge(s){return `<span class="badge ${s==='published'?'green':'gold'}">${s==='published'?'Publié':'Brouillon'}</span>`}
+function applySiteSettings(){
+  const brandStrong=document.querySelector('.brand strong'),brandSub=document.querySelector('.brand span');
+  if(brandStrong)brandStrong.textContent=siteSettings.portalName||'BCSO'; if(brandSub)brandSub.textContent=siteSettings.subtitle||"Blaine County Sheriff's Office";
+  const n=document.getElementById('sitePortalName'),s=document.getElementById('sitePortalSubtitle'),m=document.getElementById('sitePortalNotice'); if(n)n.value=siteSettings.portalName||'';if(s)s.value=siteSettings.subtitle||'';if(m)m.value=siteSettings.notice||'';
+}
+function renderDynamicPageBody(page){
+  const lines=String(page.content||'').split('\n').map(x=>x.trim()).filter(Boolean);
+  if(page.template==='dashboard'){
+    const stats=lines.map(x=>{const [label,...rest]=x.split('|');return {label:label||'Indicateur',value:rest.join('|')||'—'}});
+    return `<div class="dynamic-dashboard">${(stats.length?stats:[{label:'Indicateur',value:'—'}]).map(x=>`<article class="dynamic-stat"><span>${escapeHtml(x.label)}</span><strong>${escapeHtml(x.value)}</strong></article>`).join('')}</div>`;
+  }
+  if(page.template==='table'){
+    const rows=lines.map(x=>x.split('|').map(c=>c.trim())); const head=rows.shift()||['Colonne 1','Colonne 2'];
+    return `<div class="dynamic-table-wrap"><table class="dynamic-table"><thead><tr>${head.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr>${head.map((_,i)=>`<td>${escapeHtml(r[i]||'')}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${head.length}" class="muted">Aucune donnée.</td></tr>`}</tbody></table></div>`;
+  }
+  if(page.template==='form'){
+    const fields=lines.map((x,i)=>{const [label,type='text',opts='']=x.split('|').map(v=>v.trim());let control='';if(type==='textarea')control=`<textarea rows="4"></textarea>`;else if(type==='select')control=`<select><option value="">Sélectionner…</option>${opts.split(';').filter(Boolean).map(o=>`<option>${escapeHtml(o)}</option>`).join('')}</select>`;else if(type==='date')control='<input type="date">';else if(type==='number')control='<input type="number">';else control='<input type="text">';return `<label>${escapeHtml(label||`Champ ${i+1}`)}${control}</label>`});
+    return `<form class="dynamic-form" onsubmit="event.preventDefault();alert('Formulaire de démonstration — le stockage sera relié à Firebase.')">${fields.join('')||'<p class="muted">Ajoutez des champs depuis Gestion du site.</p>'}<button class="primary-btn" type="submit">Enregistrer</button></form>`;
+  }
+  const paras=String(page.content||'').split(/\n\s*\n/).filter(x=>x.trim());
+  return `<div class="dynamic-doc">${(paras.length?paras:['Aucun contenu pour le moment.']).map(p=>`<p>${escapeHtml(p.trim())}</p>`).join('')}</div>`;
+}
+function dynamicViewHtml(page,preview=false){return `<div class="dynamic-view-header"><div><p class="eyebrow">${escapeHtml(siteCategories.find(c=>c.id===page.categoryId)?.name||'Portail')}</p><h2>${escapeHtml(page.title)}</h2>${page.description?`<p class="dynamic-page-description">${escapeHtml(page.description)}</p>`:''}</div>${preview||page.status==='draft'?'<span class="dynamic-draft-badge">APERÇU / BROUILLON</span>':''}</div>${renderDynamicPageBody(page)}`}
+function openDynamicView(viewId){
+  $$('.nav-item').forEach(b=>b.classList.remove('active')); const btn=document.querySelector(`[data-view="${CSS.escape(viewId)}"]`);btn?.classList.add('active');
+  $$('.view').forEach(v=>v.classList.remove('active')); const v=document.getElementById(`view-${viewId}`);if(v)v.classList.add('active');
+  const page=sitePages.find(p=>`dyn-${p.id}`===viewId);if(page)$('#pageTitle').textContent=page.title;$('#sidebar')?.classList.remove('open');
+}
+function renderDynamicSite(){
+  const mount=$('#dynamicSidebarMount'); if(!mount)return;
+  $$('.dynamic-generated-view').forEach(v=>v.remove());
+  const cats=siteCategories.slice().sort((a,b)=>(a.order||999)-(b.order||999));
+  mount.innerHTML=cats.filter(c=>c.status==='published'||sitePreview).map(c=>{
+    const pages=sitePages.filter(p=>p.categoryId===c.id&&(p.status==='published'||sitePreview)).sort((a,b)=>(a.order||999)-(b.order||999));
+    if(!pages.length&&!sitePreview)return '';
+    return `<div class="dynamic-sidebar-section ${c.status==='draft'?'draft-preview':''}" data-dynamic-category="${c.id}"><button class="nav-label nav-section-toggle dynamic-toggle" type="button" aria-expanded="true"><span>${escapeHtml(c.icon||'◈')} ${escapeHtml(c.name.toUpperCase())}</span><span class="nav-section-chevron">⌄</span></button><nav class="nav nav-section dynamic-nav">${pages.map(p=>`<button class="nav-item" data-view="dyn-${p.id}"><span>${escapeHtml(p.icon||'•')}</span><span>${escapeHtml(p.title)}</span></button>`).join('')||'<div class="site-empty-pages">Aucune page publiée</div>'}</nav></div>`;
+  }).join('');
+  cats.forEach(c=>sitePages.filter(p=>p.categoryId===c.id&&(p.status==='published'||sitePreview)).forEach(p=>{
+    const sec=document.createElement('section');sec.className='view dynamic-generated-view';sec.id=`view-dyn-${p.id}`;sec.innerHTML=dynamicViewHtml(p,p.status==='draft');document.querySelector('.main')?.appendChild(sec);
+  }));
+  mount.querySelectorAll('.dynamic-toggle').forEach(t=>t.onclick=()=>{const nav=t.nextElementSibling,open=t.getAttribute('aria-expanded')==='true';t.setAttribute('aria-expanded',String(!open));nav.style.display=open?'none':'';t.querySelector('.nav-section-chevron').textContent=open?'›':'⌄'});
+  mount.querySelectorAll('.nav-item').forEach(b=>b.onclick=()=>openDynamicView(b.dataset.view));
+}
+function refreshSiteManager(){
+  if(!$('#siteStructureList'))return; const cats=siteCategories.slice().sort((a,b)=>(a.order||999)-(b.order||999));
+  $('#siteCategoryCount').textContent=cats.length;$('#sitePublishedCount').textContent=sitePages.filter(p=>p.status==='published').length;$('#siteDraftCount').textContent=sitePages.filter(p=>p.status==='draft').length+siteCategories.filter(c=>c.status==='draft').length;$('#siteAuditCount').textContent=siteAudit.length;
+  $('#sitePreviewToggle').classList.toggle('site-preview-active',sitePreview);$('#sitePreviewToggle').textContent=sitePreview?'👁 Aperçu activé':'👁 Aperçu public';
+  $('#siteStructureList').innerHTML=cats.length?cats.map((c,ci)=>{const pages=sitePages.filter(p=>p.categoryId===c.id).sort((a,b)=>(a.order||999)-(b.order||999));return `<article class="site-category-block"><div class="site-category-head"><div class="site-category-title"><span class="site-category-icon">${escapeHtml(c.icon||'◈')}</span><div><strong>${escapeHtml(c.name)}</strong><small>${c.type==='specialization'?'Spécialisation':'Catégorie générale'} • ${(c.roles||[]).length?escapeHtml(c.roles.join(', ')):'Tous les agents'} ${c.commandAccess?'• État-major inclus':''}</small></div></div><div class="site-inline-actions">${siteStatusBadge(c.status)}<button class="secondary-btn" data-cat-up="${c.id}" ${ci===0?'disabled':''}>↑</button><button class="secondary-btn" data-cat-down="${c.id}" ${ci===cats.length-1?'disabled':''}>↓</button><button class="secondary-btn" data-edit-cat="${c.id}">Modifier</button><button class="danger-outline" data-delete-cat="${c.id}">Supprimer</button></div></div><div class="site-page-list">${pages.length?pages.map((p,pi)=>`<div class="site-page-row"><div class="site-page-main"><span>${escapeHtml(p.icon||'•')}</span><div><strong>${escapeHtml(p.title)}</strong><small>${siteTemplateLabel(p.template)} • ${p.status==='published'?'Publié':'Brouillon'}</small></div></div><div class="site-inline-actions"><button class="secondary-btn" data-page-up="${p.id}" ${pi===0?'disabled':''}>↑</button><button class="secondary-btn" data-page-down="${p.id}" ${pi===pages.length-1?'disabled':''}>↓</button><button class="secondary-btn" data-preview-page="${p.id}">Voir</button><button class="secondary-btn" data-edit-page="${p.id}">Modifier</button><button class="danger-outline" data-delete-page="${p.id}">Supprimer</button></div></div>`).join(''):'<div class="site-empty-pages">Aucune page. Utilisez « Nouvelle page » pour commencer.</div>'}</div></article>`}).join(''):'<div class="empty-state">Aucune catégorie dynamique. Créez votre première spécialisation ou catégorie.</div>';
+  $('#siteAuditList').innerHTML=siteAudit.length?siteAudit.slice(0,10).map(a=>`<div class="site-audit-item"><strong>${escapeHtml(a.action)} — ${escapeHtml(a.detail)}</strong><span>${escapeHtml(a.by)} • ${formatDate(a.at)}</span></div>`).join(''):'<div class="muted">Aucune modification enregistrée.</div>';
+  applySiteSettings(); bindSiteManagerActions(); renderDynamicSite();
+}
+function fillCategorySelect(selected=''){$('#sitePageCategory').innerHTML=siteCategories.length?siteCategories.slice().sort((a,b)=>(a.order||999)-(b.order||999)).map(c=>`<option value="${c.id}" ${c.id===selected?'selected':''}>${escapeHtml(c.name)}</option>`).join(''):'<option value="">Créez d’abord une catégorie</option>'}
+function openSiteCategory(id=null){const c=id?siteCategories.find(x=>x.id===id):null;$('#siteCategoryForm').reset();$('#siteCategoryId').value=c?.id||'';$('#siteCategoryModalTitle').textContent=c?'Modifier la catégorie':'Nouvelle catégorie';$('#siteCategoryName').value=c?.name||'';$('#siteCategoryIcon').value=c?.icon||'';$('#siteCategoryType').value=c?.type||'specialization';$('#siteCategoryStatus').value=c?.status||'draft';$('#siteCategoryRoles').value=(c?.roles||[]).join(', ');$('#siteCategoryCommandAccess').checked=c?.commandAccess!==false;openModal('siteCategoryModal')}
+function openSitePage(id=null){if(!siteCategories.length){alert('Créez d’abord une catégorie.');openSiteCategory();return}const p=id?sitePages.find(x=>x.id===id):null;$('#sitePageForm').reset();$('#sitePageId').value=p?.id||'';$('#sitePageModalTitle').textContent=p?'Modifier la page':'Nouvelle page';$('#sitePageTitleInput').value=p?.title||'';$('#sitePageIcon').value=p?.icon||'';fillCategorySelect(p?.categoryId||siteCategories[0].id);$('#sitePageTemplate').value=p?.template||'documentation';$('#sitePageStatus').value=p?.status||'draft';$('#sitePageOrder').value=p?.order||Math.max(1,sitePages.filter(x=>x.categoryId===(p?.categoryId||siteCategories[0].id)).length+1);$('#sitePageDescription').value=p?.description||'';$('#sitePageContent').value=p?.content||'';updateTemplateHelp();openModal('sitePageModal')}
+function updateTemplateHelp(){const t=$('#sitePageTemplate')?.value;if(!t)return;const h={documentation:'Texte libre. Séparez les blocs avec une ligne vide.',table:'Première ligne = colonnes séparées par |. Lignes suivantes = données. Exemple : Agent | Grade | Statut',form:'Un champ par ligne : Libellé | type. Types : text, textarea, date, number, select. Pour select : Libellé | select | Option 1;Option 2',dashboard:'Une statistique par ligne : Libellé | Valeur. Exemple : Agents actifs | 24',custom:'Texte libre présenté en blocs sécurisés.'};$('#siteTemplateHelp').textContent=h[t]||''}
+function previewPageObject(p){$('#sitePagePreviewContent').innerHTML=dynamicViewHtml(p,true);openModal('sitePagePreviewModal')}
+function pageFromForm(){return {id:$('#sitePageId').value||uid('PAGE'),title:$('#sitePageTitleInput').value.trim(),icon:$('#sitePageIcon').value.trim()||'📄',categoryId:$('#sitePageCategory').value,template:$('#sitePageTemplate').value,status:$('#sitePageStatus').value,order:Number($('#sitePageOrder').value)||1,description:$('#sitePageDescription').value.trim(),content:$('#sitePageContent').value,updatedAt:new Date().toISOString()}}
+function reorder(list,id,dir,filter=()=>true){const subset=list.filter(filter).sort((a,b)=>(a.order||999)-(b.order||999)),i=subset.findIndex(x=>x.id===id),j=i+dir;if(i<0||j<0||j>=subset.length)return;[subset[i].order,subset[j].order]=[subset[j].order||j+1,subset[i].order||i+1]}
+function bindSiteManagerActions(){
+  $$('[data-edit-cat]').forEach(b=>b.onclick=()=>openSiteCategory(b.dataset.editCat));$$('[data-edit-page]').forEach(b=>b.onclick=()=>openSitePage(b.dataset.editPage));$$('[data-preview-page]').forEach(b=>b.onclick=()=>{const p=sitePages.find(x=>x.id===b.dataset.previewPage);if(p)previewPageObject(p)});
+  $$('[data-delete-cat]').forEach(b=>b.onclick=()=>{const c=siteCategories.find(x=>x.id===b.dataset.deleteCat);if(!c||!confirm(`Supprimer « ${c.name} » et toutes ses pages ?`))return;siteCategories=siteCategories.filter(x=>x.id!==c.id);sitePages=sitePages.filter(x=>x.categoryId!==c.id);save(SITE_STORAGE.categories,siteCategories);save(SITE_STORAGE.pages,sitePages);auditSite('Catégorie supprimée',c.name);refreshSiteManager()});
+  $$('[data-delete-page]').forEach(b=>b.onclick=()=>{const p=sitePages.find(x=>x.id===b.dataset.deletePage);if(!p||!confirm(`Supprimer la page « ${p.title} » ?`))return;sitePages=sitePages.filter(x=>x.id!==p.id);save(SITE_STORAGE.pages,sitePages);auditSite('Page supprimée',p.title);refreshSiteManager()});
+  $$('[data-cat-up]').forEach(b=>b.onclick=()=>{reorder(siteCategories,b.dataset.catUp,-1);save(SITE_STORAGE.categories,siteCategories);auditSite('Ordre modifié','Catégories');refreshSiteManager()});$$('[data-cat-down]').forEach(b=>b.onclick=()=>{reorder(siteCategories,b.dataset.catDown,1);save(SITE_STORAGE.categories,siteCategories);auditSite('Ordre modifié','Catégories');refreshSiteManager()});
+  $$('[data-page-up]').forEach(b=>b.onclick=()=>{const p=sitePages.find(x=>x.id===b.dataset.pageUp);if(!p)return;reorder(sitePages,p.id,-1,x=>x.categoryId===p.categoryId);save(SITE_STORAGE.pages,sitePages);auditSite('Ordre modifié',p.title);refreshSiteManager()});$$('[data-page-down]').forEach(b=>b.onclick=()=>{const p=sitePages.find(x=>x.id===b.dataset.pageDown);if(!p)return;reorder(sitePages,p.id,1,x=>x.categoryId===p.categoryId);save(SITE_STORAGE.pages,sitePages);auditSite('Ordre modifié',p.title);refreshSiteManager()});
+}
+$('#newSiteCategoryBtn')?.addEventListener('click',()=>openSiteCategory());$('#newSitePageBtn')?.addEventListener('click',()=>openSitePage());$('#sitePageTemplate')?.addEventListener('change',updateTemplateHelp);
+$('#siteCategoryForm')?.addEventListener('submit',e=>{e.preventDefault();const id=$('#siteCategoryId').value||uid('CAT'),existing=siteCategories.find(c=>c.id===id),obj={id,name:$('#siteCategoryName').value.trim(),icon:$('#siteCategoryIcon').value.trim()||'◈',type:$('#siteCategoryType').value,status:$('#siteCategoryStatus').value,roles:splitRoles($('#siteCategoryRoles').value),commandAccess:$('#siteCategoryCommandAccess').checked,order:existing?.order||siteCategories.length+1,updatedAt:new Date().toISOString()};if(existing)Object.assign(existing,obj);else siteCategories.push(obj);save(SITE_STORAGE.categories,siteCategories);auditSite(existing?'Catégorie modifiée':'Catégorie créée',obj.name);closeModal('siteCategoryModal');refreshSiteManager()});
+$('#sitePageForm')?.addEventListener('submit',e=>{e.preventDefault();const obj=pageFromForm(),existing=sitePages.find(p=>p.id===obj.id);if(existing)Object.assign(existing,obj);else sitePages.push(obj);save(SITE_STORAGE.pages,sitePages);auditSite(existing?'Page modifiée':'Page créée',obj.title);closeModal('sitePageModal');refreshSiteManager()});
+$('#previewSitePageBtn')?.addEventListener('click',()=>previewPageObject(pageFromForm()));
+$('#sitePreviewToggle')?.addEventListener('click',()=>{sitePreview=!sitePreview;save(SITE_STORAGE.preview,sitePreview);refreshSiteManager()});
+$('#saveSiteSettings')?.addEventListener('click',()=>{siteSettings={portalName:$('#sitePortalName').value.trim()||'BCSO',subtitle:$('#sitePortalSubtitle').value.trim()||"Blaine County Sheriff's Office",notice:$('#sitePortalNotice').value.trim()};save(SITE_STORAGE.settings,siteSettings);auditSite('Paramètres modifiés',siteSettings.portalName);refreshSiteManager();alert('Paramètres du portail enregistrés.')});
+// Rafraîchissement à l'ouverture de la page Gestion du site.
+document.querySelector('[data-view="siteManagement"]')?.addEventListener('click',refreshSiteManager);
+applySiteSettings();renderDynamicSite();refreshSiteManager();
