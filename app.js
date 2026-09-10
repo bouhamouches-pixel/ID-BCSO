@@ -602,3 +602,280 @@ renderMyReports();
 renderReportsDb();
 renderWarrants();
 renderComplaints();
+
+// ============================================================
+// SUPERVISION — DÉMO LOCALE
+// Les données ci-dessous seront remplacées par Firestore/Discord.
+// ============================================================
+const SUP_STORAGE = {
+  agents: "bcso_demo_supervision_agents",
+  services: "bcso_demo_supervision_services",
+  active: "bcso_demo_supervision_active_services",
+  audit: "bcso_demo_supervision_service_audit"
+};
+
+const nowIso = () => new Date().toISOString();
+const isoShift = ({days=0,hours=0,minutes=0}={}) => new Date(Date.now() + days*86400000 + hours*3600000 + minutes*60000).toISOString();
+
+const seedAgents = [
+  {id:"a-191",badge:"191",name:"K. Belkacem",rank:"Captain",division:"Command",specialties:["Park Ranger","Highway Patrol"],joined:"2026-05-18",active:true,avatar:null,roles:["BCSO","Supervision","Park Ranger","Highway Patrol"]},
+  {id:"a-143",badge:"143",name:"J. Carter",rank:"Sergeant",division:"Patrol",specialties:["Field Training"],joined:"2026-05-24",active:true,avatar:null,roles:["BCSO","Supervision","Patrol"]},
+  {id:"a-205",badge:"205",name:"M. Owens",rank:"Deputy",division:"Patrol",specialties:["Highway Patrol"],joined:"2026-06-11",active:true,avatar:null,roles:["BCSO","Patrol","Highway Patrol"]},
+  {id:"a-172",badge:"172",name:"A. Johnson",rank:"Deputy",division:"Park Ranger",specialties:["Park Ranger"],joined:"2026-06-18",active:true,avatar:null,roles:["BCSO","Park Ranger"]},
+  {id:"a-216",badge:"216",name:"R. Walker",rank:"Deputy",division:"Patrol",specialties:["K-9"],joined:"2026-07-02",active:true,avatar:null,roles:["BCSO","Patrol","K-9"]},
+  {id:"a-224",badge:"224",name:"T. Wilson",rank:"Probationary Deputy",division:"Patrol",specialties:[],joined:"2026-08-15",active:true,avatar:null,roles:["BCSO","Patrol"]},
+  {id:"a-118",badge:"118",name:"D. Miller",rank:"Deputy",division:"Highway Patrol",specialties:["Highway Patrol"],joined:"2026-04-09",active:false,avatar:null,roles:["BCSO","Highway Patrol"]}
+];
+
+function demoDayIso(daysAgo, hour, minute=0) {
+  const d = new Date();
+  d.setSeconds(0,0);
+  d.setDate(d.getDate()-daysAgo);
+  d.setHours(hour,minute,0,0);
+  return d.toISOString();
+}
+function demoCrossMidnight(daysAgo, startHour, startMinute, endHour, endMinute) {
+  const start = new Date(demoDayIso(daysAgo,startHour,startMinute));
+  const end = new Date(start);
+  if (endHour < startHour || (endHour===startHour && endMinute<=startMinute)) end.setDate(end.getDate()+1);
+  end.setHours(endHour,endMinute,0,0);
+  return [start.toISOString(),end.toISOString()];
+}
+
+function makeSeedServices(){
+  const out=[]; let n=1;
+  const patterns = [
+    [1,"a-191",20,15,0,35],[1,"a-143",19,40,1,15],[1,"a-205",21,5,2,10],[1,"a-172",22,10,1,50],[1,"a-216",20,45,23,55],
+    [2,"a-191",19,55,0,20],[2,"a-143",20,30,2,5],[2,"a-224",21,15,23,50],[2,"a-205",18,50,23,35],
+    [3,"a-191",21,0,1,10],[3,"a-172",19,20,0,40],[3,"a-216",20,10,1,30],[3,"a-205",22,0,2,20],[3,"a-143",18,30,23,15],
+    [4,"a-143",20,0,0,30],[4,"a-205",20,15,1,45],[4,"a-224",21,10,0,10],
+    [5,"a-191",19,10,23,55],[5,"a-143",19,35,1,20],[5,"a-172",21,0,2,35],[5,"a-216",22,10,1,5],[5,"a-205",18,50,0,45],
+    [6,"a-191",20,0,2,20],[6,"a-205",20,35,0,50],[6,"a-224",21,30,23,40],[6,"a-143",19,20,1,10],
+    [7,"a-172",20,15,1,55],[7,"a-216",19,50,23,45],[7,"a-143",21,10,2,15]
+  ];
+  for(const [day,agentId,sh,sm,eh,em] of patterns){
+    const [start,end]=demoCrossMidnight(day,sh,sm,eh,em);
+    out.push({id:`svc-demo-${n++}`,agentId,start,end,source:"agent",closedBy:null});
+  }
+  return out;
+}
+
+const seedActiveServices = [
+  {id:"active-demo-1",agentId:"a-143",start:isoShift({hours:-2,minutes:-18})},
+  {id:"active-demo-2",agentId:"a-205",start:isoShift({hours:-1,minutes:-36})},
+  {id:"active-demo-3",agentId:"a-172",start:isoShift({hours:-9,minutes:-12})}
+];
+
+let supAgents = load(SUP_STORAGE.agents, seedAgents);
+let supServices = load(SUP_STORAGE.services, makeSeedServices());
+let supActiveServices = load(SUP_STORAGE.active, seedActiveServices);
+let supAudit = load(SUP_STORAGE.audit, []);
+save(SUP_STORAGE.agents,supAgents); save(SUP_STORAGE.services,supServices); save(SUP_STORAGE.active,supActiveServices); save(SUP_STORAGE.audit,supAudit);
+
+function agentById(id){ return supAgents.find(a=>a.id===id); }
+function agentAvatar(agent){ return agent?.avatar || (agent?.name===profile.name ? (profile.avatar||defaultAvatar) : defaultAvatar); }
+function toLocalInput(iso){ const d=new Date(iso); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16); }
+function shortClock(iso){ return new Intl.DateTimeFormat("fr-FR",{hour:"2-digit",minute:"2-digit"}).format(new Date(iso)); }
+function shortDate(iso){ return new Intl.DateTimeFormat("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"}).format(new Date(iso)); }
+function hoursValue(ms){ return ms/3600000; }
+
+function getPersonalAgent(){
+  return supAgents.find(a=>a.name===profile.name) || supAgents[0];
+}
+function currentActiveServices(){
+  const list = supActiveServices.filter(s=>agentById(s.agentId)?.active);
+  if(activeService){
+    const me=getPersonalAgent();
+    if(me && !list.some(s=>s.agentId===me.id)) list.push({id:"personal-live",agentId:me.id,start:activeService.start,personal:true});
+  }
+  return list;
+}
+function allCompletedServices(){
+  const list=[...supServices];
+  const me=getPersonalAgent();
+  if(me){
+    sessions.forEach((s,i)=>{
+      if(!list.some(x=>x.id===`personal-${i}-${s.start}`)) list.push({id:`personal-${i}-${s.start}`,agentId:me.id,start:s.start,end:s.end,source:"agent",personal:true});
+    });
+  }
+  return list;
+}
+
+function overlapMs(service,start,end,includeActive=false){
+  const a=Math.max(new Date(service.start).getTime(),start.getTime());
+  const serviceEnd=service.end ? new Date(service.end).getTime() : (includeActive?Date.now():a);
+  const b=Math.min(serviceEnd,end.getTime());
+  return Math.max(0,b-a);
+}
+function periodRange(kind){
+  const n=new Date();
+  if(kind==="month") return [new Date(n.getFullYear(),n.getMonth(),1,0,0,0,0),new Date(n.getFullYear(),n.getMonth()+1,1,0,0,0,0)];
+  const thisWeek=startOfWeek(n);
+  if(kind==="previousWeek"){ const a=new Date(thisWeek);a.setDate(a.getDate()-7);return[a,thisWeek]; }
+  const b=new Date(thisWeek);b.setDate(b.getDate()+7);return[thisWeek,b];
+}
+function agentPeriodMs(agentId,range){
+  const [a,b]=range; let ms=0;
+  allCompletedServices().filter(s=>s.agentId===agentId).forEach(s=>ms+=overlapMs(s,a,b));
+  currentActiveServices().filter(s=>s.agentId===agentId).forEach(s=>ms+=overlapMs(s,a,b,true));
+  return ms;
+}
+function agentMonthMs(agentId){ return agentPeriodMs(agentId,periodRange("month")); }
+
+function populateAgentFilters(){
+  const ranks=[...new Set(supAgents.map(a=>a.rank))].sort();
+  const divs=[...new Set(supAgents.map(a=>a.division))].sort();
+  const r=$("#agentRankFilter"), d=$("#agentDivisionFilter");
+  const rv=r.value,dv=d.value;
+  r.innerHTML='<option value="">Tous les grades</option>'+ranks.map(x=>`<option>${escapeHtml(x)}</option>`).join('');
+  d.innerHTML='<option value="">Toutes les divisions</option>'+divs.map(x=>`<option>${escapeHtml(x)}</option>`).join('');
+  r.value=rv; d.value=dv;
+}
+
+function renderAgentManagement(){
+  populateAgentFilters();
+  const live=currentActiveServices();
+  $("#supActiveAgents").textContent=supAgents.filter(a=>a.active).length;
+  $("#supOnDutyAgents").textContent=live.length;
+  $("#supInactiveAgents").textContent=supAgents.filter(a=>!a.active).length;
+  $("#supDivisions").textContent=new Set(supAgents.filter(a=>a.active).map(a=>a.division)).size;
+  const q=($("#agentSearch").value||"").toLowerCase(); const rank=$("#agentRankFilter").value,div=$("#agentDivisionFilter").value,st=$("#agentStatusFilter").value;
+  const range=periodRange("week");
+  const rows=supAgents.filter(a=>{
+    const isOn=live.some(s=>s.agentId===a.id); const status=!a.active?"Inactif":isOn?"En service":"Hors service";
+    return (!rank||a.rank===rank)&&(!div||a.division===div)&&(!st||status===st)&&[a.badge,a.name,a.rank,a.division,a.specialties.join(" ")].join(" ").toLowerCase().includes(q);
+  });
+  $("#agentsTable").innerHTML=`<table class="agents-table"><thead><tr><th>Agent</th><th>Grade</th><th>Division</th><th>Statut</th><th>Cette semaine</th><th>Ce mois</th><th>Actions</th></tr></thead><tbody>${rows.map(a=>{
+    const isOn=live.some(s=>s.agentId===a.id); const status=!a.active?"Inactif":isOn?"En service":"Hors service"; const cls=!a.active?"inactive":isOn?"on":"off";
+    return `<tr><td><div class="agent-identity"><img class="agent-mini-avatar" src="${agentAvatar(a)}" alt=""><div><div class="agent-name-line">${escapeHtml(a.name)}</div><span class="agent-badge">#${escapeHtml(a.badge)}</span></div></div></td><td>${escapeHtml(a.rank)}</td><td>${escapeHtml(a.division)}</td><td><span class="status-inline ${cls}">${status}</span></td><td>${formatShortDuration(agentPeriodMs(a.id,range))}</td><td>${formatShortDuration(agentMonthMs(a.id))}</td><td><div class="table-actions"><button class="secondary-btn" data-agent-profile="${a.id}">Voir le profil</button>${a.active?`<button class="danger-outline" data-agent-toggle="${a.id}">Désactiver</button>`:`<button class="secondary-btn" data-agent-toggle="${a.id}">Réactiver</button>`}</div></td></tr>`;
+  }).join("")||'<tr><td colspan="7"><div class="empty-state">Aucun agent trouvé.</div></td></tr>'}</tbody></table>`;
+  $$('[data-agent-profile]').forEach(b=>b.onclick=()=>openAgentProfile(b.dataset.agentProfile));
+  $$('[data-agent-toggle]').forEach(b=>b.onclick=()=>toggleAgentStatus(b.dataset.agentToggle));
+}
+
+function toggleAgentStatus(id){
+  const a=agentById(id); if(!a)return;
+  const action=a.active?"désactiver":"réactiver";
+  if(!confirm(`Voulez-vous ${action} ${a.name} ?`)) return;
+  a.active=!a.active; save(SUP_STORAGE.agents,supAgents); renderSupervision();
+}
+
+function openAgentProfile(id,tab="info"){
+  const a=agentById(id); if(!a)return;
+  const range=periodRange("week");
+  const agentServices=allCompletedServices().filter(s=>s.agentId===id).sort((x,y)=>new Date(y.start)-new Date(x.start));
+  const agentReports=reports.filter(r=>r.author===a.name);
+  const agentComplaints=complaints.filter(c=>c.writer===a.name||c.assignedTo===a.name);
+  $("#agentModalTitle").textContent=`#${a.badge} ・ ${a.name}`;
+  $("#agentProfileContent").innerHTML=`
+    <div class="agent-profile-head"><img src="${agentAvatar(a)}" alt=""><div><h3>${escapeHtml(a.name)}</h3><div class="meta-row"><span>${escapeHtml(a.rank)}</span><span>${escapeHtml(a.division)}</span><span class="badge ${a.active?'green':'red'}">${a.active?'Actif':'Inactif'}</span></div></div></div>
+    <div class="profile-tabs"><button class="profile-tab ${tab==='info'?'active':''}" data-profile-tab="info">Informations</button><button class="profile-tab ${tab==='services'?'active':''}" data-profile-tab="services">Services</button><button class="profile-tab ${tab==='reports'?'active':''}" data-profile-tab="reports">Rapports</button><button class="profile-tab ${tab==='complaints'?'active':''}" data-profile-tab="complaints">Plaintes</button><button class="profile-tab ${tab==='access'?'active':''}" data-profile-tab="access">Accès</button></div>
+    <div class="profile-panel ${tab==='info'?'active':''}" data-profile-panel="info"><div class="info-grid"><div class="info-box"><span>Matricule</span><strong>#${escapeHtml(a.badge)}</strong></div><div class="info-box"><span>Grade</span><strong>${escapeHtml(a.rank)}</strong></div><div class="info-box"><span>Division</span><strong>${escapeHtml(a.division)}</strong></div><div class="info-box"><span>Date d'intégration</span><strong>${shortDate(a.joined+'T12:00:00')}</strong></div><div class="info-box"><span>Spécialisations</span><strong>${escapeHtml(a.specialties.join(', ')||'Aucune')}</strong></div><div class="info-box"><span>Statut</span><strong>${a.active?'Actif':'Inactif'}</strong></div></div></div>
+    <div class="profile-panel ${tab==='services'?'active':''}" data-profile-panel="services"><div class="supervision-summary"><article class="stat-card"><span>Cette semaine</span><strong>${formatShortDuration(agentPeriodMs(id,range))}</strong><small>temps cumulé</small></article><article class="stat-card"><span>Ce mois</span><strong>${formatShortDuration(agentMonthMs(id))}</strong><small>temps cumulé</small></article><article class="stat-card"><span>Services</span><strong>${agentServices.length}</strong><small>enregistrés</small></article><article class="stat-card"><span>Moyenne</span><strong>${formatShortDuration(agentServices.length?agentServices.reduce((t,s)=>t+(new Date(s.end)-new Date(s.start)),0)/agentServices.length:0)}</strong><small>par service</small></article></div><div class="history-service-list">${agentServices.slice(0,8).map(s=>`<div class="history-service-row"><span><strong>Début</strong><br>${formatDate(s.start)}</span><span><strong>Fin</strong><br>${formatDate(s.end)}</span><span>${formatDuration(new Date(s.end)-new Date(s.start))}</span><div class="table-actions"><button class="secondary-btn" data-edit-service="${s.id}">Modifier</button></div></div>`).join('')||'<div class="empty-state">Aucun service.</div>'}</div></div>
+    <div class="profile-panel ${tab==='reports'?'active':''}" data-profile-panel="reports">${agentReports.length?agentReports.slice(0,10).map(reportCard).join(''):'<div class="empty-state">Aucun rapport rédigé.</div>'}</div>
+    <div class="profile-panel ${tab==='complaints'?'active':''}" data-profile-panel="complaints">${agentComplaints.length?agentComplaints.map(c=>`<div class="record-card"><span class="badge gold">${escapeHtml(c.id)}</span><h3>${escapeHtml(c.subject)}</h3><div class="meta-row"><span>${escapeHtml(c.status)}</span><span>${escapeHtml(c.assignedTo||'Non assigné')}</span></div></div>`).join(''):'<div class="empty-state">Aucune plainte liée à cet agent.</div>'}</div>
+    <div class="profile-panel ${tab==='access'?'active':''}" data-profile-panel="access"><p class="muted small">Dans la version finale, ces accès seront calculés depuis les rôles Discord et ne seront pas modifiables ici.</p><div class="access-list">${a.roles.map(r=>`<div class="access-item"><span>${escapeHtml(r)}</span><strong class="access-ok">✓ Autorisé</strong></div>`).join('')}</div></div>`;
+  $$('[data-profile-tab]').forEach(b=>b.onclick=()=>openAgentProfile(id,b.dataset.profileTab));
+  $$('[data-edit-service]').forEach(b=>b.onclick=()=>openEditService(b.dataset.editService));
+  bindReportViewers();
+  openModal("agentModal");
+}
+
+$("#addAgentBtn").addEventListener("click",()=>openModal("addAgentModal"));
+$("#addAgentForm").addEventListener("submit",e=>{
+  e.preventDefault(); const badge=$("#newAgentBadge").value.trim();
+  if(supAgents.some(a=>a.badge===badge)) return alert("Ce matricule existe déjà.");
+  const specialties=$("#newAgentSpecialties").value.split(',').map(x=>x.trim()).filter(Boolean);
+  supAgents.push({id:`a-${Date.now()}`,badge,name:$("#newAgentName").value.trim(),rank:$("#newAgentRank").value.trim(),division:$("#newAgentDivision").value.trim(),specialties,joined:new Date().toISOString().slice(0,10),active:true,avatar:null,roles:["BCSO",$("#newAgentDivision").value.trim()]});
+  save(SUP_STORAGE.agents,supAgents); e.target.reset(); closeModal("addAgentModal"); renderSupervision();
+});
+
+["agentSearch","agentRankFilter","agentDivisionFilter","agentStatusFilter"].forEach(id=>$("#"+id).addEventListener(id==="agentSearch"?"input":"change",renderAgentManagement));
+
+function renderLiveDuty(){
+  const live=currentActiveServices().sort((a,b)=>new Date(a.start)-new Date(b.start));
+  $("#trackingOnDuty").textContent=live.length; $("#liveDutyBadge").textContent=`${live.length} en service`; $("#agentsOnDuty").textContent=String(live.length).padStart(2,"0");
+  $("#liveDutyList").innerHTML=live.length?live.map(s=>{
+    const a=agentById(s.agentId); const ms=Date.now()-new Date(s.start); const warning=ms>=8*3600000;
+    return `<div class="live-duty-row ${warning?'warning':''}"><div class="agent-identity"><img class="agent-mini-avatar" src="${agentAvatar(a)}" alt=""><div><div class="agent-name-line">#${escapeHtml(a.badge)} ・ ${escapeHtml(a.name)}</div><span class="agent-badge">${escapeHtml(a.rank)}</span></div></div><div class="live-duty-time"><strong>${formatDuration(ms)}</strong><span>durée actuelle</span></div><div class="live-duty-time"><strong>${shortClock(s.start)}</strong><span>prise de service</span></div><div class="table-actions">${warning?'<span class="badge red">⚠ Service prolongé</span>':''}<button class="danger-btn" data-force-end="${s.agentId}" ${s.personal?'disabled title="Utilisez le bouton de service personnel pour cette session de démo"':''}>Mettre fin au service</button></div></div>`;
+  }).join(''):'<div class="empty-state">Aucun agent n’est actuellement en service.</div>';
+  $$('[data-force-end]').forEach(b=>b.onclick=()=>openForceEnd(b.dataset.forceEnd));
+}
+
+function openForceEnd(agentId){
+  const s=supActiveServices.find(x=>x.agentId===agentId); const a=agentById(agentId); if(!s||!a)return;
+  $("#forceEndAgentId").value=agentId; $("#forceEndDate").value=toLocalInput(new Date().toISOString());
+  $("#forceEndReason").value=""; $("#forceEndOther").value=""; $("#forceEndOtherWrap").classList.add("hidden");
+  $("#forceEndAgentSummary").innerHTML=`<strong>#${escapeHtml(a.badge)} ・ ${escapeHtml(a.name)}</strong><div class="muted small">Début du service : ${formatDate(s.start)} ・ ${formatDuration(Date.now()-new Date(s.start))}</div>`;
+  openModal("forceEndModal");
+}
+$("#forceEndReason").addEventListener("change",()=>$("#forceEndOtherWrap").classList.toggle("hidden",$("#forceEndReason").value!=="Autre"));
+$("#forceEndForm").addEventListener("submit",e=>{
+  e.preventDefault(); const agentId=$("#forceEndAgentId").value, active=supActiveServices.find(s=>s.agentId===agentId), a=agentById(agentId); if(!active||!a)return;
+  const end=new Date($("#forceEndDate").value); if(isNaN(end)||end<=new Date(active.start)) return alert("L'heure de fin doit être postérieure au début du service.");
+  const reason=$("#forceEndReason").value; const other=$("#forceEndOther").value.trim(); if(reason==="Autre"&&!other)return alert("Veuillez préciser le motif.");
+  const completed={id:`svc-${Date.now()}`,agentId,start:active.start,end:end.toISOString(),source:"supervision",closedBy:profile.name,reason:reason==="Autre"?other:reason};
+  supServices.unshift(completed); supActiveServices=supActiveServices.filter(s=>s!==active);
+  supAudit.unshift({id:`audit-${Date.now()}`,type:"force-end",serviceId:completed.id,agentId,by:profile.name,date:nowIso(),reason:completed.reason,oldEnd:null,newEnd:completed.end});
+  save(SUP_STORAGE.services,supServices);save(SUP_STORAGE.active,supActiveServices);save(SUP_STORAGE.audit,supAudit);closeModal("forceEndModal");renderSupervision();
+});
+
+function openEditService(id){
+  const s=supServices.find(x=>x.id===id); if(!s)return alert("Ce service appartient aux données personnelles de démonstration et ne peut pas être modifié ici.");
+  $("#editServiceId").value=id;$("#editServiceStart").value=toLocalInput(s.start);$("#editServiceEnd").value=toLocalInput(s.end);$("#editServiceReason").value="";closeModal("agentModal");openModal("editServiceModal");
+}
+$("#editServiceForm").addEventListener("submit",e=>{
+  e.preventDefault(); const s=supServices.find(x=>x.id===$("#editServiceId").value); if(!s)return;
+  const ns=new Date($("#editServiceStart").value),ne=new Date($("#editServiceEnd").value);if(ne<=ns)return alert("L'heure de fin doit être postérieure au début du service.");
+  const oldStart=s.start,oldEnd=s.end,reason=$("#editServiceReason").value.trim();s.start=ns.toISOString();s.end=ne.toISOString();
+  supAudit.unshift({id:`audit-${Date.now()}`,type:"edit",serviceId:s.id,agentId:s.agentId,by:profile.name,date:nowIso(),reason,oldStart,oldEnd,newStart:s.start,newEnd:s.end});
+  save(SUP_STORAGE.services,supServices);save(SUP_STORAGE.audit,supAudit);closeModal("editServiceModal");renderSupervision();
+});
+
+function peakConcurrent(services,start,end){
+  const events=[];
+  services.forEach(s=>{const a=Math.max(new Date(s.start).getTime(),start.getTime()),b=Math.min((s.end?new Date(s.end).getTime():Date.now()),end.getTime());if(b>a){events.push([a,1],[b,-1]);}});
+  events.sort((x,y)=>x[0]-y[0]||x[1]-y[1]);let cur=0,peak=0;events.forEach(([,d])=>{cur+=d;peak=Math.max(peak,cur)});return peak;
+}
+function bcsoDayWindow(date){
+  const start=new Date(date);start.setHours(4,0,0,0);const end=new Date(start);end.setDate(end.getDate()+1);return[start,end];
+}
+function recapForDate(date, includeActive=false){
+  const [start,end]=bcsoDayWindow(date);const all=allCompletedServices();if(includeActive)all.push(...currentActiveServices());
+  const overlapping=all.filter(s=>overlapMs(s,start,end,includeActive)>0);const total=overlapping.reduce((t,s)=>t+overlapMs(s,start,end,includeActive),0);const unique=new Set(overlapping.map(s=>s.agentId)).size;
+  return {date:new Date(start),start,end,total,unique,services:overlapping.length,peak:peakConcurrent(overlapping,start,end),avg:unique?total/unique:0};
+}
+function latestClosedBcsoDate(){
+  const n=new Date();const d=new Date(n);d.setHours(4,0,0,0);if(n<d)d.setDate(d.getDate()-1);d.setDate(d.getDate()-1);return d;
+}
+function recapLabel(d){return new Intl.DateTimeFormat("fr-FR",{day:"2-digit",month:"long",year:"numeric"}).format(d).toUpperCase();}
+function deltaMarkup(v,suffix="") {const cls=v>0?"up":v<0?"down":"neutral",sign=v>0?"+":"";return `<span class="delta ${cls}">${sign}${v}${suffix}</span>`;}
+function renderDailyRecaps(){
+  const base=latestClosedBcsoDate(); const recaps=[];for(let i=0;i<7;i++){const d=new Date(base);d.setDate(d.getDate()-i);recaps.push(recapForDate(d));}
+  const r=recaps[0],prev=recaps[1];
+  $("#latestDailyRecap").innerHTML=`<div class="recap-card"><div><div class="recap-date">${recapLabel(r.date)}</div><div class="recap-period">04:00 → 03:59 le lendemain</div></div><div class="recap-metrics"><div class="recap-metric"><span>Agents uniques</span><strong>${r.unique}</strong></div><div class="recap-metric"><span>Temps cumulé</span><strong>${formatShortDuration(r.total)}</strong></div><div class="recap-metric"><span>Durée moyenne / agent</span><strong>${formatShortDuration(r.avg)}</strong></div><div class="recap-metric"><span>Pic simultané</span><strong>${r.peak}</strong></div></div><div class="recap-compare"><span>Comparaison veille</span><span>Agents ${deltaMarkup(r.unique-prev.unique)} ・ Temps ${deltaMarkup(Math.round((r.total-prev.total)/3600000)," h")}</span></div></div>`;
+  $("#dailyRecapsTable").innerHTML=`<table class="agents-table"><thead><tr><th>Journée</th><th>Agents uniques</th><th>Temps cumulé</th><th>Durée moyenne</th><th>Pic simultané</th></tr></thead><tbody>${recaps.map(x=>`<tr><td><strong>${shortDate(x.date)}</strong><span class="agent-badge">04:00 → 03:59</span></td><td>${x.unique}</td><td>${formatShortDuration(x.total)}</td><td>${formatShortDuration(x.avg)}</td><td>${x.peak}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function renderServiceAgents(){
+  const kind=$("#servicePeriodFilter").value,range=periodRange(kind),all=allCompletedServices();const live=currentActiveServices();let total=0,serviceCount=0;const unique=new Set();
+  all.forEach(s=>{const ms=overlapMs(s,...range);if(ms){total+=ms;serviceCount++;unique.add(s.agentId)}});live.forEach(s=>{const ms=overlapMs(s,...range,true);if(ms){total+=ms;serviceCount++;unique.add(s.agentId)}});
+  $("#trackingHours").textContent=formatShortDuration(total);$("#trackingServices").textContent=serviceCount;$("#trackingUnique").textContent=unique.size;
+  const q=($("#serviceAgentSearch").value||"").toLowerCase(),af=$("#serviceActivityFilter").value;
+  const rows=supAgents.filter(a=>a.active).map(a=>({a,ms:agentPeriodMs(a.id,range),count:all.filter(s=>s.agentId===a.id&&overlapMs(s,...range)>0).length+(live.some(s=>s.agentId===a.id)?1:0)})).filter(x=>[x.a.badge,x.a.name,x.a.rank].join(' ').toLowerCase().includes(q)).filter(x=>{const h=hoursValue(x.ms);return !af||(af==='under3'&&h<3)||(af==='3to6'&&h>=3&&h<6)||(af==='6to10'&&h>=6&&h<10)||(af==='over10'&&h>=10)}).sort((a,b)=>b.ms-a.ms);
+  $("#serviceAgentsTable").innerHTML=`<table class="agents-table"><thead><tr><th>Agent</th><th>Services</th><th>Temps période</th><th>Ce mois</th><th>Dernier service</th><th></th></tr></thead><tbody>${rows.map(({a,ms,count})=>{const last=all.filter(s=>s.agentId===a.id).sort((x,y)=>new Date(y.start)-new Date(x.start))[0];return `<tr><td><div class="agent-identity"><img class="agent-mini-avatar" src="${agentAvatar(a)}" alt=""><div><div class="agent-name-line">#${a.badge} ・ ${escapeHtml(a.name)}</div><span class="agent-badge">${escapeHtml(a.rank)}</span></div></div></td><td>${count}</td><td><strong>${formatShortDuration(ms)}</strong></td><td>${formatShortDuration(agentMonthMs(a.id))}</td><td>${last?shortDate(last.start):'—'}</td><td><button class="secondary-btn" data-service-agent="${a.id}">Détails</button></td></tr>`}).join('')}</tbody></table>`;
+  $$('[data-service-agent]').forEach(b=>b.onclick=()=>openAgentProfile(b.dataset.serviceAgent,'services'));
+}
+
+function renderAudit(){
+  $("#serviceAuditList").innerHTML=supAudit.length?supAudit.slice(0,8).map(a=>{const ag=agentById(a.agentId);return `<div class="audit-item"><strong>${a.type==='force-end'?'Service terminé par la supervision':'Service modifié'} — #${ag?.badge||'—'} ${escapeHtml(ag?.name||'Agent')}</strong><span>${formatDate(a.date)} ・ Par ${escapeHtml(a.by)} ・ Motif : ${escapeHtml(a.reason)}</span>${a.type==='edit'?`<span>Ancienne fin : ${formatDate(a.oldEnd)} → Nouvelle fin : ${formatDate(a.newEnd)}</span>`:`<span>Fin retenue : ${formatDate(a.newEnd)}</span>`}</div>`;}).join(''):'<div class="empty-state">Aucune modification de service enregistrée.</div>';
+}
+
+function renderServiceTracking(){renderLiveDuty();renderServiceAgents();renderDailyRecaps();renderAudit();}
+function renderSupervision(){renderAgentManagement();renderServiceTracking();}
+
+$("#servicePeriodFilter").addEventListener("change",renderServiceTracking);$("#serviceAgentSearch").addEventListener("input",renderServiceAgents);$("#serviceActivityFilter").addEventListener("change",renderServiceAgents);
+$("#dutyToggle").addEventListener("click",()=>setTimeout(renderSupervision,0));
+setInterval(()=>{ if(document.querySelector('#view-serviceTracking.active')) renderServiceTracking(); },30000);
+
+renderSupervision();

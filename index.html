@@ -51,6 +51,16 @@
         </button>
       </nav>
 
+      <div class="nav-label supervision-label">SUPERVISION</div>
+      <nav class="nav supervision-nav">
+        <button class="nav-item" data-view="agentManagement">
+          <span>👥</span><span>Gestion des agents</span>
+        </button>
+        <button class="nav-item" data-view="serviceTracking">
+          <span>📊</span><span>Suivi des services</span>
+        </button>
+      </nav>
+
       <div class="sidebar-footer">
         <div class="demo-pill">MODE DÉMO</div>
         <small>Données enregistrées localement dans le navigateur.</small>
@@ -236,6 +246,91 @@
         </div>
         <div id="complaintsList" class="cards-list"></div>
       </section>
+
+      <section class="view" id="view-agentManagement">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Supervision</p>
+            <h2>Gestion des agents</h2>
+            <p class="muted">Annuaire administratif, activité et accès des membres du BCSO.</p>
+          </div>
+          <button class="primary-btn" id="addAgentBtn">+ Ajouter un agent</button>
+        </div>
+
+        <div class="supervision-summary">
+          <article class="stat-card"><span>Agents actifs</span><strong id="supActiveAgents">0</strong><small>effectif actuel</small></article>
+          <article class="stat-card"><span>En service</span><strong id="supOnDutyAgents">0</strong><small>actuellement</small></article>
+          <article class="stat-card"><span>Divisions</span><strong id="supDivisions">0</strong><small>représentées</small></article>
+          <article class="stat-card"><span>Inactifs</span><strong id="supInactiveAgents">0</strong><small>accès désactivé</small></article>
+        </div>
+
+        <div class="toolbar agent-toolbar panel-lite">
+          <input id="agentSearch" type="search" placeholder="Rechercher un agent, matricule..." />
+          <select id="agentRankFilter"><option value="">Tous les grades</option></select>
+          <select id="agentDivisionFilter"><option value="">Toutes les divisions</option></select>
+          <select id="agentStatusFilter"><option value="">Tous les statuts</option><option>En service</option><option>Hors service</option><option>Inactif</option></select>
+        </div>
+        <div id="agentsTable" class="agents-table-wrap"></div>
+      </section>
+
+      <section class="view" id="view-serviceTracking">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Supervision</p>
+            <h2>Suivi des services</h2>
+            <p class="muted">Contrôle des prises de service, historiques et récapitulatifs BCSO.</p>
+          </div>
+          <select id="servicePeriodFilter" class="compact-select">
+            <option value="week">Cette semaine</option>
+            <option value="previousWeek">Semaine précédente</option>
+            <option value="month">Ce mois</option>
+          </select>
+        </div>
+
+        <div class="supervision-summary">
+          <article class="stat-card"><span>En service</span><strong id="trackingOnDuty">0</strong><small>actuellement</small></article>
+          <article class="stat-card"><span>Heures BCSO</span><strong id="trackingHours">0 h 00</strong><small id="trackingHoursLabel">sur la période</small></article>
+          <article class="stat-card"><span>Services</span><strong id="trackingServices">0</strong><small>sur la période</small></article>
+          <article class="stat-card"><span>Agents uniques</span><strong id="trackingUnique">0</strong><small>sur la période</small></article>
+        </div>
+
+        <section class="panel supervision-block">
+          <div class="panel-header">
+            <div><p class="eyebrow">Temps réel</p><h3>Agents actuellement en service</h3></div>
+            <span class="badge green" id="liveDutyBadge">0 en service</span>
+          </div>
+          <div id="liveDutyList" class="live-duty-list"></div>
+        </section>
+
+        <div class="content-grid supervision-grid">
+          <section class="panel">
+            <div class="panel-header"><div><p class="eyebrow">Effectif</p><h3>Suivi des agents</h3></div></div>
+            <div class="toolbar service-agent-toolbar panel-lite">
+              <input id="serviceAgentSearch" type="search" placeholder="Rechercher un agent..." />
+              <select id="serviceActivityFilter"><option value="">Tous</option><option value="under3">Moins de 3 h</option><option value="3to6">3 à 6 h</option><option value="6to10">6 à 10 h</option><option value="over10">Plus de 10 h</option></select>
+            </div>
+            <div id="serviceAgentsTable" class="agents-table-wrap compact"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header"><div><p class="eyebrow">Journée BCSO</p><h3>Dernier récapitulatif</h3></div></div>
+            <div id="latestDailyRecap"></div>
+          </section>
+        </div>
+
+        <section class="panel supervision-block">
+          <div class="panel-header">
+            <div><p class="eyebrow">Historique</p><h3>Récapitulatifs journaliers</h3></div>
+            <small class="muted">Période quotidienne : 04:00 → 03:59</small>
+          </div>
+          <div id="dailyRecapsTable" class="agents-table-wrap compact"></div>
+        </section>
+
+        <section class="panel supervision-block">
+          <div class="panel-header"><div><p class="eyebrow">Audit</p><h3>Dernières modifications de service</h3></div></div>
+          <div id="serviceAuditList" class="history-list"></div>
+        </section>
+      </section>
     </main>
   </div>
 
@@ -364,6 +459,67 @@
           <button type="button" class="secondary-btn" data-close="reportModal">Annuler</button>
           <button type="submit" class="primary-btn">Enregistrer le rapport</button>
         </div>
+      </form>
+    </div>
+  </div>
+
+
+  <div class="modal" id="agentModal" aria-hidden="true">
+    <div class="modal-card wide">
+      <button class="modal-close" data-close="agentModal">×</button>
+      <p class="eyebrow">Supervision</p>
+      <h2 id="agentModalTitle">Profil agent</h2>
+      <div id="agentProfileContent"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="addAgentModal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="modal-close" data-close="addAgentModal">×</button>
+      <p class="eyebrow">Supervision</p>
+      <h2>Ajouter un agent</h2>
+      <form id="addAgentForm">
+        <div class="form-grid two">
+          <label>Matricule<input id="newAgentBadge" placeholder="Ex. 221" required></label>
+          <label>Nom<input id="newAgentName" placeholder="Ex. J. Carter" required></label>
+          <label>Grade<input id="newAgentRank" placeholder="Deputy" required></label>
+          <label>Division<input id="newAgentDivision" placeholder="Patrol" required></label>
+        </div>
+        <label>Spécialisations<input id="newAgentSpecialties" placeholder="Park Ranger, Highway Patrol"></label>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="addAgentModal">Annuler</button><button class="primary-btn" type="submit">Ajouter</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="forceEndModal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="modal-close" data-close="forceEndModal">×</button>
+      <p class="eyebrow">Supervision</p>
+      <h2>Mettre fin au service</h2>
+      <form id="forceEndForm">
+        <input type="hidden" id="forceEndAgentId">
+        <div class="force-service-agent" id="forceEndAgentSummary"></div>
+        <label>Heure de fin<input id="forceEndDate" type="datetime-local" required></label>
+        <label>Motif<select id="forceEndReason" required><option value="">Sélectionner...</option><option>Oubli de fin de service</option><option>Déconnexion / crash</option><option>Erreur de pointage</option><option>Autre</option></select></label>
+        <label id="forceEndOtherWrap" class="hidden">Commentaire<textarea id="forceEndOther" rows="3" placeholder="Précisez le motif..."></textarea></label>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="forceEndModal">Annuler</button><button type="submit" class="danger-btn">Confirmer la fin</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="editServiceModal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="modal-close" data-close="editServiceModal">×</button>
+      <p class="eyebrow">Supervision</p>
+      <h2>Modifier le service</h2>
+      <form id="editServiceForm">
+        <input type="hidden" id="editServiceId">
+        <div class="form-grid two">
+          <label>Début<input id="editServiceStart" type="datetime-local" required></label>
+          <label>Fin<input id="editServiceEnd" type="datetime-local" required></label>
+        </div>
+        <label>Motif de la modification<textarea id="editServiceReason" rows="3" required placeholder="Motif obligatoire..."></textarea></label>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="editServiceModal">Annuler</button><button type="submit" class="primary-btn">Enregistrer</button></div>
       </form>
     </div>
   </div>
