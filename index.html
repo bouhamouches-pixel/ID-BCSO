@@ -89,6 +89,15 @@
         <button class="nav-item" data-view="bcsaPatrolReports"><span>🚓</span><span>Rapports de patrouilles</span></button>
       </nav>
 
+
+      <button class="nav-label investigation-label nav-section-toggle" type="button" data-nav-section="investigation" aria-expanded="true">
+        <span>INVESTIGATION DIVISION</span><span class="nav-section-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <nav class="nav investigation-nav nav-section" data-nav-content="investigation">
+        <button class="nav-item" data-view="investigationDossiers"><span>📁</span><span>Dossiers</span></button>
+        <button class="nav-item" data-view="investigationDatabase"><span>🕵️</span><span>Base de données</span></button>
+      </nav>
+
       <div class="sidebar-footer">
         <div class="demo-pill">MODE DÉMO</div>
         <small>Données enregistrées localement dans le navigateur.</small>
@@ -467,6 +476,44 @@
         <div id="bcsaPatrolReportsList" class="bcsa-patrol-grid"></div>
       </section>
 
+      <section class="view" id="view-investigationDossiers">
+        <div class="section-head">
+          <div><p class="eyebrow">Investigation Division</p><h2>Dossiers d’enquête</h2><p class="muted">Tous les dossiers ouverts par le bureau d’enquêtes.</p></div>
+          <button class="primary-btn" id="invNewCaseBtn">+ Nouveau dossier</button>
+        </div>
+        <div class="supervision-summary">
+          <article class="stat-card"><span>Dossiers actifs</span><strong id="invActiveCount">0</strong><small>ouverts / en cours</small></article>
+          <article class="stat-card"><span>Priorité élevée</span><strong id="invHighCount">0</strong><small>à surveiller</small></article>
+          <article class="stat-card"><span>Classés</span><strong id="invClosedCount">0</strong><small>archives</small></article>
+          <article class="stat-card"><span>Suspects liés</span><strong id="invLinkedSuspects">0</strong><small>fiches associées</small></article>
+        </div>
+        <div class="toolbar panel-lite inv-toolbar">
+          <input id="invCaseSearch" type="search" placeholder="N° de dossier, titre, enquêteur...">
+          <select id="invCaseStatus"><option value="">Tous les statuts</option><option>Ouvert</option><option>En cours</option><option>En attente</option><option>Transmis</option><option>Classé</option></select>
+          <select id="invCasePriority"><option value="">Toutes les priorités</option><option>Normale</option><option>Élevée</option><option>Critique</option></select>
+        </div>
+        <div id="invCasesList" class="inv-case-grid"></div>
+      </section>
+
+      <section class="view" id="view-investigationDatabase">
+        <div class="section-head">
+          <div><p class="eyebrow">Investigation Division</p><h2>Base de données suspects</h2><p class="muted">Fiches créées par les enquêteurs, groupuscules et dossiers liés.</p></div>
+          <button class="primary-btn" id="invNewSuspectBtn">+ Nouvelle fiche suspect</button>
+        </div>
+        <div class="supervision-summary">
+          <article class="stat-card"><span>Fiches suspects</span><strong id="invSuspectCount">0</strong><small>enregistrées</small></article>
+          <article class="stat-card"><span>Liés à un groupuscule</span><strong id="invGroupCount">0</strong><small>suspects</small></article>
+          <article class="stat-card"><span>Danger élevé / critique</span><strong id="invDangerCount">0</strong><small>signalements</small></article>
+          <article class="stat-card"><span>Groupuscules</span><strong id="invUniqueGroups">0</strong><small>identifiés</small></article>
+        </div>
+        <div class="toolbar panel-lite inv-toolbar">
+          <input id="invSuspectSearch" type="search" placeholder="Nom, alias, groupuscule, véhicule...">
+          <select id="invSuspectGroupFilter"><option value="">Tous</option><option value="yes">Liés à un groupuscule</option><option value="no">Sans groupuscule</option></select>
+          <select id="invSuspectDangerFilter"><option value="">Toutes dangerosités</option><option>Faible</option><option>Moyenne</option><option>Élevée</option><option>Critique</option></select>
+        </div>
+        <div id="invSuspectsList" class="inv-suspect-grid"></div>
+      </section>
+
     </main>
   </div>
 
@@ -740,6 +787,62 @@
         <div class="modal-actions"><button type="button" class="secondary-btn" id="bcsaPatrolSaveDraft">Enregistrer le brouillon</button><button type="submit" class="primary-btn">Finaliser le rapport</button></div>
       </form>
     </div>
+  </div>
+
+  <div class="modal" id="invCaseModal" aria-hidden="true">
+    <div class="modal-card wide"><button class="modal-close" data-close="invCaseModal">×</button><p class="eyebrow">Investigation Division</p><h2 id="invCaseModalTitle">Nouveau dossier</h2>
+      <form id="invCaseForm"><input type="hidden" id="invCaseId">
+        <div class="form-grid two"><label>Titre du dossier<input id="invCaseTitle" required placeholder="Ex. Trafic d’armes — Sandy Shores"></label><label>Enquêteur(s)<input id="invCaseInvestigators" required placeholder="K. Belkacem, J. Carter"></label></div>
+        <div class="form-grid three"><label>Statut<select id="invCaseFormStatus"><option>Ouvert</option><option>En cours</option><option>En attente</option><option>Transmis</option><option>Classé</option></select></label><label>Priorité<select id="invCaseFormPriority"><option>Normale</option><option>Élevée</option><option>Critique</option></select></label><label>Date d’ouverture<input id="invCaseOpened" type="date" required></label></div>
+        <label>Résumé de l’enquête<textarea id="invCaseSummary" rows="5" placeholder="Objet, contexte, premiers éléments..."></textarea></label>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="invCaseModal">Annuler</button><button class="primary-btn" type="submit">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="invSuspectModal" aria-hidden="true">
+    <div class="modal-card wide"><button class="modal-close" data-close="invSuspectModal">×</button><p class="eyebrow">Investigation Division</p><h2 id="invSuspectModalTitle">Nouvelle fiche suspect</h2>
+      <form id="invSuspectForm"><input type="hidden" id="invSuspectId">
+        <div class="form-grid two"><label>Nom / identité<input id="invSuspectName" required></label><label>Alias<input id="invSuspectAlias" placeholder="Alias connus"></label></div>
+        <div class="form-grid three"><label>Dangerosité<select id="invSuspectDanger"><option>Faible</option><option>Moyenne</option><option>Élevée</option><option>Critique</option></select></label><label>Lié à un groupuscule ?<select id="invSuspectGrouped"><option value="no">Non</option><option value="yes">Oui</option></select></label><label>Groupuscule<input id="invSuspectGroup" placeholder="Nom du groupe"></label></div>
+        <div class="form-grid two"><label>Rôle supposé<input id="invSuspectRole" placeholder="Membre, chef, intermédiaire..."></label><label>Véhicules connus<input id="invSuspectVehicles" placeholder="Plaques / modèles"></label></div>
+        <label>Notes enquêteurs<textarea id="invSuspectNotes" rows="5" placeholder="Informations utiles, habitudes, liens connus..."></textarea></label>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="invSuspectModal">Annuler</button><button class="primary-btn" type="submit">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal inv-board-modal" id="invBoardModal" aria-hidden="true">
+    <div class="inv-board-shell">
+      <div class="inv-board-topbar">
+        <button class="secondary-btn" data-close="invBoardModal">← Dossiers</button>
+        <div><small id="invBoardCaseId">INV-2026-0001</small><strong id="invBoardCaseTitle">Dossier</strong></div>
+        <select id="invBoardCaseStatus"><option>Ouvert</option><option>En cours</option><option>En attente</option><option>Transmis</option><option>Classé</option></select>
+        <button class="secondary-btn" id="invBoardEditCase">Modifier le dossier</button>
+      </div>
+      <div class="inv-board-layout">
+        <aside class="inv-board-side">
+          <h3>Éléments liés</h3>
+          <button class="inv-side-action" id="invAddSuspectToBoard">+ Suspect</button>
+          <button class="inv-side-action" id="invImportReportBtn">+ Importer rapport BCSO</button>
+          <button class="inv-side-action" id="invAddNoteBtn">+ Note</button>
+          <label class="inv-side-action inv-file-action">+ Image<input id="invBoardImageInput" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>
+          <div class="inv-side-section"><h4>Suspects</h4><div id="invBoardSuspects"></div></div>
+          <div class="inv-side-section"><h4>Rapports BCSO</h4><div id="invBoardReports"></div></div>
+        </aside>
+        <div class="inv-board-stage-wrap">
+          <div id="invBoardStage" class="inv-board-stage">
+            <svg id="invBoardLinks" class="inv-board-links"></svg>
+            <div id="invBoardNodes"></div>
+          </div>
+          <div class="inv-board-tools"><button id="invZoomOut">−</button><span id="invZoomLabel">100%</span><button id="invZoomIn">+</button><button id="invResetView">Centrer</button><span class="muted">Déplacez les cartes par glisser-déposer</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="invPickerModal" aria-hidden="true">
+    <div class="modal-card wide"><button class="modal-close" data-close="invPickerModal">×</button><p class="eyebrow">Investigation Division</p><h2 id="invPickerTitle">Ajouter au dossier</h2><input id="invPickerSearch" type="search" placeholder="Rechercher..."><div id="invPickerList" class="inv-picker-list"></div></div>
   </div>
 
   <script src="app.js"></script>
