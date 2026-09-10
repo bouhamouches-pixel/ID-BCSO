@@ -367,3 +367,13 @@ label { display: grid; gap: 7px; color: #d7dbe0; font-size: 13px; margin-bottom:
 .seb-map-stage{width:100%;height:100%;left:0!important;top:0!important;transform-origin:center center;box-shadow:none}
 .seb-forge-map{position:absolute;inset:0;width:100%;height:100%;display:block;transform:none!important}
 .seb-map-background{background-size:cover}
+
+
+/* SEB — mode carte Forge réellement interactif */
+.seb-forge-map{pointer-events:none!important}
+.seb-map-wrap.map-interaction .seb-forge-map{pointer-events:auto!important;touch-action:auto}
+.seb-map-wrap.map-interaction .seb-map-stage{cursor:default}
+.seb-map-wrap.map-interaction .seb-map-lines{pointer-events:none}
+.seb-map-wrap.map-interaction #sebMapMarkers{pointer-events:none}
+.seb-map-wrap.map-interaction .seb-map-marker{pointer-events:none;opacity:.82}
+.seb-map-wrap.map-interaction .seb-map-placeholder{pointer-events:none}

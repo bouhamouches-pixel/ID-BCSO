@@ -1224,9 +1224,9 @@ function openSebOperationForm(id=null){
 function deleteSebOperation(id){const o=sebOperations.find(x=>x.id===id);if(!o||!confirm(`Supprimer définitivement ${o.id} — ${o.title} ?`))return;sebOperations=sebOperations.filter(x=>x.id!==id);delete sebBoards[id];save(SEB_STORAGE.operations,sebOperations);save(SEB_STORAGE.boards,sebBoards);sebRenderOperations()}
 function getSebBoard(id){if(!sebBoards[id])sebBoards[id]={background:null,markers:[],lines:[]};return sebBoards[id]}
 function openSebBoard(id){
-  const o=sebOperations.find(x=>x.id===id); if(!o)return; currentSebOperationId=id; sebZoom=1; sebTool="select"; sebDraftLine=null;
+  const o=sebOperations.find(x=>x.id===id); if(!o)return; currentSebOperationId=id; sebZoom=1; sebTool="map"; sebDraftLine=null;
   $("#sebBoardOperationId").textContent=o.id; $("#sebBoardOperationTitle").textContent=o.title; $("#sebBoardOperationStatus").value=o.status;
-  setSebTool("select"); renderSebBoard(); openModal("sebBoardModal"); requestAnimationFrame(centerSebBoard);
+  setSebTool("map"); renderSebBoard(); openModal("sebBoardModal"); requestAnimationFrame(centerSebBoard);
 }
 function sebBriefingHtml(o){const items=[["Objectif",o.objective],["Menaces",o.threats],["Escouades",o.teams],["Équipement",o.equipment],["Consignes",o.instructions]];return items.map(([k,v])=>`<div class="seb-briefing-card"><span>${k}</span><p>${escapeHtml(v||"—")}</p></div>`).join("")}
 function centerSebBoard(){const stage=$("#sebMapStage");stage.style.left="0px";stage.style.top="0px";applySebZoom()}
@@ -1242,7 +1242,7 @@ function renderSebBoard(){
   const bg=$("#sebMapBackground"),forge=$("#sebForgeMap");
   bg.style.backgroundImage=b.background?`url("${b.background}")`:"none";
   $("#sebMapStage").classList.toggle("has-bg",!!b.background);
-  if(forge) forge.classList.toggle("hidden",!!b.background);
+  if(forge) forge.classList.toggle("hidden",!!b.background); $("#sebMapWrap").classList.toggle("map-interaction",sebTool==="map"&&!b.background);
   $("#sebMapMarkers").innerHTML=(b.markers||[]).map(sebMarkerHtml).join("");
   renderSebLines(); $$('.seb-map-marker').forEach(makeSebMarkerDraggable); $$('.seb-marker-remove').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const board=getSebBoard(currentSebOperationId);board.markers=board.markers.filter(m=>m.id!==btn.dataset.sebRemove);save(SEB_STORAGE.boards,sebBoards);renderSebBoard()});
 }
@@ -1264,9 +1264,10 @@ function addSebMarker(kind){
 function makeSebMarkerDraggable(el){
   el.onpointerdown=e=>{if(sebTool!=="select"||e.target.closest("button"))return;e.stopPropagation();const startX=e.clientX,startY=e.clientY,ox=parseFloat(el.style.left),oy=parseFloat(el.style.top);el.setPointerCapture?.(e.pointerId);const move=ev=>{el.style.left=`${Math.max(0,Math.min(1800,ox+(ev.clientX-startX)/sebZoom))}px`;el.style.top=`${Math.max(0,Math.min(1200,oy+(ev.clientY-startY)/sebZoom))}px`};const up=()=>{el.removeEventListener("pointermove",move);el.removeEventListener("pointerup",up);const m=getSebBoard(currentSebOperationId).markers.find(x=>x.id===el.dataset.sebMarkerId);if(m){m.x=parseFloat(el.style.left);m.y=parseFloat(el.style.top);save(SEB_STORAGE.boards,sebBoards)}};el.addEventListener("pointermove",move);el.addEventListener("pointerup",up)};
 }
-function setSebTool(tool){sebTool=tool;sebDraftLine=null;$$('[data-seb-tool]').forEach(b=>b.classList.toggle("active",b.dataset.sebTool===tool));$("#sebMapStage").classList.toggle("tool-line",tool==="line");$("#sebMapStage").classList.toggle("tool-route",tool==="route");renderSebLines()}
+function setSebTool(tool){sebTool=tool;sebDraftLine=null;$$(`[data-seb-tool]`).forEach(b=>b.classList.toggle("active",b.dataset.sebTool===tool));$("#sebMapStage").classList.toggle("tool-line",tool==="line");$("#sebMapStage").classList.toggle("tool-route",tool==="route");$("#sebMapWrap").classList.toggle("map-interaction",tool==="map"&&!getSebBoard(currentSebOperationId).background);renderSebLines()}
 function sebStagePoint(e){const stage=$("#sebMapStage"),r=stage.getBoundingClientRect();return{x:Math.max(0,Math.min(1800,(e.clientX-r.left)/sebZoom)),y:Math.max(0,Math.min(1200,(e.clientY-r.top)/sebZoom))}}
 function handleSebStageClick(e){
+  if(sebTool==="map")return;
   if(e.target.closest('.seb-map-marker'))return;const p=sebStagePoint(e),b=getSebBoard(currentSebOperationId);
   if(sebTool==="line"){
     if(!sebDraftLine){sebDraftLine={type:"line",x1:p.x,y1:p.y,x2:p.x,y2:p.y};renderSebLines(sebDraftLine)}else{sebDraftLine.x2=p.x;sebDraftLine.y2=p.y;b.lines.push(sebDraftLine);sebDraftLine=null;save(SEB_STORAGE.boards,sebBoards);renderSebLines()}
