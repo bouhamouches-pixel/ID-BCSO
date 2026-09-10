@@ -10,7 +10,9 @@ const STORAGE = {
   complaints: "bcso_demo_complaints",
   warrants: "bcso_demo_warrants",
   navSections: "bcso_demo_nav_sections",
-  materialRequests: "bcso_demo_material_requests"
+  materialRequests: "bcso_demo_material_requests",
+  notifications: "bcso_demo_notifications",
+  convocations: "bcso_demo_convocations"
 };
 
 const defaultAvatar = createDefaultAvatar();
@@ -789,15 +791,17 @@ function openAgentProfile(id,tab="info"){
   const agentComplaints=complaints.filter(c=>c.writer===a.name||c.assignedTo===a.name);
   $("#agentModalTitle").textContent=`#${a.badge} ・ ${a.name}`;
   $("#agentProfileContent").innerHTML=`
-    <div class="agent-profile-head"><img src="${agentAvatar(a)}" alt=""><div><h3>${escapeHtml(a.name)}</h3><div class="meta-row"><span>${escapeHtml(a.rank)}</span><span>${escapeHtml(a.division)}</span><span class="badge ${a.active?'green':'red'}">${a.active?'Actif':'Inactif'}</span></div></div></div>
-    <div class="profile-tabs"><button class="profile-tab ${tab==='info'?'active':''}" data-profile-tab="info">Informations</button><button class="profile-tab ${tab==='services'?'active':''}" data-profile-tab="services">Services</button><button class="profile-tab ${tab==='reports'?'active':''}" data-profile-tab="reports">Rapports</button><button class="profile-tab ${tab==='complaints'?'active':''}" data-profile-tab="complaints">Plaintes</button><button class="profile-tab ${tab==='access'?'active':''}" data-profile-tab="access">Accès</button></div>
+    <div class="agent-profile-head"><img src="${agentAvatar(a)}" alt=""><div><h3>${escapeHtml(a.name)}</h3><div class="meta-row"><span>${escapeHtml(a.rank)}</span><span>${escapeHtml(a.division)}</span><span class="badge ${a.active?'green':'red'}">${a.active?'Actif':'Inactif'}</span></div></div><button class="primary-btn agent-convocation-btn" data-convoke-agent="${a.id}">📨 Convoquer</button></div>
+    <div class="profile-tabs"><button class="profile-tab ${tab==='info'?'active':''}" data-profile-tab="info">Informations</button><button class="profile-tab ${tab==='services'?'active':''}" data-profile-tab="services">Services</button><button class="profile-tab ${tab==='reports'?'active':''}" data-profile-tab="reports">Rapports</button><button class="profile-tab ${tab==='complaints'?'active':''}" data-profile-tab="complaints">Plaintes</button><button class="profile-tab ${tab==='convocations'?'active':''}" data-profile-tab="convocations">Convocations</button><button class="profile-tab ${tab==='access'?'active':''}" data-profile-tab="access">Accès</button></div>
     <div class="profile-panel ${tab==='info'?'active':''}" data-profile-panel="info"><div class="info-grid"><div class="info-box"><span>Matricule</span><strong>#${escapeHtml(a.badge)}</strong></div><div class="info-box"><span>Grade</span><strong>${escapeHtml(a.rank)}</strong></div><div class="info-box"><span>Division</span><strong>${escapeHtml(a.division)}</strong></div><div class="info-box"><span>Date d'intégration</span><strong>${shortDate(a.joined+'T12:00:00')}</strong></div><div class="info-box"><span>Spécialisations</span><strong>${escapeHtml(a.specialties.join(', ')||'Aucune')}</strong></div><div class="info-box"><span>Statut</span><strong>${a.active?'Actif':'Inactif'}</strong></div></div></div>
     <div class="profile-panel ${tab==='services'?'active':''}" data-profile-panel="services"><div class="supervision-summary"><article class="stat-card"><span>Cette semaine</span><strong>${formatShortDuration(agentPeriodMs(id,range))}</strong><small>temps cumulé</small></article><article class="stat-card"><span>Ce mois</span><strong>${formatShortDuration(agentMonthMs(id))}</strong><small>temps cumulé</small></article><article class="stat-card"><span>Services</span><strong>${agentServices.length}</strong><small>enregistrés</small></article><article class="stat-card"><span>Moyenne</span><strong>${formatShortDuration(agentServices.length?agentServices.reduce((t,s)=>t+(new Date(s.end)-new Date(s.start)),0)/agentServices.length:0)}</strong><small>par service</small></article></div><div class="history-service-list">${agentServices.slice(0,8).map(s=>`<div class="history-service-row"><span><strong>Début</strong><br>${formatDate(s.start)}</span><span><strong>Fin</strong><br>${formatDate(s.end)}</span><span>${formatDuration(new Date(s.end)-new Date(s.start))}</span><div class="table-actions"><button class="secondary-btn" data-edit-service="${s.id}">Modifier</button></div></div>`).join('')||'<div class="empty-state">Aucun service.</div>'}</div></div>
     <div class="profile-panel ${tab==='reports'?'active':''}" data-profile-panel="reports">${agentReports.length?agentReports.slice(0,10).map(reportCard).join(''):'<div class="empty-state">Aucun rapport rédigé.</div>'}</div>
     <div class="profile-panel ${tab==='complaints'?'active':''}" data-profile-panel="complaints">${agentComplaints.length?agentComplaints.map(c=>`<div class="record-card"><span class="badge gold">${escapeHtml(c.id)}</span><h3>${escapeHtml(c.subject)}</h3><div class="meta-row"><span>${escapeHtml(c.status)}</span><span>${escapeHtml(c.assignedTo||'Non assigné')}</span></div></div>`).join(''):'<div class="empty-state">Aucune plainte liée à cet agent.</div>'}</div>
+    <div class="profile-panel ${tab==='convocations'?'active':''}" data-profile-panel="convocations">${renderAgentConvocations(id)}</div>
     <div class="profile-panel ${tab==='access'?'active':''}" data-profile-panel="access"><p class="muted small">Dans la version finale, ces accès seront calculés depuis les rôles Discord et ne seront pas modifiables ici.</p><div class="access-list">${a.roles.map(r=>`<div class="access-item"><span>${escapeHtml(r)}</span><strong class="access-ok">✓ Autorisé</strong></div>`).join('')}</div></div>`;
   $$('[data-profile-tab]').forEach(b=>b.onclick=()=>openAgentProfile(id,b.dataset.profileTab));
   $$('[data-edit-service]').forEach(b=>b.onclick=()=>openEditService(b.dataset.editService));
+  $$('[data-convoke-agent]').forEach(b=>b.onclick=()=>{ closeModal("agentModal"); openConvocationForm(b.dataset.convokeAgent); });
   bindReportViewers();
   openModal("agentModal");
 }
@@ -945,7 +949,9 @@ $("#supNewEventBtn")?.addEventListener("click",()=>openEventManager());
 $("#eventManageForm")?.addEventListener("submit",e=>{
   e.preventDefault(); const id=$("#eventManageId").value; const old=id?events.find(x=>x.id===id):null;
   const item={id:old?.id||`evt-${Date.now()}`,title:$("#eventManageName").value.trim(),type:$("#eventManageType").value,date:new Date($("#eventManageDate").value).toISOString(),place:$("#eventManagePlace").value.trim(),organizer:$("#eventManageOrganizer").value.trim(),max:$("#eventManageMax").value?Number($("#eventManageMax").value):null,description:$("#eventManageDescription").value.trim(),participants:old?.participants||[]};
-  old?Object.assign(old,item):events.push(item); save(STORAGE.events,events); closeModal("eventManageModal"); renderEvents(); renderAgendaManagement();
+  old?Object.assign(old,item):events.push(item); save(STORAGE.events,events);
+  createPortalNotification({type:"event",title:old?`Événement modifié — ${item.title}`:`Nouvel événement — ${item.title}`,message:`${formatDate(item.date)} • ${item.place}`,target:"all",linkView:"agenda",discord:true,entityId:item.id});
+  closeModal("eventManageModal"); renderEvents(); renderAgendaManagement();
 });
 $("#supEventSearch")?.addEventListener("input",renderAgendaManagement); $("#supEventType")?.addEventListener("change",renderAgendaManagement);
 
@@ -1372,3 +1378,133 @@ $("#startDutyAllGood").onclick=beginDuty;
 $("#startDutyWithRequest").onclick=()=>{if(!materialDraft.length){alert("Sélectionnez au moins un équipement manquant ou utilisez « J'ai tout mon équipement ».");return}materialRequests.unshift({id:`MAT-${Date.now()}`,agent:profile.name,rank:profile.rank,date:new Date().toISOString(),items:materialDraft.map(x=>({...x})),status:"En attente"});save(STORAGE.materialRequests,materialRequests);renderMaterialNotifications();beginDuty()};
 function renderMaterialNotifications(){const pending=materialRequests.filter(r=>r.status!=="Délivrée").length;$("#materialNotificationCount").textContent=pending;$("#materialNotificationsBtn").classList.toggle("has-alert",pending>0);$("#materialNotificationsList").innerHTML=materialRequests.length?materialRequests.map(r=>`<article class="material-request-card"><div class="request-head"><div><strong>${escapeHtml(r.agent)}</strong><div class="muted">${escapeHtml(r.rank)} • ${formatDate(r.date)}</div></div><span class="request-status">${escapeHtml(r.status)}</span></div><ul class="request-items">${r.items.map(x=>`<li>${x.qty} × ${escapeHtml(x.item)}</li>`).join("")}</ul><div class="request-actions">${r.status==="En attente"?`<button class="secondary-btn" data-material-status="${r.id}|Prise en charge">Prendre en charge</button>`:""}${r.status!=="Délivrée"?`<button class="primary-btn" data-material-status="${r.id}|Délivrée">Marquer comme délivrée</button>`:""}</div></article>`).join(""):'<div class="empty-state">Aucune demande de matériel.</div>';$$('[data-material-status]').forEach(b=>b.onclick=()=>{const [id,status]=b.dataset.materialStatus.split("|");const r=materialRequests.find(x=>x.id===id);if(r){r.status=status;r.updatedAt=new Date().toISOString();save(STORAGE.materialRequests,materialRequests);renderMaterialNotifications()}})}
 $("#materialNotificationsBtn").onclick=()=>{renderMaterialNotifications();openModal("materialNotificationsModal")};renderMaterialNotifications();
+
+// ============================================================
+// NOTIFICATIONS PORTAIL + GESTION MATERIEL + CONVOCATIONS
+// ============================================================
+let portalNotifications = load(STORAGE.notifications, []);
+let convocations = load(STORAGE.convocations, []);
+save(STORAGE.notifications, portalNotifications);
+save(STORAGE.convocations, convocations);
+let notificationFilter = "all";
+
+function currentAgentId(){ return getPersonalAgent()?.id || null; }
+function createPortalNotification({type,title,message,target="all",linkView=null,discord=false,entityId=null}){
+  const n={id:`NOT-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,type,title,message,target,linkView,discord,entityId,createdAt:new Date().toISOString(),readBy:[]};
+  portalNotifications.unshift(n); save(STORAGE.notifications,portalNotifications); renderNotificationBadge(); return n;
+}
+function notificationVisibleToMe(n){ return n.target==="all" || n.target===currentAgentId() || n.target==="supervision"; }
+function notificationIsRead(n){ return n.readBy?.includes(currentAgentId()||profile.name); }
+function markNotificationRead(id){ const n=portalNotifications.find(x=>x.id===id); if(!n)return; const who=currentAgentId()||profile.name; n.readBy=n.readBy||[]; if(!n.readBy.includes(who))n.readBy.push(who); save(STORAGE.notifications,portalNotifications); renderNotificationBadge(); }
+function renderNotificationBadge(){
+  const unread=portalNotifications.filter(n=>notificationVisibleToMe(n)&&!notificationIsRead(n)).length;
+  const materialPending=materialRequests.filter(r=>r.status!=="Délivrée").length;
+  const count=unread+materialPending;
+  const el=$("#materialNotificationCount"); if(el)el.textContent=count;
+  $("#materialNotificationsBtn")?.classList.toggle("has-alert",count>0);
+}
+function notificationIcon(type){ return type==="event"?"📅":type==="convocation"?"📨":type==="material"?"📦":"🔔"; }
+function renderNotificationsCenter(){
+  const list=portalNotifications.filter(notificationVisibleToMe).filter(n=>notificationFilter==="all"||n.type===notificationFilter);
+  $("#notificationsCenterList").innerHTML=list.length?list.map(n=>`<article class="notification-item ${notificationIsRead(n)?'':'unread'}" data-notification-id="${n.id}"><div class="notification-icon">${notificationIcon(n.type)}</div><div class="notification-body"><div class="notification-title-row"><strong>${escapeHtml(n.title)}</strong><span>${formatDate(n.createdAt)}</span></div><p>${escapeHtml(n.message||"")}</p><div class="notification-meta">${n.discord?'<span class="badge">Discord prévu</span>':''}${!notificationIsRead(n)?'<span class="badge gold">Non lue</span>':'<span class="badge">Lue</span>'}</div></div><div class="notification-actions">${n.type==='convocation'?`<button class="secondary-btn" data-open-convocation="${escapeHtml(n.entityId||'')}">Consulter</button>`:''}${n.linkView?`<button class="secondary-btn" data-notification-view="${n.linkView}">Ouvrir</button>`:''}</div></article>`).join(""):'<div class="empty-state">Aucune notification.</div>';
+  $$('[data-notification-id]').forEach(el=>el.onclick=(e)=>{ if(e.target.closest('button'))return; markNotificationRead(el.dataset.notificationId); renderNotificationsCenter(); });
+  $$('[data-notification-view]').forEach(b=>b.onclick=()=>{const card=b.closest('[data-notification-id]');if(card)markNotificationRead(card.dataset.notificationId);closeModal('notificationsCenterModal');document.querySelector(`[data-view="${b.dataset.notificationView}"]`)?.click();});
+  $$('[data-open-convocation]').forEach(b=>b.onclick=()=>{const card=b.closest('[data-notification-id]');if(card)markNotificationRead(card.dataset.notificationId);openConvocationDetail(b.dataset.openConvocation);});
+}
+$("#materialNotificationsBtn").onclick=()=>{renderNotificationsCenter();openModal("notificationsCenterModal")};
+$("#markAllNotificationsRead")?.addEventListener("click",()=>{const who=currentAgentId()||profile.name;portalNotifications.filter(notificationVisibleToMe).forEach(n=>{n.readBy=n.readBy||[];if(!n.readBy.includes(who))n.readBy.push(who)});save(STORAGE.notifications,portalNotifications);renderNotificationsCenter();renderNotificationBadge();});
+$$('[data-notification-filter]').forEach(b=>b.onclick=()=>{notificationFilter=b.dataset.notificationFilter;$$('[data-notification-filter]').forEach(x=>x.classList.toggle('active',x===b));renderNotificationsCenter();});
+
+function materialStatusClass(status){ return status==="En attente"?"red":status==="Prise en charge"?"gold":"green"; }
+function materialAgentMeta(r){ const a=r.agentId?agentById(r.agentId):supAgents.find(x=>x.name===r.agent); return a?`${a.rank} • #${a.badge}`:r.rank||"Agent"; }
+function materialItemsTotal(r){ return (r.items||[]).reduce((n,x)=>n+Number(x.qty||0),0); }
+function setMaterialStatus(id,status){
+  const r=materialRequests.find(x=>x.id===id); if(!r)return;
+  r.status=status; r.updatedAt=new Date().toISOString();
+  if(status==="Prise en charge"){r.handledBy=profile.name;r.handledAt=r.updatedAt;}
+  if(status==="Délivrée"){r.deliveredBy=profile.name;r.deliveredAt=r.updatedAt;}
+  save(STORAGE.materialRequests,materialRequests);
+  createPortalNotification({type:"material",title:`Demande matériel — ${status}`,message:`${r.agent} • ${materialItemsTotal(r)} article(s)`,target:r.agentId||"all",discord:false,entityId:r.id});
+  renderMaterialManagement();renderMaterialNotifications();renderNotificationBadge();
+}
+function renderMaterialRequestCard(r){
+  return `<article class="material-request-card"><div class="request-head"><div><strong>${escapeHtml(r.agent)}</strong><div class="muted">${escapeHtml(materialAgentMeta(r))} • ${formatDate(r.date)}</div></div><span class="badge ${materialStatusClass(r.status)}">${escapeHtml(r.status)}</span></div><ul class="request-items">${(r.items||[]).map(x=>`<li><strong>${x.qty} ×</strong> ${escapeHtml(x.item)}</li>`).join("")}</ul>${r.handledBy?`<div class="request-trace"><span>Pris en charge par <strong>${escapeHtml(r.handledBy)}</strong>${r.handledAt?` • ${formatDate(r.handledAt)}`:''}</span>${r.deliveredBy?`<span>Délivré par <strong>${escapeHtml(r.deliveredBy)}</strong> • ${formatDate(r.deliveredAt)}</span>`:''}</div>`:''}<div class="request-actions">${r.status==="En attente"?`<button class="secondary-btn" data-material-manage="${r.id}|Prise en charge">Prendre en charge</button>`:""}${r.status==="Prise en charge"?`<button class="primary-btn" data-material-manage="${r.id}|Délivrée">Marquer comme délivrée</button>`:""}</div></article>`;
+}
+function renderMaterialManagement(){
+  if(!$("#materialManagementList"))return;
+  const q=($("#materialManagementSearch")?.value||"").toLowerCase(), status=$("#materialManagementStatus")?.value||"";
+  const today=new Date().toISOString().slice(0,10);
+  $("#matPendingCount").textContent=materialRequests.filter(r=>r.status==="En attente").length;
+  $("#matHandlingCount").textContent=materialRequests.filter(r=>r.status==="Prise en charge").length;
+  $("#matDeliveredTodayCount").textContent=materialRequests.filter(r=>r.status==="Délivrée"&&(r.deliveredAt||r.updatedAt||r.date||"").slice(0,10)===today).length;
+  $("#matItemsCount").textContent=materialRequests.reduce((n,r)=>n+materialItemsTotal(r),0);
+  const list=materialRequests.filter(r=>(!status||r.status===status)&&[r.agent,r.rank,materialAgentMeta(r),...(r.items||[]).map(x=>x.item)].join(" ").toLowerCase().includes(q));
+  $("#matVisibleCount").textContent=`${list.length} demande${list.length>1?'s':''}`;
+  $("#materialManagementList").innerHTML=list.length?list.map(renderMaterialRequestCard).join(""):'<div class="empty-state">Aucune demande correspondant aux filtres.</div>';
+  $$('[data-material-manage]').forEach(b=>b.onclick=()=>{const [id,status]=b.dataset.materialManage.split('|');setMaterialStatus(id,status)});
+}
+$("#materialManagementSearch")?.addEventListener("input",renderMaterialManagement);
+$("#materialManagementStatus")?.addEventListener("change",renderMaterialManagement);
+
+// Remplace l'ancien rendu de la cloche : la supervision conserve un aperçu rapide des demandes.
+renderMaterialNotifications = function(){
+  const box=$("#materialNotificationsList");
+  if(box){box.innerHTML=materialRequests.length?materialRequests.map(renderMaterialRequestCard).join(""):'<div class="empty-state">Aucune demande de matériel.</div>';$$('[data-material-manage]').forEach(b=>b.onclick=()=>{const [id,status]=b.dataset.materialManage.split('|');setMaterialStatus(id,status)});}
+  renderNotificationBadge(); renderMaterialManagement();
+};
+
+function openConvocationForm(agentId){
+  const a=agentById(agentId);if(!a)return;
+  $("#convocationForm").reset();$("#convocationAgentId").value=a.id;$("#convocationMandatory").checked=true;$("#convocationSite").checked=true;$("#convocationDiscord").checked=true;
+  $("#convocationAgentSummary").innerHTML=`<strong>#${escapeHtml(a.badge)} ・ ${escapeHtml(a.name)}</strong><div class="muted small">${escapeHtml(a.rank)} ・ ${escapeHtml(a.division)}</div>`;
+  openModal("convocationModal");
+}
+function nextConvocationId(){const y=new Date().getFullYear(), nums=convocations.filter(c=>c.id?.startsWith(`CONV-${y}-`)).map(c=>Number(c.id.split('-').pop())).filter(Number.isFinite);return `CONV-${y}-${String((Math.max(0,...nums)+1)).padStart(4,'0')}`;}
+function renderAgentConvocations(agentId){
+  const list=convocations.filter(c=>c.agentId===agentId).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  return `<div class="convocation-profile-head"><button class="primary-btn" data-convoke-agent="${agentId}">+ Nouvelle convocation</button></div>${list.length?list.map(c=>`<article class="convocation-mini"><div><span class="badge ${c.priority==='Urgente'?'red':c.priority==='Importante'?'gold':''}">${escapeHtml(c.priority)}</span><strong>${escapeHtml(c.reason)}</strong><small>${formatDate(c.createdAt)} • ${escapeHtml(c.status)}</small></div><button class="secondary-btn" data-view-convocation="${c.id}">Ouvrir</button></article>`).join(''):'<div class="empty-state">Aucune convocation pour cet agent.</div>'}`;
+}
+$("#convocationForm")?.addEventListener("submit",e=>{
+  e.preventDefault();const a=agentById($("#convocationAgentId").value);if(!a)return;
+  const c={id:nextConvocationId(),agentId:a.id,agent:a.name,badge:a.badge,rank:a.rank,reason:$("#convocationReason").value.trim(),priority:$("#convocationPriority").value,note:$("#convocationNote").value.trim(),mandatory:$("#convocationMandatory").checked,notifySite:$("#convocationSite").checked,notifyDiscord:$("#convocationDiscord").checked,issuer:profile.name,issuerRank:profile.rank,createdAt:new Date().toISOString(),status:"Émise",availability:[],availabilityComment:"",meeting:null};
+  convocations.unshift(c);save(STORAGE.convocations,convocations);
+  if(c.notifySite)createPortalNotification({type:"convocation",title:`Convocation officielle — ${c.reason}`,message:`Émise par ${c.issuer} • Merci de transmettre vos disponibilités.`,target:a.id,discord:c.notifyDiscord,entityId:c.id});
+  closeModal("convocationModal");alert(`Convocation ${c.id} émise.${c.notifyDiscord?'\nLa notification Discord sera envoyée une fois Firebase / le bot connecté.':''}`);renderAgentManagement();
+});
+function convocationDocument(c){
+  return `<div class="official-doc-header"><div class="official-star">★</div><div><strong>BLAINE COUNTY SHERIFF’S OFFICE</strong><span>Convocation Officielle</span></div></div><div class="official-doc-meta"><p><strong>À l’attention de :</strong> ${escapeHtml(c.agent)} / #${escapeHtml(c.badge)}</p><p><strong>Grade :</strong> ${escapeHtml(c.rank)}</p></div><h3>Objet : Convocation officielle – ${escapeHtml(c.reason)}</h3><p>Madame, Monsieur,</p><p>Vous êtes convoqué(e) par le <strong>Blaine County Sheriff’s Office</strong>.</p><div class="official-callout">Merci de créer un fil et de donner vos disponibilités.</div><p>Votre présence est <strong>${c.mandatory?'obligatoire':'requise'}</strong>.<br>En cas d’empêchement majeur, merci de prévenir dans les plus brefs délais un supérieur hiérarchique.</p><p>Nous vous rappelons que cette convocation s’inscrit dans un cadre professionnel et que toute absence injustifiée pourra faire l’objet de mesures disciplinaires.</p>${c.note?`<p><strong>Information complémentaire :</strong><br>${escapeHtml(c.note)}</p>`:''}<p>Dans l’attente de votre présence,</p><p><strong>${escapeHtml(c.issuer)} / ${escapeHtml(c.issuerRank)}</strong><br>Blaine County Sheriff’s Office</p><hr><em>Document officiel – BCSO</em>`;
+}
+function openConvocationDetail(id){
+  const c=convocations.find(x=>x.id===id);if(!c)return;
+  const isRecipient=c.agentId===currentAgentId();
+  $("#convocationDetailContent").innerHTML=`${convocationDocument(c)}<div class="convocation-status-strip"><span class="badge gold">${escapeHtml(c.status)}</span><span>${c.notifyDiscord?'🔔 Discord prévu':'Portail uniquement'}</span></div>${c.availability?.length?`<div class="availability-read"><h3>Disponibilités proposées</h3>${c.availability.map(x=>`<div>${shortDate(x.date+'T12:00:00')} • ${escapeHtml(x.start)} → ${escapeHtml(x.end)} ${c.meeting===x.id?'<span class="badge green">Retenu</span>':''}${!isRecipient&&!c.meeting?`<button class="secondary-btn" data-select-meeting="${x.id}">Retenir</button>`:''}</div>`).join('')}${c.availabilityComment?`<p class="muted">${escapeHtml(c.availabilityComment)}</p>`:''}</div>`:''}<div class="modal-actions">${isRecipient?`<button class="primary-btn" data-give-availability="${c.id}">Donner mes disponibilités</button>`:''}<button class="secondary-btn" data-close="convocationDetailModal">Fermer</button></div>`;
+  $$('[data-close="convocationDetailModal"]').forEach(b=>b.onclick=()=>closeModal('convocationDetailModal'));
+  $$('[data-give-availability]').forEach(b=>b.onclick=()=>{closeModal('convocationDetailModal');openAvailabilityForm(b.dataset.giveAvailability)});
+  $$('[data-select-meeting]').forEach(b=>b.onclick=()=>{c.meeting=b.dataset.selectMeeting;c.status='Rendez-vous fixé';save(STORAGE.convocations,convocations);createPortalNotification({type:'convocation',title:`Rendez-vous fixé — ${c.reason}`,message:'La supervision a retenu un de vos créneaux.',target:c.agentId,discord:c.notifyDiscord,entityId:c.id});openConvocationDetail(c.id)});
+  openModal("convocationDetailModal");
+}
+function addAvailabilityRow(date="",start="",end=""){$("#availabilitySlots").insertAdjacentHTML('beforeend',`<div class="availability-row"><input type="date" value="${date}" required><input type="time" value="${start}" required><span>→</span><input type="time" value="${end}" required><button type="button" class="danger-outline availability-remove">×</button></div>`);$$('.availability-remove').forEach(b=>b.onclick=()=>b.closest('.availability-row').remove());}
+function openAvailabilityForm(id){const c=convocations.find(x=>x.id===id);if(!c)return;$("#availabilityConvocationId").value=id;$("#availabilitySlots").innerHTML='';(c.availability?.length?c.availability:[{}]).forEach(x=>addAvailabilityRow(x.date||'',x.start||'',x.end||''));$("#availabilityComment").value=c.availabilityComment||'';openModal('availabilityModal');}
+$("#addAvailabilitySlot")?.addEventListener('click',()=>addAvailabilityRow());
+$("#availabilityForm")?.addEventListener('submit',e=>{e.preventDefault();const c=convocations.find(x=>x.id===$("#availabilityConvocationId").value);if(!c)return;const rows=$$('#availabilitySlots .availability-row');c.availability=rows.map((r,i)=>({id:`slot-${Date.now()}-${i}`,date:r.querySelectorAll('input')[0].value,start:r.querySelectorAll('input')[1].value,end:r.querySelectorAll('input')[2].value}));c.availabilityComment=$("#availabilityComment").value.trim();c.status='Disponibilités reçues';save(STORAGE.convocations,convocations);createPortalNotification({type:'convocation',title:`Disponibilités reçues — ${c.agent}`,message:`${c.availability.length} créneau(x) proposé(s) pour ${c.reason}.`,target:'supervision',discord:false,entityId:c.id});closeModal('availabilityModal');alert('Vos disponibilités ont été transmises à la supervision.');});
+
+// Délégation pour les convocations rendues dans les fiches agents.
+document.addEventListener('click',e=>{
+  const v=e.target.closest('[data-view-convocation]');if(v){openConvocationDetail(v.dataset.viewConvocation);return;}
+  const c=e.target.closest('[data-convoke-agent]');if(c&&!c.closest('#agentProfileContent')){openConvocationForm(c.dataset.convokeAgent);}
+});
+
+// Les nouvelles demandes de matériel créent aussi une notification supervision.
+const originalStartDutyWithRequest = $("#startDutyWithRequest")?.onclick;
+if($("#startDutyWithRequest")) $("#startDutyWithRequest").onclick=()=>{
+  if(!materialDraft.length){alert("Sélectionnez au moins un équipement manquant ou utilisez « J'ai tout mon équipement ».");return;}
+  const me=getPersonalAgent();
+  const req={id:`MAT-${Date.now()}`,agentId:me?.id||null,agent:profile.name,rank:profile.rank,date:new Date().toISOString(),items:materialDraft.map(x=>({...x})),status:"En attente"};
+  materialRequests.unshift(req);save(STORAGE.materialRequests,materialRequests);
+  createPortalNotification({type:'material',title:`Nouvelle demande matériel — ${profile.name}`,message:`${materialItemsTotal(req)} article(s) demandé(s).`,target:'supervision',discord:true,entityId:req.id});
+  renderMaterialNotifications();beginDuty();
+};
+
+// Rafraîchir les pages ajoutées lors de la navigation.
+$$('.nav-item').forEach(btn=>btn.addEventListener('click',()=>{if(btn.dataset.view==='materialManagement')renderMaterialManagement();}));
+renderMaterialNotifications();renderNotificationsCenter();renderNotificationBadge();

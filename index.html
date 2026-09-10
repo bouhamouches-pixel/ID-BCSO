@@ -70,6 +70,9 @@
         <button class="nav-item" data-view="agentManagement">
           <span>👥</span><span>Gestion des agents</span>
         </button>
+        <button class="nav-item" data-view="materialManagement">
+          <span>📦</span><span>Gestion du matériel</span>
+        </button>
         <button class="nav-item" data-view="serviceTracking">
           <span>📊</span><span>Suivi des services</span>
         </button>
@@ -136,7 +139,7 @@
             <span class="muted">Agents en service</span>
             <strong id="agentsOnDuty">09</strong>
           </div>
-          <button class="material-alert-btn" id="materialNotificationsBtn" title="Demandes de matériel">🔔 <span id="materialNotificationCount">0</span></button>
+          <button class="material-alert-btn" id="materialNotificationsBtn" title="Notifications">🔔 <span id="materialNotificationCount">0</span></button>
           <button class="duty-btn off" id="dutyToggle">
             <span class="status-dot"></span>
             <span id="dutyLabel">Prendre mon service</span>
@@ -359,6 +362,26 @@
           <select id="agentStatusFilter"><option value="">Tous les statuts</option><option>En service</option><option>Hors service</option><option>Inactif</option></select>
         </div>
         <div id="agentsTable" class="agents-table-wrap"></div>
+      </section>
+
+      <section class="view" id="view-materialManagement">
+        <div class="section-head">
+          <div><p class="eyebrow">Supervision</p><h2>Gestion du matériel</h2><p class="muted">Centralisez les demandes faites lors des prises de service et suivez leur délivrance.</p></div>
+        </div>
+        <div class="supervision-summary">
+          <article class="stat-card"><span>En attente</span><strong id="matPendingCount">0</strong><small>à traiter</small></article>
+          <article class="stat-card"><span>Prises en charge</span><strong id="matHandlingCount">0</strong><small>en préparation</small></article>
+          <article class="stat-card"><span>Délivrées aujourd’hui</span><strong id="matDeliveredTodayCount">0</strong><small>demandes terminées</small></article>
+          <article class="stat-card"><span>Articles demandés</span><strong id="matItemsCount">0</strong><small>sur l’historique</small></article>
+        </div>
+        <div class="toolbar panel-lite material-management-toolbar">
+          <input id="materialManagementSearch" type="search" placeholder="Rechercher un agent, matricule ou équipement...">
+          <select id="materialManagementStatus"><option value="">Tous les statuts</option><option>En attente</option><option>Prise en charge</option><option>Délivrée</option></select>
+        </div>
+        <section class="panel supervision-block">
+          <div class="panel-header"><div><p class="eyebrow">Demandes</p><h3>Suivi du matériel</h3></div><span class="badge gold" id="matVisibleCount">0 demande</span></div>
+          <div id="materialManagementList" class="material-notification-list"></div>
+        </section>
       </section>
 
       <section class="view" id="view-serviceTracking">
@@ -977,6 +1000,30 @@
     </div>
   </div>
 
+
+  <div class="modal" id="convocationModal" aria-hidden="true">
+    <div class="modal-card wide"><button class="modal-close" data-close="convocationModal">×</button><p class="eyebrow">Supervision — Gestion des effectifs</p><h2>Émettre une convocation officielle</h2>
+      <form id="convocationForm"><input type="hidden" id="convocationAgentId">
+        <div id="convocationAgentSummary" class="force-service-agent"></div>
+        <div class="form-grid two"><label>Motif<input id="convocationReason" required placeholder="Ex. Entretien avec la supervision"></label><label>Priorité<select id="convocationPriority"><option>Normale</option><option>Importante</option><option>Urgente</option></select></label></div>
+        <label>Message complémentaire <span class="muted">(optionnel)</span><textarea id="convocationNote" rows="3" placeholder="Informations complémentaires..."></textarea></label>
+        <div class="notification-options"><label><input type="checkbox" id="convocationMandatory" checked> Présence obligatoire</label><label><input type="checkbox" id="convocationSite" checked> Notification portail</label><label><input type="checkbox" id="convocationDiscord" checked> Préparer la notification Discord</label></div>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="convocationModal">Annuler</button><button type="submit" class="primary-btn">Émettre la convocation</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="convocationDetailModal" aria-hidden="true">
+    <div class="modal-card wide official-document"><button class="modal-close" data-close="convocationDetailModal">×</button><div id="convocationDetailContent"></div></div>
+  </div>
+
+  <div class="modal" id="availabilityModal" aria-hidden="true">
+    <div class="modal-card"><button class="modal-close" data-close="availabilityModal">×</button><p class="eyebrow">Convocation officielle</p><h2>Donner mes disponibilités</h2><form id="availabilityForm"><input type="hidden" id="availabilityConvocationId"><div id="availabilitySlots" class="availability-slots"></div><button type="button" class="secondary-btn" id="addAvailabilitySlot">+ Ajouter un créneau</button><label>Commentaire <span class="muted">(optionnel)</span><textarea id="availabilityComment" rows="3"></textarea></label><div class="modal-actions"><button type="button" class="secondary-btn" data-close="availabilityModal">Annuler</button><button class="primary-btn" type="submit">Envoyer mes disponibilités</button></div></form></div>
+  </div>
+
+  <div class="modal" id="notificationsCenterModal" aria-hidden="true">
+    <div class="modal-card wide"><button class="modal-close" data-close="notificationsCenterModal">×</button><div class="panel-header"><div><p class="eyebrow">Portail BCSO</p><h2>Notifications</h2></div><button class="secondary-btn" id="markAllNotificationsRead">Tout marquer comme lu</button></div><div class="notification-tabs"><button class="chip active" data-notification-filter="all">Toutes</button><button class="chip" data-notification-filter="event">Événements</button><button class="chip" data-notification-filter="convocation">Convocations</button><button class="chip" data-notification-filter="material">Matériel</button></div><div id="notificationsCenterList" class="notification-center-list"></div></div>
+  </div>
 
   <div class="modal" id="docDetailModal" aria-hidden="true">
     <div class="modal-card wide docs-detail-modal"><button class="modal-close" data-close="docDetailModal">×</button><p class="eyebrow" id="docDetailCategory">Procédure</p><h2 id="docDetailTitle"></h2><div id="docDetailBody" class="doc-detail-body"></div></div>
