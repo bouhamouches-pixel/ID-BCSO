@@ -1229,7 +1229,7 @@ function openSebBoard(id){
   setSebTool("select"); renderSebBoard(); openModal("sebBoardModal"); requestAnimationFrame(centerSebBoard);
 }
 function sebBriefingHtml(o){const items=[["Objectif",o.objective],["Menaces",o.threats],["Escouades",o.teams],["Équipement",o.equipment],["Consignes",o.instructions]];return items.map(([k,v])=>`<div class="seb-briefing-card"><span>${k}</span><p>${escapeHtml(v||"—")}</p></div>`).join("")}
-function centerSebBoard(){const stage=$("#sebMapStage"),wrap=$("#sebMapWrap");stage.style.left=`${Math.max(20,(wrap.clientWidth-1800*sebZoom)/2)}px`;stage.style.top=`${Math.max(20,(wrap.clientHeight-1200*sebZoom)/2)}px`;applySebZoom()}
+function centerSebBoard(){const stage=$("#sebMapStage");stage.style.left="0px";stage.style.top="0px";applySebZoom()}
 function applySebZoom(){const stage=$("#sebMapStage");stage.style.transform=`scale(${sebZoom})`;$("#sebZoomLabel").textContent=`${Math.round(sebZoom*100)}%`}
 const SEB_MARKERS={
   entry:{label:"Point d'entrée",icon:"↪",color:"#55c98f"},exit:{label:"Point de sortie",icon:"↩",color:"#67b7ff"},suspect:{label:"Position suspect",icon:"!",color:"#f05f67"},
