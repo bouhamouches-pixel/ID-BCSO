@@ -547,7 +547,7 @@ $("#dbTypeFilter").addEventListener("change", renderReportsDb);
 function nextWarrantId(){const y=new Date().getFullYear();const n=warrants.map(w=>{const m=w.id.match(/^M-\d{4}-(\d+)$/);return m?Number(m[1]):0});return `M-${y}-${String(Math.max(0,...n)+1).padStart(4,"0")}`}
 function displayDob(v){return v?new Intl.DateTimeFormat("fr-FR").format(new Date(v+"T12:00:00")):"Non renseignée"}
 function compressWarrantImage(file){return new Promise((resolve,reject)=>{const ok=["image/png","image/jpeg","image/webp"];if(!ok.includes(file.type))return reject(new Error("FORMAT"));if(file.size>5*1024*1024)return reject(new Error("SIZE"));const r=new FileReader();r.onerror=reject;r.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{const maxW=1200,s=Math.min(1,maxW/img.width),c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);const x=c.getContext("2d");x.drawImage(img,0,0,c.width,c.height);let q=.82,out=c.toDataURL("image/webp",q);while(out.length>1800000&&q>.48){q-=.08;out=c.toDataURL("image/webp",q)}resolve(out)};img.src=r.result};r.readAsDataURL(file)})}
-$("#warrantForm").addEventListener("submit",async e=>{e.preventDefault();const id=$("#warrantEditId").value,ex=id?warrants.find(w=>w.id===id):null,file=$("#warrantImage").files?.[0];let image=ex?.image||null;try{if(file)image=await compressWarrantImage(file)}catch(err){return alert(err.message==="SIZE"?"L'image dépasse 5 Mo.":"Format non accepté. Utilisez PNG, JPG/JPEG ou WebP.")}const p={id:ex?.id||nextWarrantId(),name:$("#warrantName").value.trim(),dob:$("#warrantDob").value,danger:$("#warrantDanger").value,priority:$("#warrantPriority").value,charges:$("#warrantCharges").value.trim(),notes:$("#warrantNotes").value.trim(),author:ex?.author||profile.name,createdAt:ex?.createdAt||new Date().toISOString(),status:ex?.status||"Actif",image};ex?Object.assign(ex,p):warrants.unshift(p);try{save(STORAGE.warrants,warrants)}catch{return alert("Image trop volumineuse pour le stockage local de la démo.")}e.target.reset();closeModal("warrantModal");renderWarrants()});
+$("#warrantForm").addEventListener("submit",async e=>{e.preventDefault();const id=$("#warrantEditId").value,ex=id?warrants.find(w=>w.id===id):null,file=$("#warrantImage").files?.[0];let image=ex?.image||null;try{if(file)image=await compressWarrantImage(file)}catch(err){return alert(err.message==="SIZE"?"L'image dépasse 5 Mo.":"Format non accepté. Utilisez PNG, JPG/JPEG ou WebP.")}const p={id:ex?.id||nextWarrantId(),name:$("#warrantName").value.trim(),dob:$("#warrantDob").value,danger:$("#warrantDanger").value,priority:$("#warrantPriority").value,charges:$("#warrantCharges").value.trim(),notes:$("#warrantNotes").value.trim(),author:ex?.author||profile.name,createdAt:ex?.createdAt||new Date().toISOString(),status:ex?.status||"Actif",image};ex?Object.assign(ex,p):warrants.unshift(p);try{save(STORAGE.warrants,warrants)}catch{return alert("Image trop volumineuse pour le stockage local de la démo.")}e.target.reset();closeModal("warrantModal");renderWarrants();renderWarrantManagement()});
 function renderWarrants(){const q=($("#warrantSearch").value||"").toLowerCase(),pr=$("#warrantPriorityFilter").value,st=$("#warrantStatusFilter").value;const list=warrants.filter(w=>(!pr||w.priority===pr)&&(!st||w.status===st)&&[w.id,w.name,w.danger,w.priority,w.charges,w.notes,w.author,w.status].join(" ").toLowerCase().includes(q));$("#warrantsList").innerHTML=list.length?list.map(w=>`<article class="warrant-card ${w.priority==="Priorité élevée"?"priority-high":""}"><div class="warrant-header"><div><div class="warrant-id">${escapeHtml(w.id)}</div><h3>${escapeHtml(w.name)}</h3><div class="meta-row"><span class="badge ${w.priority==="Priorité élevée"?"red":"gold"}">● ${escapeHtml(w.priority)}</span><span class="badge ${w.status==="Actif"?"status-active":"status-cleared"}">${escapeHtml(w.status)}</span></div></div></div><div class="warrant-facts"><div class="warrant-fact"><span>Date de naissance</span><strong>${displayDob(w.dob)}</strong></div><div class="warrant-fact"><span>Dangerosité</span><strong>${escapeHtml(w.danger)}</strong></div></div><div class="warrant-charges"><h4>Faits reprochés</h4><p>${escapeHtml(w.charges)}</p></div>${w.notes?`<div class="warrant-charges"><h4>Informations</h4><p>${escapeHtml(w.notes)}</p></div>`:""}${w.image?`<img class="warrant-doc" src="${w.image}" alt="Document du mandat ${escapeHtml(w.id)}">`:""}<div class="warrant-footer"><div class="warrant-author"><img src="${profile.avatar||defaultAvatar}" alt=""><div><strong>${escapeHtml(w.author)}</strong><div class="muted small">${formatDate(w.createdAt)}</div></div></div><div class="warrant-actions"><button class="secondary-btn" data-edit-warrant="${escapeHtml(w.id)}">Modifier</button><button class="${w.status==="Actif"?"danger-btn":"secondary-btn"}" data-toggle-warrant="${escapeHtml(w.id)}">${w.status==="Actif"?"Lever le mandat":"Réactiver"}</button></div></div></article>`).join(""):`<div class="empty-state panel-lite">Aucun mandat trouvé.</div>`;$$('[data-edit-warrant]').forEach(b=>b.addEventListener('click',()=>{const w=warrants.find(x=>x.id===b.dataset.editWarrant);$("#warrantEditId").value=w.id;$("#warrantName").value=w.name;$("#warrantDob").value=w.dob||"";$("#warrantDanger").value=w.danger;$("#warrantPriority").value=w.priority;$("#warrantCharges").value=w.charges;$("#warrantNotes").value=w.notes||"";$("#warrantImage").value="";$("#warrantModalTitle").textContent=`Modifier ${w.id}`;openModal("warrantModal")}));$$('[data-toggle-warrant]').forEach(b=>b.addEventListener('click',()=>{const w=warrants.find(x=>x.id===b.dataset.toggleWarrant);w.status=w.status==="Actif"?"Levée":"Actif";save(STORAGE.warrants,warrants);renderWarrants()}))}
 $("#warrantSearch").addEventListener("input",renderWarrants);$("#warrantPriorityFilter").addEventListener("change",renderWarrants);$("#warrantStatusFilter").addEventListener("change",renderWarrants);
 
@@ -872,10 +872,110 @@ function renderAudit(){
 }
 
 function renderServiceTracking(){renderLiveDuty();renderServiceAgents();renderDailyRecaps();renderAudit();}
-function renderSupervision(){renderAgentManagement();renderServiceTracking();}
+function renderSupervision(){renderAgentManagement();renderServiceTracking();renderAgendaManagement();renderReportSupervision();renderComplaintManagement();renderWarrantManagement();}
 
 $("#servicePeriodFilter").addEventListener("change",renderServiceTracking);$("#serviceAgentSearch").addEventListener("input",renderServiceAgents);$("#serviceActivityFilter").addEventListener("change",renderServiceAgents);
 $("#dutyToggle").addEventListener("click",()=>setTimeout(renderSupervision,0));
 setInterval(()=>{ if(document.querySelector('#view-serviceTracking.active')) renderServiceTracking(); },30000);
 
 renderSupervision();
+
+
+// ============================================================
+// SUPERVISION — AGENDA / RAPPORTS / PLAINTES / MANDATS
+// ============================================================
+function asLocalInput(iso){
+  if(!iso) return "";
+  const d=new Date(iso); const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);
+  return local.toISOString().slice(0,16);
+}
+function confirmAction(message){ return window.confirm(message); }
+
+// GESTION DE L'AGENDA
+function renderAgendaManagement(){
+  const box=$("#supEventsList"); if(!box) return;
+  const q=($("#supEventSearch")?.value||"").toLowerCase();
+  const type=$("#supEventType")?.value||"";
+  const list=events.filter(e=>(!type||e.type===type)&&[e.title,e.type,e.place,e.organizer,e.description].join(" ").toLowerCase().includes(q))
+    .sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const now=Date.now();
+  $("#supEventTotal").textContent=events.length;
+  $("#supEventUpcoming").textContent=events.filter(e=>new Date(e.date).getTime()>=now).length;
+  $("#supEventParticipants").textContent=events.reduce((n,e)=>n+(e.participants?.length||0),0);
+  const limited=events.filter(e=>Number(e.max)>0);
+  $("#supEventSeats").textContent=limited.length?limited.reduce((n,e)=>n+Math.max(0,Number(e.max)-(e.participants?.length||0)),0):"—";
+  box.innerHTML=list.length?list.map(e=>`<article class="record-card"><div class="record-top"><div><span class="badge gold">${escapeHtml(e.type)}</span><h3>${escapeHtml(e.title)}</h3><div class="meta-row"><span>${formatDate(e.date)}</span><span>${escapeHtml(e.place)}</span><span>Organisateur : ${escapeHtml(e.organizer)}</span></div></div><span class="badge">${e.participants?.length||0}${e.max?` / ${e.max}`:""} participants</span></div><p class="muted">${escapeHtml(e.description)}</p><div class="event-actions"><button class="secondary-btn" data-sup-event-edit="${escapeHtml(e.id)}">Modifier</button><button class="danger-outline" data-sup-event-delete="${escapeHtml(e.id)}">Supprimer</button></div></article>`).join(""):'<div class="empty-state panel-lite">Aucun événement trouvé.</div>';
+  $$('[data-sup-event-edit]').forEach(b=>b.onclick=()=>openEventManager(b.dataset.supEventEdit));
+  $$('[data-sup-event-delete]').forEach(b=>b.onclick=()=>{
+    const e=events.find(x=>x.id===b.dataset.supEventDelete); if(!e||!confirmAction(`Supprimer l’événement « ${e.title} » ?`))return;
+    events=events.filter(x=>x.id!==e.id); save(STORAGE.events,events); renderEvents(); renderAgendaManagement();
+  });
+}
+function openEventManager(id=null){
+  const e=id?events.find(x=>x.id===id):null;
+  $("#eventManageForm").reset(); $("#eventManageId").value=e?.id||"";
+  $("#eventManageTitle").textContent=e?"Modifier l’événement":"Nouvel événement";
+  $("#eventManageName").value=e?.title||""; $("#eventManageType").value=e?.type||"Formation";
+  $("#eventManageDate").value=e?asLocalInput(e.date):asLocalInput(new Date(Date.now()+86400000).toISOString());
+  $("#eventManagePlace").value=e?.place||""; $("#eventManageOrganizer").value=e?.organizer||profile.name;
+  $("#eventManageMax").value=e?.max||""; $("#eventManageDescription").value=e?.description||""; openModal("eventManageModal");
+}
+$("#supNewEventBtn")?.addEventListener("click",()=>openEventManager());
+$("#eventManageForm")?.addEventListener("submit",e=>{
+  e.preventDefault(); const id=$("#eventManageId").value; const old=id?events.find(x=>x.id===id):null;
+  const item={id:old?.id||`evt-${Date.now()}`,title:$("#eventManageName").value.trim(),type:$("#eventManageType").value,date:new Date($("#eventManageDate").value).toISOString(),place:$("#eventManagePlace").value.trim(),organizer:$("#eventManageOrganizer").value.trim(),max:$("#eventManageMax").value?Number($("#eventManageMax").value):null,description:$("#eventManageDescription").value.trim(),participants:old?.participants||[]};
+  old?Object.assign(old,item):events.push(item); save(STORAGE.events,events); closeModal("eventManageModal"); renderEvents(); renderAgendaManagement();
+});
+$("#supEventSearch")?.addEventListener("input",renderAgendaManagement); $("#supEventType")?.addEventListener("change",renderAgendaManagement);
+
+// SUPERVISION DES RAPPORTS
+function reportStatusClass(status){return status==="Finalisé"?"green":status==="À vérifier"?"red":"gold";}
+function renderReportSupervision(){
+  const box=$("#supReportsTable"); if(!box)return;
+  reports.forEach(r=>{if(!r.status)r.status="Finalisé"});
+  const q=($("#supReportSearch")?.value||"").toLowerCase(), status=$("#supReportStatus")?.value||"";
+  const list=reports.filter(r=>(!status||r.status===status)&&[r.id,r.title,r.author,r.type,r.status].join(" ").toLowerCase().includes(q));
+  $("#supReportTotal").textContent=reports.length; $("#supReportFinal").textContent=reports.filter(r=>r.status==="Finalisé").length; $("#supReportReview").textContent=reports.filter(r=>r.status==="À vérifier").length; $("#supReportArchived").textContent=reports.filter(r=>r.status==="Archivé").length;
+  box.innerHTML=`<table class="agents-table"><thead><tr><th>Rapport</th><th>Auteur</th><th>Type</th><th>Date</th><th>Statut</th><th></th></tr></thead><tbody>${list.map(r=>`<tr><td><strong>${escapeHtml(r.id)}</strong><span class="agent-badge">${escapeHtml(r.title)}</span></td><td>${escapeHtml(r.author)}</td><td>${escapeHtml(r.type)}</td><td>${formatDate(r.date)}</td><td><span class="badge ${reportStatusClass(r.status)}">${escapeHtml(r.status)}</span></td><td><div class="table-actions"><button class="secondary-btn" data-sup-report-view="${escapeHtml(r.id)}">Consulter</button><button class="primary-btn" data-sup-report-edit="${escapeHtml(r.id)}">Gérer</button></div></td></tr>`).join("")}</tbody></table>`;
+  $$('[data-sup-report-view]').forEach(b=>b.onclick=()=>{const r=reports.find(x=>x.id===b.dataset.supReportView);alert(`${r.id}\n\n${r.title}\n${r.type}\nAuteur : ${r.author}\nDate : ${formatDate(r.date)}\n\n${r.summary}${r.supervisionNote?`\n\nNote supervision : ${r.supervisionNote}`:""}`)});
+  $$('[data-sup-report-edit]').forEach(b=>b.onclick=()=>openReportManager(b.dataset.supReportEdit));
+}
+function openReportManager(id){const r=reports.find(x=>x.id===id);if(!r)return;$("#reportManageId").value=id;$("#reportManageStatus").value=r.status||"Finalisé";$("#reportManageNote").value=r.supervisionNote||"";$("#reportManageSummary").innerHTML=`<strong>${escapeHtml(r.id)} ・ ${escapeHtml(r.title)}</strong><div class="muted small">${escapeHtml(r.author)} ・ ${formatDate(r.date)}</div>`;openModal("reportManageModal");}
+$("#reportManageForm")?.addEventListener("submit",e=>{e.preventDefault();const r=reports.find(x=>x.id===$("#reportManageId").value);if(!r)return;r.status=$("#reportManageStatus").value;r.supervisionNote=$("#reportManageNote").value.trim();save(STORAGE.reports,reports);closeModal("reportManageModal");renderMyReports();renderReportsDb();renderReportSupervision();});
+$("#supReportSearch")?.addEventListener("input",renderReportSupervision); $("#supReportStatus")?.addEventListener("change",renderReportSupervision);
+
+// GESTION DES PLAINTES
+function renderComplaintManagement(){
+  const box=$("#supComplaintsTable");if(!box)return;const q=($("#supComplaintSearch")?.value||"").toLowerCase(),status=$("#supComplaintStatus")?.value||"";
+  const list=complaints.filter(c=>(!status||c.status===status)&&[c.id,c.type,c.writer,c.subject,c.assignedTo||"",c.status].join(" ").toLowerCase().includes(q));
+  $("#supComplaintTotal").textContent=complaints.length;$("#supComplaintUnassigned").textContent=complaints.filter(c=>!c.assignedTo).length;$("#supComplaintOpen").textContent=complaints.filter(c=>c.status==="En cours"||c.status==="En attente d'informations").length;$("#supComplaintClosed").textContent=complaints.filter(c=>["Traitée","Classée"].includes(c.status)).length;
+  box.innerHTML=`<table class="agents-table"><thead><tr><th>Plainte</th><th>Rédacteur</th><th>Agent en charge</th><th>Date</th><th>Statut</th><th></th></tr></thead><tbody>${list.map(c=>`<tr><td><strong>${escapeHtml(c.id)}</strong><span class="agent-badge">${escapeHtml(c.subject)}</span></td><td>${escapeHtml(c.writer)}</td><td>${escapeHtml(c.assignedTo||"Non assignée")}</td><td>${formatDate(c.date)}</td><td><span class="badge ${c.status==="En attente"?"red":"green"}">${escapeHtml(c.status)}</span></td><td><button class="primary-btn" data-sup-complaint="${escapeHtml(c.id)}">Gérer</button></td></tr>`).join("")}</tbody></table>`;
+  $$('[data-sup-complaint]').forEach(b=>b.onclick=()=>openComplaintManager(b.dataset.supComplaint));
+}
+function openComplaintManager(id){const c=complaints.find(x=>x.id===id);if(!c)return;$("#complaintManageId").value=id;const sel=$("#complaintManageAgent");sel.innerHTML='<option value="">Non assignée</option>'+supAgents.filter(a=>a.active).map(a=>`<option value="${escapeHtml(a.name)}">#${escapeHtml(a.badge)} ・ ${escapeHtml(a.name)} — ${escapeHtml(a.rank)}</option>`).join("");sel.value=c.assignedTo||"";$("#complaintManageStatus").value=c.status;$("#complaintManageSummary").innerHTML=`<strong>${escapeHtml(c.id)} ・ ${escapeHtml(c.subject)}</strong><div class="muted small">${escapeHtml(c.type)} ・ Rédacteur : ${escapeHtml(c.writer)}</div>`;openModal("complaintManageModal");}
+$("#complaintManageForm")?.addEventListener("submit",e=>{e.preventDefault();const c=complaints.find(x=>x.id===$("#complaintManageId").value);if(!c)return;c.assignedTo=$("#complaintManageAgent").value||null;c.status=$("#complaintManageStatus").value;if(c.assignedTo&&c.status==="En attente")c.status="En cours";save(STORAGE.complaints,complaints);closeModal("complaintManageModal");renderComplaints();renderComplaintManagement();});
+$("#supComplaintSearch")?.addEventListener("input",renderComplaintManagement);$("#supComplaintStatus")?.addEventListener("change",renderComplaintManagement);
+
+// GESTION DES MANDATS
+function renderWarrantManagement(){
+  const box=$("#supWarrantsTable");if(!box)return;const q=($("#supWarrantSearch")?.value||"").toLowerCase(),status=$("#supWarrantStatus")?.value||"";
+  const list=warrants.filter(w=>(!status||w.status===status)&&[w.id,w.name,w.author,w.priority,w.danger,w.status].join(" ").toLowerCase().includes(q));
+  $("#supWarrantTotal").textContent=warrants.length;$("#supWarrantActive").textContent=warrants.filter(w=>w.status==="Actif").length;$("#supWarrantHigh").textContent=warrants.filter(w=>w.status==="Actif"&&w.priority==="Priorité élevée").length;$("#supWarrantCleared").textContent=warrants.filter(w=>w.status==="Levée").length;
+  box.innerHTML=`<table class="agents-table"><thead><tr><th>Mandat</th><th>Individu</th><th>Dangerosité</th><th>Priorité</th><th>Statut</th><th></th></tr></thead><tbody>${list.map(w=>`<tr><td><strong>${escapeHtml(w.id)}</strong><span class="agent-badge">${formatDate(w.createdAt)}</span></td><td>${escapeHtml(w.name)}</td><td>${escapeHtml(w.danger)}</td><td><span class="badge ${w.priority==="Priorité élevée"?"red":"gold"}">${escapeHtml(w.priority)}</span></td><td><span class="badge ${w.status==="Actif"?"green":"gold"}">${escapeHtml(w.status)}</span></td><td><div class="table-actions"><button class="secondary-btn" data-sup-warrant-edit="${escapeHtml(w.id)}">Modifier</button><button class="${w.status==="Actif"?"danger-btn":"secondary-btn"}" data-sup-warrant-toggle="${escapeHtml(w.id)}">${w.status==="Actif"?"Lever":"Réactiver"}</button><button class="danger-outline" data-sup-warrant-delete="${escapeHtml(w.id)}">Supprimer</button></div></td></tr>`).join("")}</tbody></table>`;
+  $$('[data-sup-warrant-edit]').forEach(b=>b.onclick=()=>{const w=warrants.find(x=>x.id===b.dataset.supWarrantEdit);if(!w)return;$("#warrantEditId").value=w.id;$("#warrantName").value=w.name;$("#warrantDob").value=w.dob||"";$("#warrantDanger").value=w.danger;$("#warrantPriority").value=w.priority;$("#warrantCharges").value=w.charges;$("#warrantNotes").value=w.notes||"";$("#warrantImage").value="";$("#warrantModalTitle").textContent=`Modifier ${w.id}`;openModal("warrantModal")});
+  $$('[data-sup-warrant-toggle]').forEach(b=>b.onclick=()=>{const w=warrants.find(x=>x.id===b.dataset.supWarrantToggle);if(!w)return;w.status=w.status==="Actif"?"Levée":"Actif";save(STORAGE.warrants,warrants);renderWarrants();renderWarrantManagement();});
+  $$('[data-sup-warrant-delete]').forEach(b=>b.onclick=()=>{const w=warrants.find(x=>x.id===b.dataset.supWarrantDelete);if(!w||!confirmAction(`Supprimer définitivement ${w.id} ?`))return;warrants=warrants.filter(x=>x.id!==w.id);save(STORAGE.warrants,warrants);renderWarrants();renderWarrantManagement();});
+}
+$("#supNewWarrantBtn")?.addEventListener("click",()=>{$("#warrantForm").reset();$("#warrantEditId").value="";$("#warrantModalTitle").textContent="Nouveau mandat";openModal("warrantModal")});
+$("#supWarrantSearch")?.addEventListener("input",renderWarrantManagement);$("#supWarrantStatus")?.addEventListener("change",renderWarrantManagement);
+
+// Rafraîchit les vues supervision après les créations/modifications faites ailleurs.
+$("#eventManageModal");
+renderAgendaManagement(); renderReportSupervision(); renderComplaintManagement(); renderWarrantManagement();
+
+$$('.nav-item').forEach(btn=>btn.addEventListener('click',()=>{
+  if(btn.dataset.view==='agendaManagement') renderAgendaManagement();
+  if(btn.dataset.view==='reportSupervision') renderReportSupervision();
+  if(btn.dataset.view==='complaintManagement') renderComplaintManagement();
+  if(btn.dataset.view==='warrantManagement') renderWarrantManagement();
+}));

@@ -59,6 +59,18 @@
         <button class="nav-item" data-view="serviceTracking">
           <span>📊</span><span>Suivi des services</span>
         </button>
+        <button class="nav-item" data-view="agendaManagement">
+          <span>📅</span><span>Gestion de l’agenda</span>
+        </button>
+        <button class="nav-item" data-view="reportSupervision">
+          <span>📄</span><span>Supervision des rapports</span>
+        </button>
+        <button class="nav-item" data-view="complaintManagement">
+          <span>⚖</span><span>Gestion des plaintes</span>
+        </button>
+        <button class="nav-item" data-view="warrantManagement">
+          <span>🚨</span><span>Gestion des mandats</span>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -331,6 +343,60 @@
           <div id="serviceAuditList" class="history-list"></div>
         </section>
       </section>
+
+      <section class="view" id="view-agendaManagement">
+        <div class="section-head">
+          <div><p class="eyebrow">Supervision</p><h2>Gestion de l’agenda</h2><p class="muted">Créer, modifier et supprimer les événements BCSO.</p></div>
+          <button class="primary-btn" id="supNewEventBtn">+ Nouvel événement</button>
+        </div>
+        <div class="supervision-summary">
+          <article class="stat-card"><span>Événements</span><strong id="supEventTotal">0</strong><small>programmés</small></article>
+          <article class="stat-card"><span>À venir</span><strong id="supEventUpcoming">0</strong><small>prochains événements</small></article>
+          <article class="stat-card"><span>Participants</span><strong id="supEventParticipants">0</strong><small>inscriptions cumulées</small></article>
+          <article class="stat-card"><span>Places restantes</span><strong id="supEventSeats">—</strong><small>événements limités</small></article>
+        </div>
+        <div class="toolbar panel-lite"><input id="supEventSearch" type="search" placeholder="Rechercher un événement..."/><select id="supEventType"><option value="">Tous les types</option><option>Formation</option><option>Réunion</option><option>Opération</option><option>Évaluation</option><option>Autre</option></select></div>
+        <div id="supEventsList" class="cards-list"></div>
+      </section>
+
+      <section class="view" id="view-reportSupervision">
+        <div class="section-head"><div><p class="eyebrow">Supervision</p><h2>Supervision des rapports</h2><p class="muted">Contrôler, classer et archiver les rapports du BCSO.</p></div></div>
+        <div class="supervision-summary">
+          <article class="stat-card"><span>Total</span><strong id="supReportTotal">0</strong><small>rapports</small></article>
+          <article class="stat-card"><span>Finalisés</span><strong id="supReportFinal">0</strong><small>validés</small></article>
+          <article class="stat-card"><span>À vérifier</span><strong id="supReportReview">0</strong><small>en attente</small></article>
+          <article class="stat-card"><span>Archivés</span><strong id="supReportArchived">0</strong><small>classés</small></article>
+        </div>
+        <div class="toolbar panel-lite"><input id="supReportSearch" type="search" placeholder="N° de rapport, titre, auteur..."/><select id="supReportStatus"><option value="">Tous les statuts</option><option>Finalisé</option><option>À vérifier</option><option>Archivé</option></select></div>
+        <div id="supReportsTable" class="agents-table-wrap"></div>
+      </section>
+
+      <section class="view" id="view-complaintManagement">
+        <div class="section-head"><div><p class="eyebrow">Supervision</p><h2>Gestion des plaintes</h2><p class="muted">Attribuer, réattribuer et suivre le traitement des plaintes.</p></div></div>
+        <div class="supervision-summary">
+          <article class="stat-card"><span>Total</span><strong id="supComplaintTotal">0</strong><small>plaintes</small></article>
+          <article class="stat-card"><span>Non assignées</span><strong id="supComplaintUnassigned">0</strong><small>à prendre en charge</small></article>
+          <article class="stat-card"><span>En cours</span><strong id="supComplaintOpen">0</strong><small>traitement actif</small></article>
+          <article class="stat-card"><span>Clôturées</span><strong id="supComplaintClosed">0</strong><small>traitées / classées</small></article>
+        </div>
+        <div class="toolbar panel-lite"><input id="supComplaintSearch" type="search" placeholder="Rechercher une plainte..."/><select id="supComplaintStatus"><option value="">Tous les statuts</option><option>En attente</option><option>En cours</option><option>En attente d'informations</option><option>Traitée</option><option>Classée</option></select></div>
+        <div id="supComplaintsTable" class="agents-table-wrap"></div>
+      </section>
+
+      <section class="view" id="view-warrantManagement">
+        <div class="section-head">
+          <div><p class="eyebrow">Supervision</p><h2>Gestion des mandats</h2><p class="muted">Créer, modifier, lever ou réactiver les mandats d’arrêt.</p></div>
+          <button class="primary-btn" id="supNewWarrantBtn">+ Nouveau mandat</button>
+        </div>
+        <div class="supervision-summary">
+          <article class="stat-card"><span>Total</span><strong id="supWarrantTotal">0</strong><small>mandats</small></article>
+          <article class="stat-card"><span>Actifs</span><strong id="supWarrantActive">0</strong><small>en vigueur</small></article>
+          <article class="stat-card"><span>Priorité élevée</span><strong id="supWarrantHigh">0</strong><small>actifs</small></article>
+          <article class="stat-card"><span>Levés</span><strong id="supWarrantCleared">0</strong><small>historique</small></article>
+        </div>
+        <div class="toolbar panel-lite"><input id="supWarrantSearch" type="search" placeholder="N° de mandat, individu..."/><select id="supWarrantStatus"><option value="">Tous les statuts</option><option>Actif</option><option>Levée</option></select></div>
+        <div id="supWarrantsTable" class="agents-table-wrap"></div>
+      </section>
     </main>
   </div>
 
@@ -520,6 +586,38 @@
         </div>
         <label>Motif de la modification<textarea id="editServiceReason" rows="3" required placeholder="Motif obligatoire..."></textarea></label>
         <div class="modal-actions"><button type="button" class="secondary-btn" data-close="editServiceModal">Annuler</button><button type="submit" class="primary-btn">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="eventManageModal" aria-hidden="true">
+    <div class="modal-card wide"><button class="modal-close" data-close="eventManageModal">×</button><p class="eyebrow">Supervision</p><h2 id="eventManageTitle">Nouvel événement</h2>
+      <form id="eventManageForm"><input type="hidden" id="eventManageId">
+        <div class="form-grid two"><label>Titre<input id="eventManageName" required></label><label>Type<select id="eventManageType"><option>Formation</option><option>Réunion</option><option>Opération</option><option>Évaluation</option><option>Autre</option></select></label></div>
+        <div class="form-grid two"><label>Date et heure<input id="eventManageDate" type="datetime-local" required></label><label>Lieu<input id="eventManagePlace" required></label></div>
+        <div class="form-grid two"><label>Organisateur<input id="eventManageOrganizer" required></label><label>Nombre maximum de participants<input id="eventManageMax" type="number" min="1" placeholder="Illimité"></label></div>
+        <label>Description<textarea id="eventManageDescription" rows="4" required></textarea></label>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="eventManageModal">Annuler</button><button type="submit" class="primary-btn">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="reportManageModal" aria-hidden="true">
+    <div class="modal-card"><button class="modal-close" data-close="reportManageModal">×</button><p class="eyebrow">Supervision</p><h2>Gérer le rapport</h2>
+      <form id="reportManageForm"><input type="hidden" id="reportManageId"><div id="reportManageSummary" class="force-service-agent"></div>
+        <label>Statut<select id="reportManageStatus"><option>Finalisé</option><option>À vérifier</option><option>Archivé</option></select></label>
+        <label>Note de supervision<textarea id="reportManageNote" rows="3" placeholder="Optionnel..."></textarea></label>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="reportManageModal">Annuler</button><button type="submit" class="primary-btn">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="complaintManageModal" aria-hidden="true">
+    <div class="modal-card"><button class="modal-close" data-close="complaintManageModal">×</button><p class="eyebrow">Supervision</p><h2>Gérer la plainte</h2>
+      <form id="complaintManageForm"><input type="hidden" id="complaintManageId"><div id="complaintManageSummary" class="force-service-agent"></div>
+        <label>Agent en charge<select id="complaintManageAgent"></select></label>
+        <label>Statut<select id="complaintManageStatus"><option>En attente</option><option>En cours</option><option>En attente d'informations</option><option>Traitée</option><option>Classée</option></select></label>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="complaintManageModal">Annuler</button><button type="submit" class="primary-btn">Enregistrer</button></div>
       </form>
     </div>
   </div>
