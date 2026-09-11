@@ -835,6 +835,7 @@ window.addEventListener("bcso:firebase-agents",e=>{
     roles:a.portalRoles||["BCSO"],onboardingState:a.onboardingState||"active",firstLoginAt:a.firstLoginAt||null,lastLoginAt:a.lastLoginAt||null
   }));
   save(SUP_STORAGE.agents,supAgents);renderSupervision();renderNewAgentAlerts();
+  if(typeof renderBcsaBadges==="function")renderBcsaBadges();
 });
 window.addEventListener("bcso:agent-acknowledged",e=>{
   const a=agentById(e.detail?.id);if(a)a.onboardingState="active";
@@ -1069,16 +1070,7 @@ const BCSA_QUESTIONS = [
 ];
 const seedBcsaCandidates = ["Delilah Crowne","Jack Bright","Jackson Morrow","Joao Silva","Josh Rupantarra","Kamel Belkacem"].map((name,i)=>({id:`bcsa-c-${i+1}`,name,workshops:Object.fromEntries(BCSA_WORKSHOPS.map(w=>[w.key,{done:i===1&&w.key==="1031",validatedBy:i===1&&w.key==="1031"?"K. Belkacem":null,validatedAt:i===1&&w.key==="1031"?"2026-09-09T22:10":null,comment:""}]))}));
 const seedBcsaInterviews = [{id:"INT-2026-0001",candidate:"Jack Bright",date:"2026-09-06",recruiter:"K. Belkacem",answers:BCSA_QUESTIONS.map(()=>({answer:"",evaluation:null})),decision:"Admis à la BCSA",overall:"Profil compatible avec les attentes de l'Academy.",status:"Clôturé"}];
-const seedBcsaAgentFiles = [
-  {id:"bcsa-a-1",name:"J. Bright",fullName:"Jack Bright",rank:"Deputy Trainee",badge:null,sponsor:null,candidateId:"bcsa-c-2",knowledge:{}},
-  {id:"bcsa-a-2",name:"J. Rupantarra",fullName:"Josh Rupantarra",rank:"Deputy Trainee",badge:107,sponsor:null,candidateId:"bcsa-c-5",knowledge:{}},
-  {id:"bcsa-a-3",name:"J. Morrow",fullName:"Jackson Morrow",rank:"Deputy Trainee",badge:193,sponsor:null,candidateId:"bcsa-c-3",knowledge:{}},
-  {id:"bcsa-a-4",name:"K. Belkacem",fullName:"Kamel Belkacem",rank:"Deputy Trainee",badge:188,sponsor:null,candidateId:"bcsa-c-6",knowledge:{}},
-  {id:"bcsa-a-5",name:"L. Mook",fullName:"L. Mook",rank:"Deputy Trainee",badge:null,sponsor:null,candidateId:null,knowledge:{}},
-  {id:"bcsa-a-6",name:"M. Vitale",fullName:"M. Vitale",rank:"Deputy I",badge:115,sponsor:"M. Katyusha",candidateId:null,knowledge:{}},
-  {id:"bcsa-a-7",name:"O. Vance",fullName:"O. Vance",rank:"Deputy I",badge:112,sponsor:null,candidateId:null,knowledge:{}},
-  {id:"bcsa-a-8",name:"W. Kessler",fullName:"W. Kessler",rank:"Deputy I",badge:157,sponsor:null,candidateId:null,knowledge:{}}
-];
+const seedBcsaAgentFiles = [];
 const seedBcsaPatrolReports = [
   {id:"PR-2026-0010",date:"2026-09-04",traineeId:"bcsa-a-2",trainee:"J. Rupantarra",duration:"3h00",examiner:"C. O’Malley",examBadge:"154",examRank:"Deputy III",interventions:"Contrôle routier et intervention de proximité.",positive:"Bonne communication et attitude professionnelle.",improve:"Fluidifier les annonces radio.",skills:["Radio","Contrôles routiers","Contact civil"],otherSkill:"",overall:"Patrouille sérieuse, progression satisfaisante.",opinion:"Favorable",status:"Finalisé"},
   {id:"PR-2026-0009",date:"2026-09-02",traineeId:"bcsa-a-4",trainee:"K. Belkacem",duration:"3h",examiner:"N. Winchester",examBadge:"166",examRank:"Sergeant",interventions:"Patrouille générale.",positive:"Bon comportement.",improve:"Approfondir les procédures.",skills:["Procédures","Radio"],otherSkill:"",overall:"En progression.",opinion:"Favorable",status:"Finalisé"},
@@ -1089,6 +1081,14 @@ let bcsaCandidates=load(BCSA_STORAGE.candidates,seedBcsaCandidates);
 let bcsaAgentFiles=load(BCSA_STORAGE.agentFiles,seedBcsaAgentFiles);
 let bcsaPatrolReports=load(BCSA_STORAGE.patrolReports,seedBcsaPatrolReports);
 let bcsaBadges=load(BCSA_STORAGE.badges,{});
+const BCSA_REAL_AGENTS_VERSION="firebase-agents-v2";
+if(localStorage.getItem("bcso_bcsa_real_agents_version")!==BCSA_REAL_AGENTS_VERSION){
+  bcsaAgentFiles=[];
+  bcsaBadges={};
+  save(BCSA_STORAGE.agentFiles,bcsaAgentFiles);
+  save(BCSA_STORAGE.badges,bcsaBadges);
+  localStorage.setItem("bcso_bcsa_real_agents_version",BCSA_REAL_AGENTS_VERSION);
+}
 // hydrate matricules depuis les fiches existantes
 bcsaAgentFiles.forEach(a=>{if(a.badge&&!bcsaBadges[a.badge])bcsaBadges[a.badge]={agentId:a.id,name:a.name,rank:a.rank}});
 [BCSA_STORAGE.interviews,BCSA_STORAGE.candidates,BCSA_STORAGE.agentFiles,BCSA_STORAGE.patrolReports,BCSA_STORAGE.badges].forEach((k,i)=>save(k,[bcsaInterviews,bcsaCandidates,bcsaAgentFiles,bcsaPatrolReports,bcsaBadges][i]));
@@ -1128,9 +1128,28 @@ function renderBcsaWorkshops(){const q=($("#bcsaWorkshopSearch")?.value||"").toL
 function toggleBcsaWorkshop(v){const [cid,key]=v.split(":"),c=findBcsaCandidate(cid),w=c?.workshops?.[key];if(!c||!w)return;if(!w.done){w.done=true;w.validatedBy=profile.name;w.validatedAt=new Date().toISOString();w.comment="";save(BCSA_STORAGE.candidates,bcsaCandidates);renderBcsaWorkshops();return}openBcsaWorkshopDetail(cid,key)}
 function openBcsaWorkshopDetail(cid,key){const c=findBcsaCandidate(cid),def=BCSA_WORKSHOPS.find(w=>w.key===key),w=c.workshops[key];$("#bcsaWorkshopCandidateId").value=cid;$("#bcsaWorkshopKey").value=key;$("#bcsaWorkshopDetailTitle").textContent=`${def.label} — ${c.name}`;$("#bcsaWorkshopSummary").innerHTML=`<strong>✓ Atelier réussi</strong><div class="muted small">Validé par ${escapeHtml(w.validatedBy||"—")} ${w.validatedAt?`• ${formatDate(w.validatedAt)}`:""}</div>`;$("#bcsaWorkshopComment").value=w.comment||"";openModal("bcsaWorkshopDetailModal")}
 
-function renderBcsaBadges(){let assigned=0;for(let n=100;n<=199;n++)if(bcsaBadges[n])assigned++;$("#bcsaBadgeAvailable").textContent=100-assigned;$("#bcsaBadgeAssigned").textContent=assigned;$("#bcsaBadgeRate").textContent=`${assigned}%`;const q=($("#bcsaBadgeSearch")?.value||"").toLowerCase(),f=$("#bcsaBadgeFilter")?.value||"";let out="";for(let n=100;n<=199;n++){const a=bcsaBadges[n],assignedNow=!!a;if(f==="available"&&assignedNow||f==="assigned"&&!assignedNow)continue;if(!String(n).includes(q)&&!(a?.name||"").toLowerCase().includes(q))continue;out+=`<article class="bcsa-badge-card"><div><div class="bcsa-badge-top"><span class="bcsa-badge-number"># ${n}</span><span class="bcsa-badge-state ${assignedNow?"assigned":"available"}">${assignedNow?"Attribué":"Disponible"}</span></div>${assignedNow?`<div class="bcsa-badge-person"><strong>${escapeHtml(a.name)}</strong><span>${escapeHtml(a.rank||"")}</span></div>`:""}</div><div class="bcsa-badge-actions">${assignedNow?`<button class="danger-outline" data-bcsa-unassign-badge="${n}">Retirer</button>`:`<button class="secondary-btn" data-bcsa-assign-badge="${n}">Attribuer</button>`}</div></article>`}$("#bcsaBadgeGrid").innerHTML=out||'<div class="empty-state">Aucun matricule trouvé.</div>';$$('[data-bcsa-assign-badge]').forEach(b=>b.onclick=()=>openBcsaBadgeAssign(+b.dataset.bcsaAssignBadge));$$('[data-bcsa-unassign-badge]').forEach(b=>b.onclick=()=>unassignBcsaBadge(+b.dataset.bcsaUnassignBadge))}
-function openBcsaBadgeAssign(n){const availableAgents=bcsaAgentFiles.filter(a=>!a.badge&&!Object.values(bcsaBadges).some(b=>b.agentId===a.id));if(!availableAgents.length){alert("Aucun agent sans matricule n'est disponible dans le panel BCSA.");return}$("#bcsaBadgeNumber").value=n;$("#bcsaBadgeAssignTitle").textContent=`Attribuer le matricule #${n}`;$("#bcsaBadgeAgentSelect").innerHTML='<option value="">Sélectionner...</option>'+availableAgents.map(a=>`<option value="${a.id}">${escapeHtml(a.name)} — ${escapeHtml(a.rank)}</option>`).join("");openModal("bcsaBadgeAssignModal")}
-function unassignBcsaBadge(n){const b=bcsaBadges[n];if(!b||!confirm(`Retirer le matricule #${n} à ${b.name} ?`))return;const a=findBcsaAgent(b.agentId);if(a)a.badge=null;delete bcsaBadges[n];save(BCSA_STORAGE.badges,bcsaBadges);save(BCSA_STORAGE.agentFiles,bcsaAgentFiles);renderBcsa()}
+function renderBcsaBadges(){
+  // Firestore is the source of truth for assigned matricules.
+  bcsaBadges={};
+  (supAgents||[]).forEach(a=>{
+    const n=parseInt(a.badge,10);
+    if(Number.isInteger(n)&&n>=100&&n<=199)bcsaBadges[n]={agentId:a.id,name:a.name,rank:a.rank};
+  });
+  let assigned=0;for(let n=100;n<=199;n++)if(bcsaBadges[n])assigned++;$("#bcsaBadgeAvailable").textContent=100-assigned;$("#bcsaBadgeAssigned").textContent=assigned;$("#bcsaBadgeRate").textContent=`${assigned}%`;const q=($("#bcsaBadgeSearch")?.value||"").toLowerCase(),f=$("#bcsaBadgeFilter")?.value||"";let out="";for(let n=100;n<=199;n++){const a=bcsaBadges[n],assignedNow=!!a;if(f==="available"&&assignedNow||f==="assigned"&&!assignedNow)continue;if(!String(n).includes(q)&&!(a?.name||"").toLowerCase().includes(q))continue;out+=`<article class="bcsa-badge-card"><div><div class="bcsa-badge-top"><span class="bcsa-badge-number"># ${n}</span><span class="bcsa-badge-state ${assignedNow?"assigned":"available"}">${assignedNow?"Attribué":"Disponible"}</span></div>${assignedNow?`<div class="bcsa-badge-person"><strong>${escapeHtml(a.name)}</strong><span>${escapeHtml(a.rank||"")}</span></div>`:""}</div><div class="bcsa-badge-actions">${assignedNow?`<button class="danger-outline" data-bcsa-unassign-badge="${n}">Retirer</button>`:`<button class="secondary-btn" data-bcsa-assign-badge="${n}">Attribuer</button>`}</div></article>`}$("#bcsaBadgeGrid").innerHTML=out||'<div class="empty-state">Aucun matricule trouvé.</div>';$$('[data-bcsa-assign-badge]').forEach(b=>b.onclick=()=>openBcsaBadgeAssign(+b.dataset.bcsaAssignBadge));$$('[data-bcsa-unassign-badge]').forEach(b=>b.onclick=()=>unassignBcsaBadge(+b.dataset.bcsaUnassignBadge))}
+function openBcsaBadgeAssign(n){
+  const availableAgents=(supAgents||[])
+    .filter(a=>a.active!==false&&!a.badge)
+    .sort((a,b)=>(a.name||"").localeCompare(b.name||"","fr"));
+  if(!availableAgents.length){alert("Aucun agent Firebase sans matricule n'est disponible.");return}
+  $("#bcsaBadgeNumber").value=n;
+  $("#bcsaBadgeAssignTitle").textContent=`Attribuer le matricule #${n}`;
+  $("#bcsaBadgeAgentSelect").innerHTML='<option value="">Sélectionner...</option>'+availableAgents.map(a=>`<option value="${a.id}">${escapeHtml(a.name)} — ${escapeHtml(a.rank||"Non classé")}</option>`).join("");
+  openModal("bcsaBadgeAssignModal")
+}
+function unassignBcsaBadge(n){
+  const b=bcsaBadges[n];if(!b||!confirm(`Retirer le matricule #${n} à ${b.name} ?`))return;
+  window.dispatchEvent(new CustomEvent("bcso:set-agent-badge",{detail:{id:b.agentId,badge:null}}));
+}
 
 function renderBcsaAgents(){const q=($("#bcsaAgentSearch")?.value||"").toLowerCase(),g=$("#bcsaAgentGradeFilter")?.value||"",f=$("#bcsaAgentFileFilter")?.value||"";const rows=bcsaAgentFiles.filter(a=>["Deputy Trainee","Deputy I"].includes(a.rank)&&(!g||a.rank===g)&&(!f||(f==="linked"?!!a.candidateId:!a.candidateId))&&[a.name,a.fullName,a.badge].join(" ").toLowerCase().includes(q));$("#bcsaAgentsTable").innerHTML=`<table class="agents-table"><thead><tr><th>Agent</th><th>Grade</th><th>Matricule</th><th>Fiche</th><th>Parrain</th><th>Rapports</th><th>Actions</th></tr></thead><tbody>${rows.map(a=>{const prs=matchingPatrolReports(a);return `<tr><td><strong>${escapeHtml(a.name)}</strong></td><td>${escapeHtml(a.rank)}</td><td>${a.badge?`#${a.badge}`:"—"}</td><td>${a.candidateId?'<span class="access-ok">⛓ Liée</span>':'—'}</td><td>${escapeHtml(a.sponsor||"—")}</td><td>${prs.filter(r=>r.examiner===a.name).length} rédigé · ${prs.length} concernant</td><td><button class="secondary-btn" data-bcsa-agent-file="${a.id}">Voir la fiche</button></td></tr>`}).join("")}</tbody></table>`;$$('[data-bcsa-agent-file]').forEach(b=>b.onclick=()=>openBcsaAgentFile(b.dataset.bcsaAgentFile))}
 function openBcsaAgentFile(id){const a=findBcsaAgent(id);if(!a)return;const c=findBcsaCandidate(a.candidateId),prs=matchingPatrolReports(a),n=workshopCount(c),acquired=BCSA_KNOWLEDGE.filter(k=>["Acquis","Maîtrisé"].includes(a.knowledge?.[k]?.level)).length;$("#bcsaAgentFileContent").innerHTML=`<div class="bcsa-file-head"><div><h2>${escapeHtml(a.name)}</h2><p class="muted">${escapeHtml(a.rank)} · Matricule ${a.badge?`#${a.badge}`:"—"}</p></div><span class="badge ${a.rank==="Deputy I"?"green":"gold"}">${escapeHtml(a.rank)}</span></div><h3>Parrain</h3><div class="bcsa-sponsor-row"><label>Agent référent<input id="bcsaSponsorInput" value="${escapeHtml(a.sponsor||"")}" placeholder="Nom du parrain..."></label><button class="secondary-btn" data-bcsa-save-sponsor="${a.id}">Enregistrer</button></div><div class="bcsa-file-metrics"><article class="info-box"><span>Ateliers</span><strong>${n}/7</strong></article><article class="info-box"><span>Connaissances acquises</span><strong>${acquired}/${BCSA_KNOWLEDGE.length}</strong></article><article class="info-box"><span>Patrouilles</span><strong>${prs.length}</strong></article><article class="info-box"><span>Questionnaire</span><strong>${bcsaInterviews.some(x=>[a.name,a.fullName].includes(x.candidate)&&x.decision==="Admis à la BCSA")?"Admis":"—"}</strong></article></div><h3 class="bcsa-section-title">Ateliers</h3><div class="bcsa-linked-workshops">${BCSA_WORKSHOPS.map(w=>`<div class="bcsa-linked-workshop ${c?.workshops?.[w.key]?.done?"done":""}">${c?.workshops?.[w.key]?.done?"✓":"×"} ${escapeHtml(w.label)}</div>`).join("")}</div><h3 class="bcsa-section-title">Connaissances de l'agent</h3><div class="bcsa-knowledge-grid">${BCSA_KNOWLEDGE.map(k=>{const x=a.knowledge?.[k]||{};return `<div class="bcsa-knowledge-row"><label><strong>${escapeHtml(k)}</strong><select data-bcsa-knowledge="${escapeHtml(k)}">${BCSA_KNOWLEDGE_LEVELS.map(l=>`<option ${x.level===l?"selected":""}>${escapeHtml(l)}</option>`).join("")}</select></label><div class="bcsa-knowledge-meta">${x.updatedBy?`Mis à jour par ${escapeHtml(x.updatedBy)} • ${formatDate(x.updatedAt)}`:"Aucune évaluation enregistrée"}</div></div>`}).join("")}</div><div class="modal-actions"><button class="primary-btn" data-bcsa-save-knowledge="${a.id}">Enregistrer les connaissances</button></div><h3 class="bcsa-section-title">Rapports de patrouille (${prs.length})</h3><div class="history-list">${prs.map(r=>`<div class="history-item"><div><strong>${bcsaDateFr(r.date)} — ${escapeHtml(r.duration)}</strong><span>Par ${escapeHtml(r.examiner)} • ${escapeHtml(r.opinion||r.status)}</span></div><button class="secondary-btn" data-bcsa-open-patrol="${r.id}">Ouvrir</button></div>`).join("")||'<div class="empty-state">Aucun rapport de patrouille.</div>'}</div>`;
@@ -1151,7 +1170,15 @@ function renderBcsa(){renderBcsaInterviews();renderBcsaWorkshops();renderBcsaBad
 $("#bcsaNewInterviewBtn").onclick=()=>openBcsaInterview();$("#bcsaInterviewSearch").oninput=renderBcsaInterviews;$("#bcsaInterviewFilter").onchange=renderBcsaInterviews;$("#bcsaInterviewForm").onsubmit=e=>{e.preventDefault();saveBcsaInterview("Clôturé")};$("#bcsaSaveInterviewDraft").onclick=()=>saveBcsaInterview("Brouillon");
 $("#bcsaAddCandidateBtn").onclick=()=>openModal("bcsaAddCandidateModal");$("#bcsaWorkshopSearch").oninput=renderBcsaWorkshops;$("#bcsaAddCandidateForm").onsubmit=e=>{e.preventDefault();addBcsaCandidate($("#bcsaCandidateName").value.trim());e.target.reset();closeModal("bcsaAddCandidateModal");renderBcsaWorkshops()};
 $("#bcsaWorkshopDetailForm").onsubmit=e=>{e.preventDefault();const c=findBcsaCandidate($("#bcsaWorkshopCandidateId").value),w=c.workshops[$("#bcsaWorkshopKey").value];w.comment=$("#bcsaWorkshopComment").value.trim();save(BCSA_STORAGE.candidates,bcsaCandidates);closeModal("bcsaWorkshopDetailModal");renderBcsaWorkshops()};$("#bcsaWorkshopInvalidateBtn").onclick=()=>{const c=findBcsaCandidate($("#bcsaWorkshopCandidateId").value),w=c.workshops[$("#bcsaWorkshopKey").value];w.done=false;w.validatedBy=null;w.validatedAt=null;w.comment="";save(BCSA_STORAGE.candidates,bcsaCandidates);closeModal("bcsaWorkshopDetailModal");renderBcsaWorkshops()};
-$("#bcsaBadgeSearch").oninput=renderBcsaBadges;$("#bcsaBadgeFilter").onchange=renderBcsaBadges;$("#bcsaBadgeAssignForm").onsubmit=e=>{e.preventDefault();const n=+$("#bcsaBadgeNumber").value,id=$("#bcsaBadgeAgentSelect").value,a=findBcsaAgent(id);if(!a)return;if(a.badge||Object.values(bcsaBadges).some(b=>b.agentId===id)){alert("Cet agent possède déjà un matricule.");return}bcsaBadges[n]={agentId:id,name:a.name,rank:a.rank};a.badge=n;save(BCSA_STORAGE.badges,bcsaBadges);save(BCSA_STORAGE.agentFiles,bcsaAgentFiles);closeModal("bcsaBadgeAssignModal");renderBcsa()};
+$("#bcsaBadgeSearch").oninput=renderBcsaBadges;$("#bcsaBadgeFilter").onchange=renderBcsaBadges;$("#bcsaBadgeAssignForm").onsubmit=e=>{
+  e.preventDefault();
+  const n=String(+$("#bcsaBadgeNumber").value),id=$("#bcsaBadgeAgentSelect").value,a=agentById(id);
+  if(!a)return alert("Agent Firebase introuvable.");
+  if(a.badge)return alert("Cet agent possède déjà un matricule.");
+  if((supAgents||[]).some(x=>String(x.badge||"")===n))return alert(`Le matricule #${n} est déjà attribué.`);
+  window.dispatchEvent(new CustomEvent("bcso:set-agent-badge",{detail:{id,badge:n}}));
+  closeModal("bcsaBadgeAssignModal")
+};
 $("#bcsaAgentSearch").oninput=renderBcsaAgents;$("#bcsaAgentGradeFilter").onchange=renderBcsaAgents;$("#bcsaAgentFileFilter").onchange=renderBcsaAgents;
 $("#bcsaPatrolSearch").oninput=renderBcsaPatrolReports;$("#bcsaPatrolOpinionFilter").onchange=renderBcsaPatrolReports;$("#bcsaNewPatrolReportBtn").onclick=()=>openBcsaPatrolReport();$("#bcsaPatrolReportForm").onsubmit=e=>{e.preventDefault();savePatrolReport("Finalisé")};$("#bcsaPatrolSaveDraft").onclick=()=>savePatrolReport("Brouillon");
 renderBcsa();
@@ -1439,7 +1466,7 @@ let sebLeafletObjects=[],sebActiveTool=null,sebDraftRoute=null,sebDraftRouteLaye
 
 save(SEB_STORAGE.operations,sebOperations);save(SEB_STORAGE.boards,sebBoards);
 
-const SEB_MAP_BOUNDS=[[-16384,0],[0,16384]];
+const SEB_MAP_BOUNDS=[[-256,0],[0,256]];
 const SEB_TILE_ROOT="https://raw.githubusercontent.com/fivenet-app/livemap-tiles/main/tiles";
 const SEB_PLACE_TYPES={
   entry:{label:"Entrée",emoji:"🚪"},
@@ -1531,7 +1558,7 @@ function initSebLeafletMap(){
   }
   sebLeafletMap=L.map("sebLeafletMap",{
     crs:L.CRS.Simple,
-    minZoom:1,maxZoom:9,
+    minZoom:0,maxZoom:9,
     zoomSnap:.25,zoomDelta:.5,
     wheelPxPerZoomLevel:70,
     maxBounds:SEB_MAP_BOUNDS,
@@ -1539,7 +1566,7 @@ function initSebLeafletMap(){
     attributionControl:false
   });
   const tileOptions={
-    minZoom:1,maxZoom:9,maxNativeZoom:7,tileSize:256,noWrap:true,tms:true,bounds:SEB_MAP_BOUNDS,
+    minZoom:0,maxZoom:9,minNativeZoom:1,maxNativeZoom:7,tileSize:256,noWrap:true,tms:true,bounds:SEB_MAP_BOUNDS,
     keepBuffer:4,updateWhenIdle:false,crossOrigin:true
   };
   sebSatelliteLayer=L.tileLayer(`${SEB_TILE_ROOT}/satellite/{z}/{x}/{y}.webp`,tileOptions);
@@ -1548,16 +1575,23 @@ function initSebLeafletMap(){
   [sebSatelliteLayer,sebPostalLayer].forEach(layer=>{
     layer.on("loading",()=>setSebMapLoadState("Chargement de la carte GTA V…","loading"));
     layer.on("load",()=>setSebMapLoadState("","ok"));
+    let tileErrors=0;
     layer.on("tileerror",e=>{
+      tileErrors++;
       console.error("SEB map tile error:",e?.tile?.src||e);
-      setSebMapLoadState("Impossible de charger certaines tuiles de la carte. Réessayez ou rechargez la page.","error");
+      if(tileErrors>=6)setSebMapLoadState("Certaines tuiles n'ont pas pu être chargées. Rechargez la page si la carte reste incomplète.","error");
+    });
+    layer.on("tileload",()=>{
+      if(tileErrors>0)tileErrors--;
+      if(tileErrors===0)setSebMapLoadState("","ok");
     });
   });
   sebSatelliteLayer.addTo(sebLeafletMap);
   sebLeafletMap.fitBounds(SEB_MAP_BOUNDS,{padding:[15,15],animate:false});
 
   sebLeafletMap.on("mousemove",e=>{
-    const x=Math.round(e.latlng.lng),y=Math.round(-e.latlng.lat);
+    const mapX=e.latlng.lng,mapY=-e.latlng.lat;
+    const x=Math.round(mapX*64),y=Math.round(mapY*64);
     const r=$("#sebCoordinateReadout");if(r)r.textContent=`X ${x} / Y ${y}`;
   });
   sebLeafletMap.on("click",handleSebLeafletClick);

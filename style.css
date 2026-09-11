@@ -686,3 +686,7 @@ body.sidebar-collapsed .brand-mark{display:none!important}
     flex-basis:64px;
   }
 }
+
+/* SEB definitive tile geometry fix */
+.seb-leaflet-map,
+.seb-leaflet-wrap{background:#0a0d11 !important}

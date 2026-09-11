@@ -32,9 +32,52 @@ function startAgentsSync(claims){
       const x=d.data(),ts=v=>v?.toDate?v.toDate().toISOString():(typeof v==="string"?v:"");
       return {id:d.id,...x,firstLoginAt:ts(x.firstLoginAt),lastLoginAt:ts(x.lastLoginAt),createdAt:ts(x.createdAt),updatedAt:ts(x.updatedAt)};
     });
+
+    // Migration automatique des comptes déjà connectés avant la correction :
+    // [SHF-124], [CMD-133], [CPT-177], [SND-178], etc.
+    for(const agent of agents){
+      if(agent.badge)continue;
+      const source=agent.displayName||agent.globalName||agent.username||"";
+      const match=String(source).match(/\[[^\]]*?[-–—]\s*(\d{2,4})\s*\]/i)
+        || String(source).match(/#\s*(\d{2,4})\b/)
+        || String(source).match(/\[\s*(\d{2,4})\s*\]/);
+      if(match){
+        updateDoc(doc(db,"agents",agent.id),{
+          badge:String(parseInt(match[1],10)),
+          badgeLocked:true,
+          badgeSource:"discord-display-name"
+        }).catch(err=>console.error("Auto badge migration:",agent.id,err));
+      }
+    }
+
     window.dispatchEvent(new CustomEvent("bcso:firebase-agents",{detail:agents}));
   },err=>console.error("Agent sync Firestore:",err));
 }
+window.addEventListener("bcso:set-agent-badge",async e=>{
+  const id=e.detail?.id,badge=e.detail?.badge;
+  if(!id)return;
+  try{
+    if(badge!==null&&badge!==undefined){
+      const normalized=String(parseInt(badge,10));
+      if(!/^\d{3}$/.test(normalized))throw new Error("Matricule invalide");
+      await updateDoc(doc(db,"agents",id),{
+        badge:normalized,
+        badgeLocked:true,
+        badgeSource:"manual-supervision"
+      });
+    }else{
+      await updateDoc(doc(db,"agents",id),{
+        badge:null,
+        badgeLocked:false,
+        badgeSource:"manual-supervision"
+      });
+    }
+  }catch(err){
+    console.error(err);
+    alert("Impossible de modifier le matricule dans Firebase.");
+  }
+});
+
 window.addEventListener("bcso:ack-agent",async e=>{
   const id=e.detail?.id;if(!id)return;
   try{await updateDoc(doc(db,"agents",id),{onboardingState:"active"});window.dispatchEvent(new CustomEvent("bcso:agent-acknowledged",{detail:{id}}))}
