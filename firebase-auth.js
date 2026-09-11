@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAjndzYCA_HYyitD8FpF28C9zp7UDcgAeg",
@@ -13,7 +14,9 @@ const firebaseConfig = {
 const DISCORD_CLIENT_ID = "1546992548600479856";
 const REDIRECT_URI = "https://bouhamouches-pixel.github.io/ID-BCSO/";
 const EXCHANGE_URL = "https://europe-west6-bcsolwwl.cloudfunctions.net/discordExchange";
-const auth = getAuth(initializeApp(firebaseConfig));
+const firebaseApp=initializeApp(firebaseConfig);
+const auth=getAuth(firebaseApp);
+const db=getFirestore(firebaseApp);
 
 function randomState(){
   const b=new Uint8Array(32); crypto.getRandomValues(b);
@@ -37,3 +40,4 @@ export async function finishDiscordLoginIfNeeded(){
 }
 export function observeBcsoAuth(cb){return onAuthStateChanged(auth,async u=>{if(!u)return cb(null);const t=await u.getIdTokenResult(true);cb({user:u,claims:t.claims});});}
 export function logoutBcso(){sessionStorage.removeItem("bcso_oauth_state");return signOut(auth);}
+export { db };

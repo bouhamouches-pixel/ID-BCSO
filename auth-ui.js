@@ -1,9 +1,10 @@
-import {startDiscordLogin,finishDiscordLoginIfNeeded,observeBcsoAuth,logoutBcso} from "./firebase-auth.js";
+import {startDiscordLogin,finishDiscordLoginIfNeeded,observeBcsoAuth,logoutBcso,db} from "./firebase-auth.js";
+import {collection,onSnapshot,doc,updateDoc} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const gate=document.querySelector("#authGate"), login=document.querySelector("#discordLoginBtn"), logout=document.querySelector("#logoutBtn"), status=document.querySelector("#authStatus");
 function avatar(p){if(!p?.avatar||!p?.discordId)return null;const e=p.avatar.startsWith("a_")?"gif":"webp";return `https://cdn.discordapp.com/avatars/${p.discordId}/${p.avatar}.${e}?size=256`;}
 function syncProfile(p){
   if(!p)return; const k="bcso_demo_profile"; let c={}; try{c=JSON.parse(localStorage.getItem(k)||"{}")}catch{}
-  const da=avatar(p), next={...c,name:p.displayName||p.username||"Agent BCSO",rank:p.gradeLabel||"Non classé",discordId:p.discordId,discordAvatar:da,avatar:c.avatar&&c.avatar!==c.discordAvatar?c.avatar:da};
+  const da=avatar(p), next={...c,name:p.displayName||p.username||"Agent BCSO",rank:p.gradeLabel||"Non classé",discordId:p.discordId,badge:p.badge||c.badge||null,badgeLocked:Boolean(p.badgeLocked),discordAvatar:da,avatar:c.avatar&&c.avatar!==c.discordAvatar?c.avatar:da};
   localStorage.setItem(k,JSON.stringify(next));
   [["#sidebarName","textContent",next.name],["#sidebarRank","textContent",next.rank],["#profileName","value",next.name],["#profileRank","value",next.rank]].forEach(([s,k,v])=>{const e=document.querySelector(s);if(e)e[k]=v});
   ["#sidebarAvatar","#profilePreview"].forEach(s=>{const e=document.querySelector(s);if(e&&next.avatar)e.src=next.avatar});
@@ -21,4 +22,23 @@ login?.addEventListener("click",()=>{if(status)status.textContent="Redirection v
 logout?.addEventListener("click",async()=>{await logoutBcso();location.replace("https://bouhamouches-pixel.github.io/ID-BCSO/");});
 show("Vérification de la session…");
 try{const p=await finishDiscordLoginIfNeeded();if(p)syncProfile(p);}catch(e){console.error(e);show(e.message);}
-observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}permissions(s.claims);hide();});
+
+let stopAgentsSync=null;
+function startAgentsSync(claims){
+  if(stopAgentsSync){stopAgentsSync();stopAgentsSync=null}
+  if(!claims?.supervision)return;
+  stopAgentsSync=onSnapshot(collection(db,"agents"),snap=>{
+    const agents=snap.docs.map(d=>{
+      const x=d.data(),ts=v=>v?.toDate?v.toDate().toISOString():(typeof v==="string"?v:"");
+      return {id:d.id,...x,firstLoginAt:ts(x.firstLoginAt),lastLoginAt:ts(x.lastLoginAt),createdAt:ts(x.createdAt),updatedAt:ts(x.updatedAt)};
+    });
+    window.dispatchEvent(new CustomEvent("bcso:firebase-agents",{detail:agents}));
+  },err=>console.error("Agent sync Firestore:",err));
+}
+window.addEventListener("bcso:ack-agent",async e=>{
+  const id=e.detail?.id;if(!id)return;
+  try{await updateDoc(doc(db,"agents",id),{onboardingState:"active"});window.dispatchEvent(new CustomEvent("bcso:agent-acknowledged",{detail:{id}}))}
+  catch(err){console.error(err);alert("Impossible de valider cette nouvelle connexion.")}
+});
+
+observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}permissions(s.claims);startAgentsSync(s.claims);hide();});

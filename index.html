@@ -15,7 +15,7 @@
 
   <div class="auth-gate" id="authGate">
     <div class="auth-card">
-      <div class="auth-star">★</div>
+      <img class="auth-logo" src="bcso-logo.png" alt="Logo du Blaine County Sheriff&#39;s Office">
       <p class="eyebrow">Blaine County Sheriff's Office</p>
       <h1>Portail agents</h1>
       <p class="auth-copy">Connectez-vous avec votre compte Discord. L'accès est réservé aux membres disposant du rôle BCSO.</p>
@@ -27,13 +27,13 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <div class="brand-mark">★</div>
+        <img class="brand-logo" src="bcso-logo.png" alt="Logo du Blaine County Sheriff's Office">
         <div class="brand-copy">
           <strong>BCSO</strong>
           <span>Blaine County Sheriff's Office</span>
         </div>
-        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" type="button" aria-label="Replier le menu" title="Replier le menu">‹</button>
       </div>
+      <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" type="button" aria-label="Replier le menu" title="Replier le menu">‹</button>
 
       <button class="profile-card" id="openProfile">
         <img id="sidebarAvatar" class="avatar" alt="Avatar agent" />
@@ -366,8 +366,10 @@
             <h2>Gestion des agents</h2>
             <p class="muted">Annuaire administratif, activité et accès des membres du BCSO.</p>
           </div>
-          <button class="primary-btn" id="addAgentBtn">+ Ajouter un agent</button>
+          <div class="agent-sync-state"><span class="status-dot on"></span> Annuaire synchronisé avec Discord / Firebase</div>
         </div>
+
+        <div id="newAgentAlerts" class="new-agent-alerts"></div>
 
         <div class="supervision-summary">
           <article class="stat-card"><span>Agents actifs</span><strong id="supActiveAgents">0</strong><small>effectif actuel</small></article>

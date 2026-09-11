@@ -663,15 +663,7 @@ const SUP_STORAGE = {
 const nowIso = () => new Date().toISOString();
 const isoShift = ({days=0,hours=0,minutes=0}={}) => new Date(Date.now() + days*86400000 + hours*3600000 + minutes*60000).toISOString();
 
-const seedAgents = [
-  {id:"a-191",badge:"191",name:"K. Belkacem",rank:"Captain",division:"Command",specialties:["Park Ranger","Highway Patrol"],joined:"2026-05-18",active:true,avatar:null,roles:["BCSO","Supervision","Park Ranger","Highway Patrol"]},
-  {id:"a-143",badge:"143",name:"J. Carter",rank:"Sergeant",division:"Patrol",specialties:["Field Training"],joined:"2026-05-24",active:true,avatar:null,roles:["BCSO","Supervision","Patrol"]},
-  {id:"a-205",badge:"205",name:"M. Owens",rank:"Deputy",division:"Patrol",specialties:["Highway Patrol"],joined:"2026-06-11",active:true,avatar:null,roles:["BCSO","Patrol","Highway Patrol"]},
-  {id:"a-172",badge:"172",name:"A. Johnson",rank:"Deputy",division:"Park Ranger",specialties:["Park Ranger"],joined:"2026-06-18",active:true,avatar:null,roles:["BCSO","Park Ranger"]},
-  {id:"a-216",badge:"216",name:"R. Walker",rank:"Deputy",division:"Patrol",specialties:["K-9"],joined:"2026-07-02",active:true,avatar:null,roles:["BCSO","Patrol","K-9"]},
-  {id:"a-224",badge:"224",name:"T. Wilson",rank:"Probationary Deputy",division:"Patrol",specialties:[],joined:"2026-08-15",active:true,avatar:null,roles:["BCSO","Patrol"]},
-  {id:"a-118",badge:"118",name:"D. Miller",rank:"Deputy",division:"Highway Patrol",specialties:["Highway Patrol"],joined:"2026-04-09",active:false,avatar:null,roles:["BCSO","Highway Patrol"]}
-];
+const seedAgents = [];
 
 function demoDayIso(daysAgo, hour, minute=0) {
   const d = new Date();
@@ -688,34 +680,21 @@ function demoCrossMidnight(daysAgo, startHour, startMinute, endHour, endMinute) 
   return [start.toISOString(),end.toISOString()];
 }
 
-function makeSeedServices(){
-  const out=[]; let n=1;
-  const patterns = [
-    [1,"a-191",20,15,0,35],[1,"a-143",19,40,1,15],[1,"a-205",21,5,2,10],[1,"a-172",22,10,1,50],[1,"a-216",20,45,23,55],
-    [2,"a-191",19,55,0,20],[2,"a-143",20,30,2,5],[2,"a-224",21,15,23,50],[2,"a-205",18,50,23,35],
-    [3,"a-191",21,0,1,10],[3,"a-172",19,20,0,40],[3,"a-216",20,10,1,30],[3,"a-205",22,0,2,20],[3,"a-143",18,30,23,15],
-    [4,"a-143",20,0,0,30],[4,"a-205",20,15,1,45],[4,"a-224",21,10,0,10],
-    [5,"a-191",19,10,23,55],[5,"a-143",19,35,1,20],[5,"a-172",21,0,2,35],[5,"a-216",22,10,1,5],[5,"a-205",18,50,0,45],
-    [6,"a-191",20,0,2,20],[6,"a-205",20,35,0,50],[6,"a-224",21,30,23,40],[6,"a-143",19,20,1,10],
-    [7,"a-172",20,15,1,55],[7,"a-216",19,50,23,45],[7,"a-143",21,10,2,15]
-  ];
-  for(const [day,agentId,sh,sm,eh,em] of patterns){
-    const [start,end]=demoCrossMidnight(day,sh,sm,eh,em);
-    out.push({id:`svc-demo-${n++}`,agentId,start,end,source:"agent",closedBy:null});
-  }
-  return out;
-}
+function makeSeedServices(){ return []; }
 
-const seedActiveServices = [
-  {id:"active-demo-1",agentId:"a-143",start:isoShift({hours:-2,minutes:-18})},
-  {id:"active-demo-2",agentId:"a-205",start:isoShift({hours:-1,minutes:-36})},
-  {id:"active-demo-3",agentId:"a-172",start:isoShift({hours:-9,minutes:-12})}
-];
+const seedActiveServices = [];
 
 let supAgents = load(SUP_STORAGE.agents, seedAgents);
 let supServices = load(SUP_STORAGE.services, makeSeedServices());
 let supActiveServices = load(SUP_STORAGE.active, seedActiveServices);
 let supAudit = load(SUP_STORAGE.audit, []);
+const SUP_AGENT_SYNC_VERSION="firebase-agents-v1";
+if(localStorage.getItem("bcso_supervision_agent_sync_version")!==SUP_AGENT_SYNC_VERSION){
+  supAgents=(supAgents||[]).filter(a=>!["a-191","a-143","a-205","a-172","a-216","a-224","a-118"].includes(String(a.id||"")));
+  supServices=(supServices||[]).filter(s=>!String(s.id||"").startsWith("svc-demo-"));
+  supActiveServices=(supActiveServices||[]).filter(s=>!String(s.id||"").startsWith("active-demo-"));
+  localStorage.setItem("bcso_supervision_agent_sync_version",SUP_AGENT_SYNC_VERSION);
+}
 save(SUP_STORAGE.agents,supAgents); save(SUP_STORAGE.services,supServices); save(SUP_STORAGE.active,supActiveServices); save(SUP_STORAGE.audit,supAudit);
 
 function agentById(id){ return supAgents.find(a=>a.id===id); }
@@ -726,7 +705,7 @@ function shortDate(iso){ return new Intl.DateTimeFormat("fr-FR",{day:"2-digit",m
 function hoursValue(ms){ return ms/3600000; }
 
 function getPersonalAgent(){
-  return supAgents.find(a=>a.name===profile.name) || supAgents[0];
+  return supAgents.find(a=>a.discordId===profile.discordId) || supAgents.find(a=>a.name===profile.name) || null;
 }
 function currentActiveServices(){
   const list = supActiveServices.filter(s=>agentById(s.agentId)?.active);
@@ -780,6 +759,7 @@ function populateAgentFilters(){
 
 function renderAgentManagement(){
   populateAgentFilters();
+  renderNewAgentAlerts();
   const live=currentActiveServices();
   $("#supActiveAgents").textContent=supAgents.filter(a=>a.active).length;
   $("#supOnDutyAgents").textContent=live.length;
@@ -789,11 +769,11 @@ function renderAgentManagement(){
   const range=periodRange("week");
   const rows=supAgents.filter(a=>{
     const isOn=live.some(s=>s.agentId===a.id); const status=!a.active?"Inactif":isOn?"En service":"Hors service";
-    return (!rank||a.rank===rank)&&(!div||a.division===div)&&(!st||status===st)&&[a.badge,a.name,a.rank,a.division,a.specialties.join(" ")].join(" ").toLowerCase().includes(q);
+    return (!rank||a.rank===rank)&&(!div||a.division===div)&&(!st||status===st)&&[a.badge,a.name,a.rank,a.division,(a.specialties||[]).join(" ")].join(" ").toLowerCase().includes(q);
   });
   $("#agentsTable").innerHTML=`<table class="agents-table"><thead><tr><th>Agent</th><th>Grade</th><th>Division</th><th>Statut</th><th>Cette semaine</th><th>Ce mois</th><th>Actions</th></tr></thead><tbody>${rows.map(a=>{
     const isOn=live.some(s=>s.agentId===a.id); const status=!a.active?"Inactif":isOn?"En service":"Hors service"; const cls=!a.active?"inactive":isOn?"on":"off";
-    return `<tr><td><div class="agent-identity"><img class="agent-mini-avatar" src="${agentAvatar(a)}" alt=""><div><div class="agent-name-line">${escapeHtml(a.name)}</div><span class="agent-badge">#${escapeHtml(a.badge)}</span></div></div></td><td>${escapeHtml(a.rank)}</td><td>${escapeHtml(a.division)}</td><td><span class="status-inline ${cls}">${status}</span></td><td>${formatShortDuration(agentPeriodMs(a.id,range))}</td><td>${formatShortDuration(agentMonthMs(a.id))}</td><td><div class="table-actions"><button class="secondary-btn" data-agent-profile="${a.id}">Voir le profil</button>${a.active?`<button class="danger-outline" data-agent-toggle="${a.id}">Désactiver</button>`:`<button class="secondary-btn" data-agent-toggle="${a.id}">Réactiver</button>`}</div></td></tr>`;
+    return `<tr><td><div class="agent-identity"><img class="agent-mini-avatar" src="${agentAvatar(a)}" alt=""><div><div class="agent-name-line">${escapeHtml(a.name)}</div><span class="agent-badge">${a.badge?`#${escapeHtml(a.badge)}`:'<span class="badge warn">À attribuer</span>'}</span></div></div></td><td>${escapeHtml(a.rank)}</td><td>${escapeHtml(a.division)}</td><td><span class="status-inline ${cls}">${status}</span></td><td>${formatShortDuration(agentPeriodMs(a.id,range))}</td><td>${formatShortDuration(agentMonthMs(a.id))}</td><td><div class="table-actions"><button class="secondary-btn" data-agent-profile="${a.id}">Voir le profil</button>${a.active?`<button class="danger-outline" data-agent-toggle="${a.id}">Désactiver</button>`:`<button class="secondary-btn" data-agent-toggle="${a.id}">Réactiver</button>`}</div></td></tr>`;
   }).join("")||'<tr><td colspan="7"><div class="empty-state">Aucun agent trouvé.</div></td></tr>'}</tbody></table>`;
   $$('[data-agent-profile]').forEach(b=>b.onclick=()=>openAgentProfile(b.dataset.agentProfile));
   $$('[data-agent-toggle]').forEach(b=>b.onclick=()=>toggleAgentStatus(b.dataset.agentToggle));
@@ -812,30 +792,53 @@ function openAgentProfile(id,tab="info"){
   const agentServices=allCompletedServices().filter(s=>s.agentId===id).sort((x,y)=>new Date(y.start)-new Date(x.start));
   const agentReports=reports.filter(r=>r.author===a.name);
   const agentComplaints=complaints.filter(c=>c.writer===a.name||c.assignedTo===a.name);
-  $("#agentModalTitle").textContent=`#${a.badge} ・ ${a.name}`;
+  $("#agentModalTitle").textContent=`${a.badge?`#${a.badge} ・ `:""}${a.name}`;
   $("#agentProfileContent").innerHTML=`
-    <div class="agent-profile-head"><img src="${agentAvatar(a)}" alt=""><div><h3>${escapeHtml(a.name)}</h3><div class="meta-row"><span>${escapeHtml(a.rank)}</span><span>${escapeHtml(a.division)}</span><span class="badge ${a.active?'green':'red'}">${a.active?'Actif':'Inactif'}</span></div></div><button class="primary-btn agent-convocation-btn" data-convoke-agent="${a.id}">📨 Convoquer</button></div>
+    <div class="agent-profile-head"><img src="${agentAvatar(a)}" alt=""><div><h3>${escapeHtml(a.name)}</h3><div class="meta-row"><span>${escapeHtml(a.rank)}</span><span>${escapeHtml(a.division)}</span><span class="badge ${a.active?'green':'red'}">${a.active?'Actif':'Inactif'}</span>${a.onboardingState==="new"?'<span class="badge warn">Nouvelle connexion</span>':''}</div></div><div class="table-actions">${a.onboardingState==="new"?`<button class="secondary-btn" data-agent-ack="${a.id}">✓ Marquer comme vu</button>`:""}<button class="primary-btn agent-convocation-btn" data-convoke-agent="${a.id}">📨 Convoquer</button></div></div>
     <div class="profile-tabs"><button class="profile-tab ${tab==='info'?'active':''}" data-profile-tab="info">Informations</button><button class="profile-tab ${tab==='services'?'active':''}" data-profile-tab="services">Services</button><button class="profile-tab ${tab==='reports'?'active':''}" data-profile-tab="reports">Rapports</button><button class="profile-tab ${tab==='complaints'?'active':''}" data-profile-tab="complaints">Plaintes</button><button class="profile-tab ${tab==='convocations'?'active':''}" data-profile-tab="convocations">Convocations</button><button class="profile-tab ${tab==='access'?'active':''}" data-profile-tab="access">Accès</button></div>
-    <div class="profile-panel ${tab==='info'?'active':''}" data-profile-panel="info"><div class="info-grid"><div class="info-box"><span>Matricule</span><strong>#${escapeHtml(a.badge)}</strong></div><div class="info-box"><span>Grade</span><strong>${escapeHtml(a.rank)}</strong></div><div class="info-box"><span>Division</span><strong>${escapeHtml(a.division)}</strong></div><div class="info-box"><span>Date d'intégration</span><strong>${shortDate(a.joined+'T12:00:00')}</strong></div><div class="info-box"><span>Spécialisations</span><strong>${escapeHtml(a.specialties.join(', ')||'Aucune')}</strong></div><div class="info-box"><span>Statut</span><strong>${a.active?'Actif':'Inactif'}</strong></div></div></div>
+    <div class="profile-panel ${tab==='info'?'active':''}" data-profile-panel="info"><div class="info-grid"><div class="info-box"><span>Matricule</span><strong>${a.badge?`#${escapeHtml(a.badge)}`:"À attribuer"}</strong><small class="agent-lock-note">${a.badgeLocked?"🔒 Verrouillé — non modifiable par l’agent":"En attente d’attribution"}</small></div><div class="info-box"><span>Grade</span><strong>${escapeHtml(a.rank)}</strong></div><div class="info-box"><span>Division</span><strong>${escapeHtml(a.division)}</strong></div><div class="info-box"><span>Date d'intégration</span><strong>${a.joined?shortDate(a.joined+'T12:00:00'):'—'}</strong></div><div class="info-box"><span>Spécialisations</span><strong>${escapeHtml((a.specialties||[]).join(', ')||'Aucune')}</strong></div><div class="info-box"><span>Statut</span><strong>${a.active?'Actif':'Inactif'}</strong></div></div></div>
     <div class="profile-panel ${tab==='services'?'active':''}" data-profile-panel="services"><div class="supervision-summary"><article class="stat-card"><span>Cette semaine</span><strong>${formatShortDuration(agentPeriodMs(id,range))}</strong><small>temps cumulé</small></article><article class="stat-card"><span>Ce mois</span><strong>${formatShortDuration(agentMonthMs(id))}</strong><small>temps cumulé</small></article><article class="stat-card"><span>Services</span><strong>${agentServices.length}</strong><small>enregistrés</small></article><article class="stat-card"><span>Moyenne</span><strong>${formatShortDuration(agentServices.length?agentServices.reduce((t,s)=>t+(new Date(s.end)-new Date(s.start)),0)/agentServices.length:0)}</strong><small>par service</small></article></div><div class="history-service-list">${agentServices.slice(0,8).map(s=>`<div class="history-service-row"><span><strong>Début</strong><br>${formatDate(s.start)}</span><span><strong>Fin</strong><br>${formatDate(s.end)}</span><span>${formatDuration(new Date(s.end)-new Date(s.start))}</span><div class="table-actions"><button class="secondary-btn" data-edit-service="${s.id}">Modifier</button></div></div>`).join('')||'<div class="empty-state">Aucun service.</div>'}</div></div>
     <div class="profile-panel ${tab==='reports'?'active':''}" data-profile-panel="reports">${agentReports.length?agentReports.slice(0,10).map(reportCard).join(''):'<div class="empty-state">Aucun rapport rédigé.</div>'}</div>
     <div class="profile-panel ${tab==='complaints'?'active':''}" data-profile-panel="complaints">${agentComplaints.length?agentComplaints.map(c=>`<div class="record-card"><span class="badge gold">${escapeHtml(c.id)}</span><h3>${escapeHtml(c.subject)}</h3><div class="meta-row"><span>${escapeHtml(c.status)}</span><span>${escapeHtml(c.assignedTo||'Non assigné')}</span></div></div>`).join(''):'<div class="empty-state">Aucune plainte liée à cet agent.</div>'}</div>
     <div class="profile-panel ${tab==='convocations'?'active':''}" data-profile-panel="convocations">${renderAgentConvocations(id)}</div>
-    <div class="profile-panel ${tab==='access'?'active':''}" data-profile-panel="access"><p class="muted small">Dans la version finale, ces accès seront calculés depuis les rôles Discord et ne seront pas modifiables ici.</p><div class="access-list">${a.roles.map(r=>`<div class="access-item"><span>${escapeHtml(r)}</span><strong class="access-ok">✓ Autorisé</strong></div>`).join('')}</div></div>`;
+    <div class="profile-panel ${tab==='access'?'active':''}" data-profile-panel="access"><p class="muted small">Dans la version finale, ces accès seront calculés depuis les rôles Discord et ne seront pas modifiables ici.</p><div class="access-list">${(a.roles||[]).map(r=>`<div class="access-item"><span>${escapeHtml(r)}</span><strong class="access-ok">✓ Autorisé</strong></div>`).join('')}</div></div>`;
   $$('[data-profile-tab]').forEach(b=>b.onclick=()=>openAgentProfile(id,b.dataset.profileTab));
   $$('[data-edit-service]').forEach(b=>b.onclick=()=>openEditService(b.dataset.editService));
+  $$('[data-agent-ack]').forEach(b=>b.onclick=()=>window.dispatchEvent(new CustomEvent("bcso:ack-agent",{detail:{id:b.dataset.agentAck}})));
   $$('[data-convoke-agent]').forEach(b=>b.onclick=()=>{ closeModal("agentModal"); openConvocationForm(b.dataset.convokeAgent); });
   bindReportViewers();
   openModal("agentModal");
 }
 
-$("#addAgentBtn").addEventListener("click",()=>openModal("addAgentModal"));
-$("#addAgentForm").addEventListener("submit",e=>{
-  e.preventDefault(); const badge=$("#newAgentBadge").value.trim();
-  if(supAgents.some(a=>a.badge===badge)) return alert("Ce matricule existe déjà.");
-  const specialties=$("#newAgentSpecialties").value.split(',').map(x=>x.trim()).filter(Boolean);
-  supAgents.push({id:`a-${Date.now()}`,badge,name:$("#newAgentName").value.trim(),rank:$("#newAgentRank").value.trim(),division:$("#newAgentDivision").value.trim(),specialties,joined:new Date().toISOString().slice(0,10),active:true,avatar:null,roles:["BCSO",$("#newAgentDivision").value.trim()]});
-  save(SUP_STORAGE.agents,supAgents); e.target.reset(); closeModal("addAgentModal"); renderSupervision();
+// Les agents sont désormais créés automatiquement lors de leur première connexion Discord/Firebase.
+
+
+
+function renderNewAgentAlerts(){
+  const host=$("#newAgentAlerts"); if(!host)return;
+  const pending=supAgents.filter(a=>a.onboardingState==="new");
+  host.innerHTML=pending.length?`<div class="new-agent-alert-box">
+    <div><strong>🔔 ${pending.length} nouvel${pending.length>1?"s":""} agent${pending.length>1?"s":""} connecté${pending.length>1?"s":""}</strong>
+    <span>Fiche créée automatiquement à la première connexion au portail.</span></div>
+    <div class="new-agent-alert-list">${pending.map(a=>`<button class="secondary-btn" data-new-agent-open="${a.id}">${a.badge?`#${escapeHtml(a.badge)} ・ `:""}${escapeHtml(a.name)}</button>`).join("")}</div>
+  </div>`:"";
+  $$("[data-new-agent-open]").forEach(b=>b.onclick=()=>openAgentProfile(b.dataset.newAgentOpen));
+}
+window.addEventListener("bcso:firebase-agents",e=>{
+  const rows=Array.isArray(e.detail)?e.detail:[];
+  supAgents=rows.map(a=>({
+    id:a.id,discordId:a.discordId||null,badge:a.badge||"",badgeLocked:Boolean(a.badgeLocked),
+    name:a.displayName||a.name||a.username||"Agent BCSO",rank:a.gradeLabel||a.rank||"Non classé",
+    division:(a.divisions&&a.divisions.length)?a.divisions.map(d=>({bcsa:"BCSA",investigation:"Investigation Division",seb:"SEB",park_ranger:"Park Ranger",highway_patrol:"Highway Patrol"}[d]||d)).join(", "):"Patrol",
+    specialties:(a.divisions||[]).map(d=>({bcsa:"BCSA",investigation:"Investigation Division",seb:"SEB",park_ranger:"Park Ranger",highway_patrol:"Highway Patrol"}[d]||d)),
+    joined:(a.firstLoginAt||a.createdAt||"").slice?.(0,10)||"",active:a.active!==false,avatar:a.avatarUrl||null,
+    roles:a.portalRoles||["BCSO"],onboardingState:a.onboardingState||"active",firstLoginAt:a.firstLoginAt||null,lastLoginAt:a.lastLoginAt||null
+  }));
+  save(SUP_STORAGE.agents,supAgents);renderSupervision();renderNewAgentAlerts();
+});
+window.addEventListener("bcso:agent-acknowledged",e=>{
+  const a=agentById(e.detail?.id);if(a)a.onboardingState="active";
+  save(SUP_STORAGE.agents,supAgents);renderNewAgentAlerts();renderAgentManagement();
 });
 
 ["agentSearch","agentRankFilter","agentDivisionFilter","agentStatusFilter"].forEach(id=>$("#"+id).addEventListener(id==="agentSearch"?"input":"change",renderAgentManagement));
@@ -1437,7 +1440,7 @@ let sebLeafletObjects=[],sebActiveTool=null,sebDraftRoute=null,sebDraftRouteLaye
 save(SEB_STORAGE.operations,sebOperations);save(SEB_STORAGE.boards,sebBoards);
 
 const SEB_MAP_BOUNDS=[[-16384,0],[0,16384]];
-const SEB_TILE_ROOT="https://cdn.jsdelivr.net/gh/fivenet-app/livemap-tiles@main/tiles";
+const SEB_TILE_ROOT="https://raw.githubusercontent.com/fivenet-app/livemap-tiles/main/tiles";
 const SEB_PLACE_TYPES={
   entry:{label:"Entrée",emoji:"🚪"},
   exit:{label:"Sortie",emoji:"🚨"},
@@ -1508,9 +1511,24 @@ function destroySebLeafletObjects(){
   sebLeafletObjects=[];
   if(sebDraftRouteLayer){try{sebLeafletMap.removeLayer(sebDraftRouteLayer)}catch{};sebDraftRouteLayer=null}
 }
+function setSebMapLoadState(message,state="loading"){
+  const el=document.querySelector("#sebMapLoadState");
+  if(!el)return;
+  el.textContent=message;
+  el.hidden=!message;
+  el.dataset.state=state;
+}
 function initSebLeafletMap(){
   if(sebLeafletMap)return;
   if(typeof L==="undefined"){alert("Leaflet n'a pas pu être chargé. Vérifiez votre connexion Internet.");return}
+  const mapHost=document.querySelector("#sebLeafletMap");
+  if(mapHost && !document.querySelector("#sebMapLoadState")){
+    const msg=document.createElement("div");
+    msg.id="sebMapLoadState";
+    msg.className="seb-map-load-state";
+    msg.hidden=true;
+    mapHost.parentElement?.appendChild(msg);
+  }
   sebLeafletMap=L.map("sebLeafletMap",{
     crs:L.CRS.Simple,
     minZoom:1,maxZoom:9,
@@ -1520,16 +1538,23 @@ function initSebLeafletMap(){
     maxBoundsViscosity:1,
     attributionControl:false
   });
-  sebSatelliteLayer=L.tileLayer(`${SEB_TILE_ROOT}/satellite/{z}/{x}/{y}.webp`,{
+  const tileOptions={
     minZoom:1,maxZoom:9,maxNativeZoom:7,tileSize:256,noWrap:true,tms:true,bounds:SEB_MAP_BOUNDS,
-    keepBuffer:4,updateWhenIdle:false
-  });
-  sebPostalLayer=L.tileLayer(`${SEB_TILE_ROOT}/postal/{z}/{x}/{y}.webp`,{
-    minZoom:1,maxZoom:9,maxNativeZoom:7,tileSize:256,noWrap:true,tms:true,bounds:SEB_MAP_BOUNDS,
-    keepBuffer:4,updateWhenIdle:false
+    keepBuffer:4,updateWhenIdle:false,crossOrigin:true
+  };
+  sebSatelliteLayer=L.tileLayer(`${SEB_TILE_ROOT}/satellite/{z}/{x}/{y}.webp`,tileOptions);
+  sebPostalLayer=L.tileLayer(`${SEB_TILE_ROOT}/postal/{z}/{x}/{y}.webp`,tileOptions);
+
+  [sebSatelliteLayer,sebPostalLayer].forEach(layer=>{
+    layer.on("loading",()=>setSebMapLoadState("Chargement de la carte GTA V…","loading"));
+    layer.on("load",()=>setSebMapLoadState("","ok"));
+    layer.on("tileerror",e=>{
+      console.error("SEB map tile error:",e?.tile?.src||e);
+      setSebMapLoadState("Impossible de charger certaines tuiles de la carte. Réessayez ou rechargez la page.","error");
+    });
   });
   sebSatelliteLayer.addTo(sebLeafletMap);
-  sebLeafletMap.fitBounds(SEB_MAP_BOUNDS,{padding:[15,15]});
+  sebLeafletMap.fitBounds(SEB_MAP_BOUNDS,{padding:[15,15],animate:false});
 
   sebLeafletMap.on("mousemove",e=>{
     const x=Math.round(e.latlng.lng),y=Math.round(-e.latlng.lat);
@@ -1974,3 +1999,17 @@ $('#saveSiteSettings')?.addEventListener('click',()=>{siteSettings={portalName:$
 // Rafraîchissement à l'ouverture de la page Gestion du site.
 document.querySelector('[data-view="siteManagement"]')?.addEventListener('click',refreshSiteManager);
 applySiteSettings();renderDynamicSite();refreshSiteManager();
+
+
+// Force mouse-wheel / trackpad scrolling on the fixed sidebar.
+const sidebarWheelTarget = document.querySelector("#sidebar");
+if (sidebarWheelTarget && !sidebarWheelTarget.dataset.wheelScrollBound) {
+  sidebarWheelTarget.dataset.wheelScrollBound = "true";
+  sidebarWheelTarget.addEventListener("wheel", (event) => {
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    const maxScroll = sidebarWheelTarget.scrollHeight - sidebarWheelTarget.clientHeight;
+    if (maxScroll <= 0) return;
+    event.preventDefault();
+    sidebarWheelTarget.scrollTop += event.deltaY;
+  }, { passive: false });
+}

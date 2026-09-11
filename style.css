@@ -505,3 +505,184 @@ label { display: grid; gap: 7px; color: #d7dbe0; font-size: 13px; margin-bottom:
 .seb-leaflet-map .leaflet-popup-content-wrapper,.seb-leaflet-map .leaflet-popup-tip{background:#f1f2f3}
 .seb-leaflet-map .leaflet-popup-content{margin:10px 12px}
 @media(max-width:900px){.seb-leaflet-layout{grid-template-columns:250px minmax(620px,1fr)}}
+
+
+/* SEB map loading / error state */
+.seb-map-load-state{
+  position:absolute;
+  left:50%;
+  top:18px;
+  transform:translateX(-50%);
+  z-index:650;
+  max-width:min(560px,calc(100% - 32px));
+  padding:10px 14px;
+  border-radius:10px;
+  border:1px solid rgba(198,168,109,.35);
+  background:rgba(12,14,17,.92);
+  color:#e8e9eb;
+  font-size:12px;
+  line-height:1.4;
+  text-align:center;
+  pointer-events:none;
+}
+.seb-map-load-state[data-state="error"]{
+  border-color:rgba(215,92,100,.55);
+  color:#ffd9dc;
+}
+.seb-map-load-state[data-state="loading"]{
+  color:#d8c69d;
+}
+
+.agent-sync-state{display:flex;align-items:center;gap:8px;color:#9fa7b1;font-size:12px;padding:8px 11px;border:1px solid #2c323a;border-radius:10px;background:#12151a}
+.new-agent-alerts:empty{display:none}.new-agent-alerts{margin-bottom:14px}
+.new-agent-alert-box{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:14px 16px;border:1px solid rgba(198,168,109,.38);border-radius:13px;background:rgba(198,168,109,.08)}
+.new-agent-alert-box>div:first-child{display:flex;flex-direction:column;gap:4px}.new-agent-alert-box strong{color:#ead7ae}.new-agent-alert-box span{font-size:12px;color:#aeb5be}
+.new-agent-alert-list{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.agent-lock-note{display:block;margin-top:5px;color:#8e97a3;font-size:10px;font-weight:500}
+@media(max-width:760px){.new-agent-alert-box{align-items:flex-start;flex-direction:column}.new-agent-alert-list{justify-content:flex-start}}
+
+
+/* ===== Sidebar UX fix + BCSO logo ===== */
+.sidebar{
+  height:100vh !important;
+  height:100dvh !important;
+  max-height:100dvh !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+  touch-action:pan-y;
+  padding-bottom:28px;
+}
+
+/* Open categories take their natural height. The sidebar itself scrolls. */
+.nav-section{
+  max-height:none !important;
+  height:auto !important;
+  overflow:visible !important;
+  opacity:1;
+}
+.nav-section.collapsed{
+  display:none !important;
+  max-height:0 !important;
+  opacity:0;
+  margin:0 !important;
+  overflow:hidden !important;
+  pointer-events:none;
+}
+
+.nav-section + .nav-section-toggle,
+.dynamic-sidebar-section,
+.nav-section-toggle,
+.nav,
+.nav-item{
+  flex-shrink:0;
+}
+.nav-item{min-height:42px}
+
+/* Real BCSO badge */
+.brand{
+  min-height:78px;
+  padding:4px 42px 16px 4px;
+  gap:10px;
+  align-items:center;
+  flex-shrink:0;
+}
+.brand-logo{
+  width:64px;
+  height:64px;
+  object-fit:contain;
+  flex:0 0 64px;
+  filter:drop-shadow(0 4px 9px rgba(0,0,0,.35));
+}
+.brand-copy strong{font-size:16px;color:#f0ddae}
+.brand-copy span{line-height:1.35}
+
+/* Collapse control has a dedicated area. */
+.sidebar-collapse-btn{
+  position:absolute !important;
+  top:18px !important;
+  right:10px !important;
+  z-index:30;
+  width:28px !important;
+  height:34px !important;
+  flex:0 0 auto !important;
+  background:#171a1f;
+  border-color:rgba(198,168,109,.32);
+  color:#d6bd86;
+}
+
+/* Collapsed desktop layout: badge on top, arrow beneath it. */
+body.sidebar-collapsed .sidebar{
+  width:84px;
+  padding-left:10px;
+  padding-right:10px;
+}
+body.sidebar-collapsed .main{
+  margin-left:84px;
+  width:calc(100% - 84px);
+}
+body.sidebar-collapsed .brand{
+  min-height:112px;
+  padding:4px 0 46px;
+  justify-content:center;
+}
+body.sidebar-collapsed .brand-logo{
+  width:54px;
+  height:54px;
+  flex-basis:54px;
+}
+body.sidebar-collapsed .sidebar-collapse-btn{
+  top:74px !important;
+  right:27px !important;
+  width:30px !important;
+  height:28px !important;
+}
+body.sidebar-collapsed .brand-mark{display:none!important}
+
+/* Visible, discreet scrollbar */
+.sidebar{
+  scrollbar-width:thin;
+  scrollbar-color:#555d68 #111419;
+}
+.sidebar::-webkit-scrollbar{width:9px}
+.sidebar::-webkit-scrollbar-track{background:#111419}
+.sidebar::-webkit-scrollbar-thumb{
+  background:#555d68;
+  border-radius:12px;
+  border:2px solid #111419;
+}
+.sidebar::-webkit-scrollbar-thumb:hover{background:#707987}
+
+/* Login screen uses the same official badge */
+.auth-logo{
+  width:108px;
+  height:90px;
+  object-fit:contain;
+  display:block;
+  margin:0 auto 14px;
+  filter:drop-shadow(0 7px 14px rgba(0,0,0,.35));
+}
+
+@media(max-width:900px){
+  .sidebar{
+    height:100dvh !important;
+    max-height:100dvh !important;
+    overflow-y:auto !important;
+  }
+  .brand{padding-right:8px}
+  .sidebar-collapse-btn{display:none !important}
+  body.sidebar-collapsed .sidebar{
+    width:270px;
+    padding:22px 16px 28px;
+  }
+  body.sidebar-collapsed .brand{
+    min-height:78px;
+    padding:4px 8px 16px 4px;
+    justify-content:flex-start;
+  }
+  body.sidebar-collapsed .brand-logo{
+    width:64px;
+    height:64px;
+    flex-basis:64px;
+  }
+}
