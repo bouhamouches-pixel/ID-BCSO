@@ -15,6 +15,7 @@ function permissions(c={}){
   section("supervision",!!c.supervision); section("bcsa",d.includes("bcsa")||!!c.supervision); section("investigation",d.includes("investigation")||!!c.supervision); section("seb",d.includes("seb")||!!c.supervision);
   const site=document.querySelector('[data-view="siteManagement"]');if(site)site.hidden=!c.siteManager;
   window.BCSO_AUTH={claims:c};
+  window.dispatchEvent(new CustomEvent("bcso:auth-ready",{detail:{claims:c}}));
 }
 function show(m){if(gate)gate.hidden=false;if(status)status.textContent=m;if(logout)logout.hidden=true;}
 function hide(){if(gate)gate.hidden=true;if(logout)logout.hidden=false;}
@@ -26,7 +27,7 @@ try{const p=await finishDiscordLoginIfNeeded();if(p)syncProfile(p);}catch(e){con
 let stopAgentsSync=null;
 function startAgentsSync(claims){
   if(stopAgentsSync){stopAgentsSync();stopAgentsSync=null}
-  if(!claims?.supervision)return;
+  if(!claims?.bcso)return;
   stopAgentsSync=onSnapshot(collection(db,"agents"),snap=>{
     const agents=snap.docs.map(d=>{
       const x=d.data(),ts=v=>v?.toDate?v.toDate().toISOString():(typeof v==="string"?v:"");
@@ -35,7 +36,7 @@ function startAgentsSync(claims){
 
     // Migration automatique des comptes déjà connectés avant la correction :
     // [SHF-124], [CMD-133], [CPT-177], [SND-178], etc.
-    for(const agent of agents){
+    if(claims?.supervision) for(const agent of agents){
       if(agent.badge)continue;
       const source=agent.displayName||agent.globalName||agent.username||"";
       const match=String(source).match(/\[[^\]]*?[-–—]\s*(\d{2,4})\s*\]/i)

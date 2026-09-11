@@ -690,3 +690,55 @@ body.sidebar-collapsed .brand-mark{display:none!important}
 /* SEB definitive tile geometry fix */
 .seb-leaflet-map,
 .seb-leaflet-wrap{background:#0a0d11 !important}
+
+
+/* =========================
+   REPORTS V2 — BCSO
+   ========================= */
+.report-editor-modal,.report-view-modal,.report-tablet-modal{max-height:94vh;overflow:auto}
+.report-section{border:1px solid var(--border);background:rgba(255,255,255,.015);border-radius:14px;padding:18px;margin:0 0 16px}
+.report-section-title{display:flex;gap:12px;align-items:flex-start;margin-bottom:16px}
+.report-section-title>span{display:grid;place-items:center;min-width:34px;height:34px;border-radius:10px;background:rgba(198,168,109,.14);border:1px solid rgba(198,168,109,.35);color:var(--gold);font-weight:800}
+.report-section-title h3{margin:0 0 3px;font-size:16px}
+.report-section-title p{margin:0;color:var(--muted);font-size:12px}
+.charge-picker{display:grid;grid-template-columns:1fr 1.1fr 2fr auto;gap:10px;align-items:end}
+.charge-add-btn{height:42px;white-space:nowrap}
+.selected-charges{display:grid;gap:10px;margin:14px 0}
+.empty-state.compact{padding:14px;min-height:auto}
+.charge-card{border:1px solid var(--border);background:var(--panel);border-radius:12px;padding:14px}
+.charge-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.charge-card-head h4{margin:5px 0 3px;font-size:14px}
+.charge-card-head small{color:var(--muted)}
+.charge-code{display:inline-flex;padding:3px 8px;border-radius:999px;background:rgba(198,168,109,.14);color:var(--gold);font-size:11px;font-weight:800}
+.icon-danger-btn{border:1px solid rgba(215,92,100,.35);background:rgba(215,92,100,.08);color:var(--red);width:32px;height:32px;border-radius:9px;font-size:20px;cursor:pointer}
+.charge-reference{display:grid;gap:6px;margin:12px 0;padding:10px 12px;background:rgba(255,255,255,.02);border-radius:10px;font-size:12px;color:var(--muted)}
+.charge-reference b{color:var(--text)}
+.charge-applied{margin-top:10px}
+.report-aggravating-row{align-items:stretch}
+.report-total-box{display:flex;flex-direction:column;justify-content:center;border:1px solid rgba(198,168,109,.25);background:rgba(198,168,109,.06);border-radius:12px;padding:12px}
+.report-total-box span,.report-total-box small{color:var(--muted);font-size:11px}
+.report-total-box strong{margin:5px 0;font-size:14px;color:var(--gold)}
+.rights-details{margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.02)}
+.rights-details.is-hidden{display:none}
+.rights-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.rights-grid label{display:flex;gap:8px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:9px;background:var(--panel)}
+.rights-grid input{width:auto}
+.report-form-actions{position:sticky;bottom:-18px;background:linear-gradient(180deg,rgba(21,24,29,.1),var(--panel) 30%);padding-top:16px;z-index:3}
+.report-view-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:16px}
+.report-view-head h2{margin:8px 0 5px}
+.report-read-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.report-read-grid>div{border:1px solid var(--border);border-radius:10px;padding:12px;background:rgba(255,255,255,.02)}
+.report-read-grid span{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}
+.report-read-section{border-top:1px solid var(--border);padding:16px 0}
+.report-read-section h3{margin:0 0 10px;font-size:14px;color:var(--gold)}
+.report-read-section p{margin:6px 0;line-height:1.65}
+.report-read-charges{display:grid;gap:8px}
+.report-read-charges>div{display:grid;gap:4px;border:1px solid var(--border);border-radius:10px;padding:10px}
+.report-read-charges span{color:var(--muted);font-size:12px}
+.tablet-markdown-preview{white-space:pre-wrap;word-break:break-word;max-height:62vh;overflow:auto;background:#0a0c0f;border:1px solid var(--border);border-radius:12px;padding:18px;line-height:1.55;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+@media(max-width:900px){.charge-picker{grid-template-columns:1fr 1fr}.charge-select-label{grid-column:1/-1}.charge-add-btn{grid-column:1/-1}.rights-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.charge-picker,.rights-grid,.report-read-grid{grid-template-columns:1fr}.charge-select-label,.charge-add-btn{grid-column:auto}}
+
+
+/* Rapports V3 — confidentialité et formulaires spécialisés */
+.confidential-notice{margin:0 0 16px;padding:12px 14px;border:1px solid rgba(215,92,100,.45);border-radius:10px;background:rgba(215,92,100,.08);line-height:1.45}.disciplinary-section{border-color:rgba(215,92,100,.35)}.record-confidential{border-color:rgba(215,92,100,.35)}.report-view-head .badge.red+ h2{margin-top:8px}.report-type-panel.is-hidden{display:none!important}.disciplinary-read{border-left:3px solid #d75c64}

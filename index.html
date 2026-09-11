@@ -257,11 +257,11 @@
           <input id="myReportSearch" type="search" placeholder="Rechercher un rapport..." />
           <select id="myReportFilter">
             <option value="">Tous les types</option>
-            <option>Rapport d'arrestation</option>
-            <option>Rapport d'intervention</option>
-            <option>Rapport d'incident</option>
-            <option>Rapport de patrouille</option>
-            <option>Autre</option>
+            <option>Arrestation</option>
+            <option>Intervention</option>
+            <option>Plainte</option>
+            <option>Interrogatoire / Déposition</option>
+            <option>Rapport disciplinaire</option>
           </select>
         </div>
         <div id="myReportsList" class="cards-list"></div>
@@ -279,11 +279,11 @@
           <input id="dbSearch" type="search" placeholder="N° de rapport, titre, auteur..." />
           <select id="dbTypeFilter">
             <option value="">Tous les types</option>
-            <option>Rapport d'arrestation</option>
-            <option>Rapport d'intervention</option>
-            <option>Rapport d'incident</option>
-            <option>Rapport de patrouille</option>
-            <option>Autre</option>
+            <option>Arrestation</option>
+            <option>Intervention</option>
+            <option>Plainte</option>
+            <option>Interrogatoire / Déposition</option>
+            <option>Rapport disciplinaire</option>
           </select>
         </div>
         <div id="reportsDbList" class="cards-list"></div>
@@ -726,74 +726,259 @@
   </div>
 
   <div class="modal" id="reportModal" aria-hidden="true">
-    <div class="modal-card wide">
+    <div class="modal-card extra-wide report-editor-modal">
       <button class="modal-close" data-close="reportModal">×</button>
-      <p class="eyebrow">Rapports</p>
-      <h2>Nouveau rapport</h2>
+      <p class="eyebrow">Rapports BCSO</p>
+      <h2 id="reportModalTitle">Nouveau rapport</h2>
       <form id="reportForm">
-        <div class="form-grid two">
-          <label>
-            Type de rapport
-            <select id="reportType" required>
-              <option value="">Sélectionner</option>
-              <option>Rapport d'arrestation</option>
-              <option>Rapport d'intervention</option>
-              <option>Rapport d'incident</option>
-              <option>Rapport de patrouille</option>
-              <option>Autre</option>
-            </select>
+        <input type="hidden" id="reportEditId">
+
+        <div class="report-section">
+          <div class="report-section-title"><span>01</span><div><h3>Informations générales</h3><p>Le formulaire s'adapte automatiquement au type de rapport.</p></div></div>
+          <div class="form-grid two">
+            <label>Type de rapport
+              <select id="reportType" required>
+                <option value="">Sélectionner</option>
+                <option>Arrestation</option>
+                <option>Intervention</option>
+                <option>Plainte</option>
+                <option>Interrogatoire / Déposition</option>
+                <option>Rapport disciplinaire</option>
+              </select>
+            </label>
+            <label>Date et heure
+              <input id="reportDate" type="datetime-local" required />
+            </label>
+          </div>
+          <label>Titre / objet
+            <input id="reportTitle" required placeholder="Objet du rapport" />
           </label>
-          <label>
-            Date et heure
-            <input id="reportDate" type="datetime-local" required />
+          <div class="form-grid two">
+            <label>Lieu
+              <input id="reportLocation" placeholder="Lieu concerné" />
+            </label>
+            <label>Agents présents / impliqués
+              <input id="reportAgents" placeholder="Ex. [CPT-177] K. Belkacem" />
+            </label>
+          </div>
+        </div>
+
+        <div class="report-section report-type-panel" id="reportStandardPeopleSection">
+          <div class="report-section-title"><span>02</span><div><h3>Personnes et éléments impliqués</h3><p>Informations utiles aux rapports d'intervention et d'arrestation.</p></div></div>
+          <label>Personne(s) concernée(s)
+            <textarea id="reportPersons" rows="3" placeholder="Nom, prénom, rôle ou statut. Une personne par ligne si possible."></textarea>
+          </label>
+          <div class="form-grid two">
+            <label>Véhicules impliqués
+              <textarea id="reportVehicles" rows="3" placeholder="Modèle, plaque, couleur, propriétaire, statut..."></textarea>
+            </label>
+            <label>Armes / objets / saisies
+              <textarea id="reportSeizures" rows="3" placeholder="Objet, quantité, numéro de série, propriétaire..."></textarea>
+            </label>
+          </div>
+        </div>
+
+        <div class="report-section report-type-panel is-hidden" id="reportComplaintSection">
+          <div class="report-section-title"><span>02</span><div><h3>Informations sur la plainte</h3><p>Identifier clairement le plaignant, la personne mise en cause et les faits dénoncés.</p></div></div>
+          <div class="form-grid two">
+            <label>Plaignant / victime
+              <input id="reportComplainant" placeholder="Nom et prénom" />
+            </label>
+            <label>Personne mise en cause
+              <input id="reportRespondent" placeholder="Nom et prénom, si connu" />
+            </label>
+          </div>
+          <div class="form-grid two">
+            <label>Nature de la plainte
+              <select id="reportComplaintNature">
+                <option value="">Sélectionner</option>
+                <option>Atteinte aux personnes</option>
+                <option>Atteinte aux biens</option>
+                <option>Menace / harcèlement</option>
+                <option>Vol / escroquerie</option>
+                <option>Infraction routière</option>
+                <option>Plainte contre un agent</option>
+                <option>Autre</option>
+              </select>
+            </label>
+            <label>Date / heure des faits
+              <input id="reportComplaintIncidentDate" type="datetime-local" />
+            </label>
+          </div>
+          <label>Témoins éventuels
+            <textarea id="reportComplaintWitnesses" rows="3" placeholder="Nom, prénom et éléments permettant de les identifier."></textarea>
+          </label>
+          <label>Préjudice / dommage déclaré
+            <textarea id="reportComplaintDamage" rows="3" placeholder="Blessures, pertes, dégâts, préjudice financier..."></textarea>
+          </label>
+          <label>Demande / suite souhaitée par le plaignant
+            <textarea id="reportComplaintRequest" rows="3" placeholder="Dépôt de plainte, poursuites, restitution, information complémentaire..."></textarea>
           </label>
         </div>
 
-        <label>
-          Titre / objet
-          <input id="reportTitle" required placeholder="Ex. Interpellation Route 68" />
-        </label>
-
-        <div class="form-grid two">
-          <label>
-            Lieu
-            <input id="reportLocation" placeholder="Lieu de l'intervention" />
+        <div class="report-section report-type-panel is-hidden" id="reportInterviewSection">
+          <div class="report-section-title"><span>02</span><div><h3>Interrogatoire / Déposition</h3><p>Tracer les conditions de l'audition et la qualité de la personne entendue.</p></div></div>
+          <div class="form-grid two">
+            <label>Personne entendue
+              <input id="reportInterviewPerson" placeholder="Nom et prénom" />
+            </label>
+            <label>Qualité de la personne
+              <select id="reportInterviewStatus">
+                <option value="">Sélectionner</option>
+                <option>Suspect</option>
+                <option>Témoin</option>
+                <option>Victime</option>
+                <option>Plaignant</option>
+                <option>Personne d'intérêt</option>
+                <option>Autre</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-grid three">
+            <label>Heure de début
+              <input id="reportInterviewStart" type="time" />
+            </label>
+            <label>Heure de fin
+              <input id="reportInterviewEnd" type="time" />
+            </label>
+            <label>Avocat présent ?
+              <select id="reportInterviewLawyer"><option>Non</option><option>Oui</option><option>Non applicable</option></select>
+            </label>
+          </div>
+          <label>Identité de l'avocat / accompagnant
+            <input id="reportInterviewLawyerName" placeholder="Nom, si applicable" />
           </label>
-          <label>
-            Personne(s) concernée(s)
-            <input id="reportPersons" placeholder="Nom(s)" />
+          <label>Objet de l'interrogatoire / de la déposition
+            <textarea id="reportInterviewSubject" rows="3" placeholder="Affaire concernée, faits sur lesquels porte l'audition..."></textarea>
           </label>
         </div>
 
-        <label>
-          Résumé des faits
-          <textarea id="reportSummary" rows="6" required placeholder="Décrivez les faits..."></textarea>
-        </label>
-
-        <div class="form-grid two">
-          <label>
-            Infractions retenues
-            <textarea id="reportOffenses" rows="4"></textarea>
+        <div class="report-section report-type-panel is-hidden disciplinary-section" id="reportDisciplinarySection">
+          <div class="report-section-title"><span>02</span><div><h3>Rapport disciplinaire</h3><p>Document confidentiel : visible uniquement par le rédacteur et la Supervision.</p></div></div>
+          <div class="confidential-notice">🔒 <strong>Confidentiel</strong> — ce rapport est exclu de la base publique des rapports pour les agents non membres de la Supervision.</div>
+          <div class="form-grid two">
+            <label>Agent impliqué
+              <select id="reportDisciplinaryAgent" required disabled><option value="">Chargement des agents...</option></select>
+            </label>
+            <label>Nature du signalement
+              <select id="reportDisciplinaryCategory">
+                <option value="">Sélectionner</option>
+                <option>Comportement inapproprié</option>
+                <option>Non-respect d'une procédure</option>
+                <option>Insubordination</option>
+                <option>Usage inapproprié de la force</option>
+                <option>Abus d'autorité</option>
+                <option>Absence / manquement au service</option>
+                <option>Manquement à l'éthique</option>
+                <option>Autre</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-grid two">
+            <label>Date / heure des faits
+              <input id="reportDisciplinaryIncidentDate" type="datetime-local" />
+            </label>
+            <label>Témoins / agents présents
+              <input id="reportDisciplinaryWitnesses" placeholder="Nom(s), matricule(s)" />
+            </label>
+          </div>
+          <label>Règle / procédure potentiellement enfreinte
+            <textarea id="reportDisciplinaryRule" rows="3" placeholder="Procédure, directive, ordre ou règle concernée."></textarea>
           </label>
-          <label>
-            Éléments / preuves
-            <textarea id="reportEvidence" rows="4"></textarea>
+          <label>Mesures immédiates prises
+            <textarea id="reportDisciplinaryImmediate" rows="3" placeholder="Retrait temporaire d'une fonction, rappel à l'ordre, transmission à la hiérarchie..."></textarea>
+          </label>
+          <label>Recommandation du rédacteur
+            <textarea id="reportDisciplinaryRecommendation" rows="3" placeholder="Classement, entretien, avertissement, enquête interne, mesure disciplinaire..."></textarea>
           </label>
         </div>
 
-        <label>
-          Observations
-          <textarea id="reportNotes" rows="3"></textarea>
-        </label>
+        <div class="report-section report-charges-section report-type-panel" id="reportChargesSection">
+          <div class="report-section-title"><span>03</span><div><h3>Chefs d'accusation et peines</h3><p>Référentiel issu du Livre des Peines 2026 Legacy World.</p></div></div>
+          <div class="charge-picker">
+            <label>Catégorie<select id="reportChargeCategory"><option value="">Toutes les catégories</option></select></label>
+            <label>Rechercher<input id="reportChargeSearch" type="search" placeholder="Code ou intitulé..." /></label>
+            <label class="charge-select-label">Chef d'accusation<select id="reportChargeSelect"><option value="">Sélectionner un chef...</option></select></label>
+            <button type="button" class="secondary-btn charge-add-btn" id="reportAddChargeBtn">+ Ajouter</button>
+          </div>
+          <div id="reportSelectedCharges" class="selected-charges"></div>
+          <div class="form-grid two report-aggravating-row">
+            <label>Circonstance aggravante<select id="reportAggravating"><option value="">Aucune</option></select></label>
+            <div class="report-total-box"><span>Estimation des sanctions</span><strong id="reportChargeTotals">Aucun chef sélectionné</strong><small>Les montants et peines appliqués restent modifiables par l'agent.</small></div>
+          </div>
+        </div>
 
-        <div class="modal-actions">
+        <div class="report-section report-type-panel" id="reportMirandaSection">
+          <div class="report-section-title"><span>04</span><div><h3>Droits Miranda</h3><p>Tracer précisément la lecture et l'exercice éventuel d'un droit.</p></div></div>
+          <div class="form-grid three">
+            <label>Droits lus ?<select id="reportMirandaRead"><option value="Non applicable">Non applicable</option><option value="Oui">Oui</option><option value="Non">Non</option></select></label>
+            <label>Heure de lecture<input id="reportMirandaTime" type="time"></label>
+            <label>Agent ayant procédé à la lecture<input id="reportMirandaOfficer" placeholder="Agent / matricule"></label>
+          </div>
+          <div class="form-grid two">
+            <label>Compréhension confirmée ?<select id="reportMirandaUnderstood"><option value="">Non renseigné</option><option>Oui</option><option>Non</option><option>Refus de répondre</option></select></label>
+            <label>Souhaite faire valoir un droit ?<select id="reportRightsInvoked"><option value="Non">Non</option><option value="Oui">Oui</option></select></label>
+          </div>
+          <div id="reportRightsDetails" class="rights-details is-hidden">
+            <div class="rights-grid">
+              <label><input type="checkbox" name="reportRight" value="Droit de garder le silence"> Droit de garder le silence</label>
+              <label><input type="checkbox" name="reportRight" value="Présence d'un avocat"> Présence d'un avocat</label>
+              <label><input type="checkbox" name="reportRight" value="Avocat commis d'office"> Avocat commis d'office</label>
+              <label><input type="checkbox" name="reportRight" value="Soins médicaux"> Soins médicaux</label>
+              <label><input type="checkbox" name="reportRight" value="Nourriture / boisson"> Nourriture / boisson</label>
+              <label><input type="checkbox" name="reportRight" value="Autre"> Autre</label>
+            </div>
+            <div class="form-grid two"><label>Heure de la demande<input id="reportRightsTime" type="time"></label><label>Précisions<input id="reportRightsNotes" placeholder="Ex. avocat contacté, demande particulière..."></label></div>
+          </div>
+        </div>
+
+        <div class="report-section">
+          <div class="report-section-title"><span>05</span><div><h3 id="reportNarrativeTitle">Rédaction</h3><p id="reportNarrativeHelp">Rester factuel, chronologique et individualiser les faits.</p></div></div>
+          <label id="reportSummaryLabel">Déroulement / corps du rapport
+            <textarea id="reportSummary" rows="10" required placeholder="Décrivez chronologiquement les faits..."></textarea>
+          </label>
+          <div class="form-grid two">
+            <label>Éléments / preuves<textarea id="reportEvidence" rows="4" placeholder="Photos, vidéos, témoignages, objets, documents..."></textarea></label>
+            <label id="reportDecisionLabel">Décision / issue de la procédure<textarea id="reportDecision" rows="4" placeholder="Suite donnée, transfert, classement, mesure appliquée..."></textarea></label>
+          </div>
+          <label>Observations complémentaires<textarea id="reportNotes" rows="3" placeholder="Informations utiles ne figurant pas ailleurs..."></textarea></label>
+        </div>
+
+        <div class="modal-actions report-form-actions">
           <button type="button" class="secondary-btn" data-close="reportModal">Annuler</button>
+          <button type="button" class="secondary-btn" id="reportPreviewDraftBtn">Aperçu tablette</button>
           <button type="submit" class="primary-btn">Enregistrer le rapport</button>
         </div>
       </form>
     </div>
   </div>
 
+  <div class="modal" id="reportViewModal" aria-hidden="true">
+    <div class="modal-card extra-wide report-view-modal">
+      <button class="modal-close" data-close="reportViewModal">×</button>
+      <p class="eyebrow">Rapport BCSO</p>
+      <div id="reportViewContent"></div>
+      <div class="modal-actions">
+        <button type="button" class="secondary-btn" data-close="reportViewModal">Fermer</button>
+        <button type="button" class="secondary-btn" id="reportEditBtn">Modifier</button>
+        <button type="button" class="primary-btn" id="reportCopyTabletBtn">📋 Copier pour la tablette</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="reportTabletPreviewModal" aria-hidden="true">
+    <div class="modal-card extra-wide report-tablet-modal">
+      <button class="modal-close" data-close="reportTabletPreviewModal">×</button>
+      <p class="eyebrow">Export tablette FDO</p>
+      <h2>Aperçu Markdown</h2>
+      <p class="muted">Le numéro interne du rapport et les informations de casier ne sont jamais exportés.</p>
+      <pre id="reportTabletPreview" class="tablet-markdown-preview"></pre>
+      <div class="modal-actions">
+        <button type="button" class="secondary-btn" data-close="reportTabletPreviewModal">Fermer</button>
+        <button type="button" class="primary-btn" id="reportCopyPreviewBtn">📋 Copier</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal" id="agentModal" aria-hidden="true">
     <div class="modal-card wide">
