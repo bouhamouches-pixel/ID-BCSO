@@ -10,6 +10,7 @@ const STORAGE = {
   complaints: "bcso_demo_complaints",
   warrants: "bcso_demo_warrants",
   navSections: "bcso_demo_nav_sections",
+  sidebarCollapsed: "bcso_sidebar_collapsed",
   materialRequests: "bcso_demo_material_requests",
   notifications: "bcso_demo_notifications",
   convocations: "bcso_demo_convocations"
@@ -163,6 +164,26 @@ $$(".nav-item").forEach(btn => {
   });
 });
 $("#mobileMenu").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
+
+// SIDEBAR ENTIÈREMENT REPLIABLE SUR ORDINATEUR
+const sidebarCollapseBtn = $("#sidebarCollapseBtn");
+const sidebarCollapsed = localStorage.getItem(STORAGE.sidebarCollapsed) === "true";
+
+function setSidebarCollapsed(collapsed) {
+  document.body.classList.toggle("sidebar-collapsed", collapsed);
+  if (sidebarCollapseBtn) {
+    sidebarCollapseBtn.textContent = collapsed ? "›" : "‹";
+    sidebarCollapseBtn.setAttribute("aria-label", collapsed ? "Déplier le menu" : "Replier le menu");
+    sidebarCollapseBtn.title = collapsed ? "Déplier le menu" : "Replier le menu";
+  }
+  localStorage.setItem(STORAGE.sidebarCollapsed, String(collapsed));
+}
+
+setSidebarCollapsed(sidebarCollapsed);
+sidebarCollapseBtn?.addEventListener("click", () => {
+  if (window.matchMedia("(max-width: 980px)").matches) return;
+  setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed"));
+});
 
 function openModal(id) {
   const modal = document.getElementById(id);
@@ -1134,74 +1155,313 @@ renderBcsa();
 
 
 // ================= INVESTIGATION DIVISION =================
-const INV_STORAGE={cases:"bcso_demo_inv_cases",suspects:"bcso_demo_inv_suspects",boards:"bcso_demo_inv_boards"};
+const INV_STORAGE={
+  cases:"bcso_demo_inv_cases",
+  suspects:"bcso_demo_inv_suspects",
+  witnesses:"bcso_demo_inv_witnesses",
+  boards:"bcso_demo_inv_boards"
+};
 const seedInvCases=[
-  {id:"INV-2026-0001",title:"Trafic d’armes — Sandy Shores",status:"En cours",priority:"Élevée",investigators:"K. Belkacem, J. Carter",opened:"2026-09-08",summary:"Enquête portant sur plusieurs transactions suspectes et un possible réseau de revente d’armes.",updatedAt:"2026-09-10T01:42:00",suspectIds:["SUS-2026-0001"],reportIds:["R-2026-0004"]},
-  {id:"INV-2026-0002",title:"Série de vols — Grapeseed",status:"Ouvert",priority:"Normale",investigators:"M. Owens",opened:"2026-09-09",summary:"Rapprochement de plusieurs faits similaires signalés dans le secteur de Grapeseed.",updatedAt:"2026-09-09T23:10:00",suspectIds:[],reportIds:["R-2026-0003"]}
+  {id:"INV-2026-0001",title:"Trafic d’armes — Sandy Shores",status:"En cours",priority:"Élevée",investigators:"K. Belkacem, J. Carter",opened:"2026-09-08",summary:"Enquête portant sur plusieurs transactions suspectes et un possible réseau de revente d’armes.",updatedAt:"2026-09-10T01:42:00",suspectIds:["SUS-2026-0001"],witnessIds:[],reportIds:["R-2026-0004"]},
+  {id:"INV-2026-0002",title:"Série de vols — Grapeseed",status:"Ouvert",priority:"Normale",investigators:"M. Owens",opened:"2026-09-09",summary:"Rapprochement de plusieurs faits similaires signalés dans le secteur de Grapeseed.",updatedAt:"2026-09-09T23:10:00",suspectIds:[],witnessIds:[],reportIds:["R-2026-0003"]}
 ];
 const seedInvSuspects=[
-  {id:"SUS-2026-0001",name:"John William",alias:"JW",danger:"Élevée",grouped:"yes",group:"Red Vultures",role:"Intermédiaire présumé",vehicles:"Sultan noir — plaque inconnue",notes:"Suspect relié à plusieurs contacts identifiés dans le dossier armes.",caseIds:["INV-2026-0001"],createdBy:"K. Belkacem",updatedAt:"2026-09-10T01:30:00"},
-  {id:"SUS-2026-0002",name:"Michael Carter",alias:"",danger:"Moyenne",grouped:"no",group:"",role:"",vehicles:"Baller gris — 6ABC219",notes:"À vérifier. Présence récurrente sur plusieurs scènes.",caseIds:[],createdBy:"J. Carter",updatedAt:"2026-09-09T20:05:00"}
+  {id:"SUS-2026-0001",lastName:"William",firstName:"John",name:"John William",alias:"JW",danger:"Élevée",group:"Red Vultures",role:"Intermédiaire présumé",vehicles:"Sultan noir — plaque inconnue",notes:"Suspect relié à plusieurs contacts identifiés dans le dossier armes.",photo:null,caseIds:["INV-2026-0001"],createdBy:"K. Belkacem",updatedAt:"2026-09-10T01:30:00"},
+  {id:"SUS-2026-0002",lastName:"Carter",firstName:"Michael",name:"Michael Carter",alias:"",danger:"Moyenne",group:"",role:"",vehicles:"Baller gris — 6ABC219",notes:"À vérifier. Présence récurrente sur plusieurs scènes.",photo:null,caseIds:[],createdBy:"J. Carter",updatedAt:"2026-09-09T20:05:00"}
 ];
-let invCases=load(INV_STORAGE.cases,seedInvCases),invSuspects=load(INV_STORAGE.suspects,seedInvSuspects),invBoards=load(INV_STORAGE.boards,{}),currentInvCaseId=null,invZoom=1;
-save(INV_STORAGE.cases,invCases);save(INV_STORAGE.suspects,invSuspects);save(INV_STORAGE.boards,invBoards);
+const seedInvWitnesses=[];
+let invCases=load(INV_STORAGE.cases,seedInvCases),
+    invSuspects=load(INV_STORAGE.suspects,seedInvSuspects),
+    invWitnesses=load(INV_STORAGE.witnesses,seedInvWitnesses),
+    invBoards=load(INV_STORAGE.boards,{});
+let currentInvCaseId=null,invZoom=1,invLinkMode=false,invLinkStartId=null,invPendingImageQueue=[];
+
+function normalizeInvData(){
+  invCases.forEach(c=>{c.suspectIds=c.suspectIds||[];c.witnessIds=c.witnessIds||[];c.reportIds=c.reportIds||[]});
+  invSuspects.forEach(s=>{
+    if(!s.firstName&&!s.lastName&&s.name){
+      const p=s.name.trim().split(/\s+/);s.firstName=p.shift()||"";s.lastName=p.join(" ")||"";
+    }
+    s.name=[s.firstName,s.lastName].filter(Boolean).join(" ")||s.name||"Inconnu";
+    s.group=s.group||"";s.photo=s.photo||null;s.caseIds=s.caseIds||[];
+  });
+  Object.values(invBoards).forEach(b=>{b.nodes=b.nodes||[];b.links=b.links||[]});
+}
+normalizeInvData();
+save(INV_STORAGE.cases,invCases);save(INV_STORAGE.suspects,invSuspects);save(INV_STORAGE.witnesses,invWitnesses);save(INV_STORAGE.boards,invBoards);
+
 function invNextId(prefix,items){const y=new Date().getFullYear(),nums=items.filter(x=>x.id.startsWith(`${prefix}-${y}-`)).map(x=>parseInt(x.id.split("-").pop(),10)||0);return `${prefix}-${y}-${String((Math.max(0,...nums)+1)).padStart(4,"0")}`}
 function invStatusClass(s){return s==="Classé"?"good":s==="En attente"?"warn":s==="Transmis"?"warn":""}
 function invPriorityClass(p){return p==="Critique"?"bad":p==="Élevée"?"warn":""}
-function invRenderCases(){const q=($("#invCaseSearch")?.value||"").toLowerCase(),st=$("#invCaseStatus")?.value||"",pr=$("#invCasePriority")?.value||"";const rows=invCases.filter(c=>(!st||c.status===st)&&(!pr||c.priority===pr)&&[c.id,c.title,c.investigators,c.summary].join(" ").toLowerCase().includes(q));$("#invActiveCount").textContent=invCases.filter(c=>c.status!=="Classé").length;$("#invHighCount").textContent=invCases.filter(c=>["Élevée","Critique"].includes(c.priority)&&c.status!=="Classé").length;$("#invClosedCount").textContent=invCases.filter(c=>c.status==="Classé").length;$("#invLinkedSuspects").textContent=new Set(invCases.flatMap(c=>c.suspectIds||[])).size;$("#invCasesList").innerHTML=rows.map(c=>`<article class="inv-case-card ${c.priority==="Critique"?"priority-critical":c.priority==="Élevée"?"priority-high":""}"><div class="inv-case-top"><div><div class="inv-id">${escapeHtml(c.id)}</div><h3>${escapeHtml(c.title)}</h3></div><span class="inv-tag ${invStatusClass(c.status)}">${escapeHtml(c.status)}</span></div><div class="inv-meta"><span>Priorité : <strong>${escapeHtml(c.priority)}</strong></span><span>Ouvert le ${escapeHtml(c.opened.split("-").reverse().join("/"))}</span><span>${(c.suspectIds||[]).length} suspect(s)</span><span>${(c.reportIds||[]).length} rapport(s)</span></div><div class="inv-meta">Enquêteur(s) : ${escapeHtml(c.investigators)}</div><p class="inv-summary">${escapeHtml(c.summary||"Aucun résumé.")}</p><div class="inv-actions"><button class="primary-btn" data-inv-open="${c.id}">Ouvrir</button><button class="secondary-btn" data-inv-edit="${c.id}">Modifier</button><button class="danger-outline" data-inv-delete="${c.id}">Supprimer</button></div></article>`).join("")||'<div class="inv-empty">Aucun dossier ne correspond aux filtres.</div>';$$('[data-inv-open]').forEach(b=>b.onclick=()=>openInvBoard(b.dataset.invOpen));$$('[data-inv-edit]').forEach(b=>b.onclick=()=>openInvCaseForm(b.dataset.invEdit));$$('[data-inv-delete]').forEach(b=>b.onclick=()=>deleteInvCase(b.dataset.invDelete))}
-function openInvCaseForm(id=null){const c=id?invCases.find(x=>x.id===id):null;$("#invCaseForm").reset();$("#invCaseId").value=c?.id||"";$("#invCaseModalTitle").textContent=c?`Modifier ${c.id}`:"Nouveau dossier";$("#invCaseTitle").value=c?.title||"";$("#invCaseInvestigators").value=c?.investigators||profile.name;$("#invCaseFormStatus").value=c?.status||"Ouvert";$("#invCaseFormPriority").value=c?.priority||"Normale";$("#invCaseOpened").value=c?.opened||new Date().toISOString().slice(0,10);$("#invCaseSummary").value=c?.summary||"";openModal("invCaseModal")}
-function deleteInvCase(id){const c=invCases.find(x=>x.id===id);if(!c||!confirm(`Supprimer définitivement ${c.id} — ${c.title} ?`))return;invCases=invCases.filter(x=>x.id!==id);invSuspects.forEach(s=>s.caseIds=(s.caseIds||[]).filter(x=>x!==id));delete invBoards[id];save(INV_STORAGE.cases,invCases);save(INV_STORAGE.suspects,invSuspects);save(INV_STORAGE.boards,invBoards);invRenderAll()}
-function invRenderSuspects(){const q=($("#invSuspectSearch")?.value||"").toLowerCase(),gf=$("#invSuspectGroupFilter")?.value||"",df=$("#invSuspectDangerFilter")?.value||"";const rows=invSuspects.filter(s=>(!gf||s.grouped===gf)&&(!df||s.danger===df)&&[s.name,s.alias,s.group,s.role,s.vehicles,s.notes].join(" ").toLowerCase().includes(q));$("#invSuspectCount").textContent=invSuspects.length;$("#invGroupCount").textContent=invSuspects.filter(s=>s.grouped==="yes").length;$("#invDangerCount").textContent=invSuspects.filter(s=>["Élevée","Critique"].includes(s.danger)).length;$("#invUniqueGroups").textContent=new Set(invSuspects.filter(s=>s.grouped==="yes"&&s.group).map(s=>s.group.trim().toLowerCase())).size;$("#invSuspectsList").innerHTML=rows.map(s=>`<article class="inv-suspect-card"><div class="inv-suspect-top"><div><div class="inv-id">${escapeHtml(s.id)}</div><h3>${escapeHtml(s.name)}</h3>${s.alias?`<span class="muted">Alias : ${escapeHtml(s.alias)}</span>`:""}</div><span class="inv-tag ${invPriorityClass(s.danger)}">${escapeHtml(s.danger)}</span></div><div class="inv-meta"><span>Groupuscule : <strong>${s.grouped==="yes"?"Oui":"Non"}</strong></span>${s.grouped==="yes"?`<span class="group-name">${escapeHtml(s.group||"Non renseigné")}</span>`:""}<span>${(s.caseIds||[]).length} dossier(s)</span></div>${s.role?`<div class="inv-meta">Rôle supposé : ${escapeHtml(s.role)}</div>`:""}${s.vehicles?`<div class="inv-meta">Véhicules : ${escapeHtml(s.vehicles)}</div>`:""}<p class="inv-summary">${escapeHtml(s.notes||"Aucune note.")}</p><div class="inv-actions"><button class="secondary-btn" data-inv-suspect-edit="${s.id}">Modifier</button><button class="danger-outline" data-inv-suspect-delete="${s.id}">Supprimer</button></div></article>`).join("")||'<div class="inv-empty">Aucune fiche suspect trouvée.</div>';$$('[data-inv-suspect-edit]').forEach(b=>b.onclick=()=>openInvSuspectForm(b.dataset.invSuspectEdit));$$('[data-inv-suspect-delete]').forEach(b=>b.onclick=()=>deleteInvSuspect(b.dataset.invSuspectDelete))}
-function openInvSuspectForm(id=null){const s=id?invSuspects.find(x=>x.id===id):null;$("#invSuspectForm").reset();$("#invSuspectId").value=s?.id||"";$("#invSuspectModalTitle").textContent=s?`Modifier ${s.id}`:"Nouvelle fiche suspect";$("#invSuspectName").value=s?.name||"";$("#invSuspectAlias").value=s?.alias||"";$("#invSuspectDanger").value=s?.danger||"Faible";$("#invSuspectGrouped").value=s?.grouped||"no";$("#invSuspectGroup").value=s?.group||"";$("#invSuspectRole").value=s?.role||"";$("#invSuspectVehicles").value=s?.vehicles||"";$("#invSuspectNotes").value=s?.notes||"";toggleInvGroupField();openModal("invSuspectModal")}
-function toggleInvGroupField(){$("#invSuspectGroup").disabled=$("#invSuspectGrouped").value!=="yes";if($("#invSuspectGroup").disabled)$("#invSuspectGroup").value=""}
-function deleteInvSuspect(id){const s=invSuspects.find(x=>x.id===id);if(!s||!confirm(`Supprimer la fiche ${s.name} ?`))return;invSuspects=invSuspects.filter(x=>x.id!==id);invCases.forEach(c=>c.suspectIds=(c.suspectIds||[]).filter(x=>x!==id));Object.values(invBoards).forEach(b=>b.nodes=(b.nodes||[]).filter(n=>!(n.kind==="suspect"&&n.refId===id)));save(INV_STORAGE.suspects,invSuspects);save(INV_STORAGE.cases,invCases);save(INV_STORAGE.boards,invBoards);invRenderAll()}
+function invPersonName(p){return [p.firstName,p.lastName].filter(Boolean).join(" ")||p.name||"Inconnu"}
+
+function invRenderCases(){
+  const q=($("#invCaseSearch")?.value||"").toLowerCase(),st=$("#invCaseStatus")?.value||"",pr=$("#invCasePriority")?.value||"";
+  const rows=invCases.filter(c=>(!st||c.status===st)&&(!pr||c.priority===pr)&&[c.id,c.title,c.investigators,c.summary].join(" ").toLowerCase().includes(q));
+  $("#invActiveCount").textContent=invCases.filter(c=>c.status!=="Classé").length;
+  $("#invHighCount").textContent=invCases.filter(c=>["Élevée","Critique"].includes(c.priority)&&c.status!=="Classé").length;
+  $("#invClosedCount").textContent=invCases.filter(c=>c.status==="Classé").length;
+  $("#invLinkedSuspects").textContent=new Set(invCases.flatMap(c=>c.suspectIds||[])).size;
+  $("#invCasesList").innerHTML=rows.map(c=>`<article class="inv-case-card ${c.priority==="Critique"?"priority-critical":c.priority==="Élevée"?"priority-high":""}">
+    <div class="inv-case-top"><div><div class="inv-id">${escapeHtml(c.id)}</div><h3>${escapeHtml(c.title)}</h3></div><span class="inv-tag ${invStatusClass(c.status)}">${escapeHtml(c.status)}</span></div>
+    <div class="inv-meta"><span>Priorité : <strong>${escapeHtml(c.priority)}</strong></span><span>Ouvert le ${escapeHtml(c.opened.split("-").reverse().join("/"))}</span><span>${(c.suspectIds||[]).length} suspect(s)</span><span>${(c.witnessIds||[]).length} témoin(s)</span><span>${(c.reportIds||[]).length} rapport(s)</span></div>
+    <div class="inv-meta">Enquêteur(s) : ${escapeHtml(c.investigators)}</div><p class="inv-summary">${escapeHtml(c.summary||"Aucun résumé.")}</p>
+    <div class="inv-actions"><button class="primary-btn" data-inv-open="${c.id}">Ouvrir</button><button class="secondary-btn" data-inv-edit="${c.id}">Modifier</button><button class="danger-outline" data-inv-delete="${c.id}">Supprimer</button></div>
+  </article>`).join("")||'<div class="inv-empty">Aucun dossier ne correspond aux filtres.</div>';
+  $$('[data-inv-open]').forEach(b=>b.onclick=()=>openInvBoard(b.dataset.invOpen));
+  $$('[data-inv-edit]').forEach(b=>b.onclick=()=>openInvCaseForm(b.dataset.invEdit));
+  $$('[data-inv-delete]').forEach(b=>b.onclick=()=>deleteInvCase(b.dataset.invDelete));
+}
+function openInvCaseForm(id=null){
+  const c=id?invCases.find(x=>x.id===id):null;$("#invCaseForm").reset();$("#invCaseId").value=c?.id||"";
+  $("#invCaseModalTitle").textContent=c?`Modifier ${c.id}`:"Nouveau dossier";$("#invCaseTitle").value=c?.title||"";
+  $("#invCaseInvestigators").value=c?.investigators||profile.name;$("#invCaseFormStatus").value=c?.status||"Ouvert";
+  $("#invCaseFormPriority").value=c?.priority||"Normale";$("#invCaseOpened").value=c?.opened||new Date().toISOString().slice(0,10);$("#invCaseSummary").value=c?.summary||"";openModal("invCaseModal")
+}
+function deleteInvCase(id){
+  const c=invCases.find(x=>x.id===id);if(!c||!confirm(`Supprimer définitivement ${c.id} — ${c.title} ?`))return;
+  invCases=invCases.filter(x=>x.id!==id);invSuspects.forEach(s=>s.caseIds=(s.caseIds||[]).filter(x=>x!==id));invWitnesses.forEach(w=>w.caseIds=(w.caseIds||[]).filter(x=>x!==id));
+  delete invBoards[id];save(INV_STORAGE.cases,invCases);save(INV_STORAGE.suspects,invSuspects);save(INV_STORAGE.witnesses,invWitnesses);save(INV_STORAGE.boards,invBoards);invRenderAll()
+}
+
+function invRenderSuspects(){
+  const q=($("#invSuspectSearch")?.value||"").toLowerCase(),gf=$("#invSuspectGroupFilter")?.value||"",df=$("#invSuspectDangerFilter")?.value||"";
+  const rows=invSuspects.filter(s=>(!gf||(gf==="yes"?!!s.group:!s.group))&&(!df||s.danger===df)&&[invPersonName(s),s.alias,s.group,s.role,s.vehicles,s.notes].join(" ").toLowerCase().includes(q));
+  $("#invSuspectCount").textContent=invSuspects.length;$("#invGroupCount").textContent=invSuspects.filter(s=>s.group).length;$("#invDangerCount").textContent=invSuspects.filter(s=>["Élevée","Critique"].includes(s.danger)).length;
+  $("#invUniqueGroups").textContent=new Set(invSuspects.filter(s=>s.group).map(s=>s.group.trim().toLowerCase())).size;
+  $("#invSuspectsList").innerHTML=rows.map(s=>`<article class="inv-suspect-card">
+    <div class="inv-suspect-top"><div>${s.photo?`<img class="inv-person-thumb" src="${s.photo}" alt="">`:""}<div class="inv-id">${escapeHtml(s.id)}</div><h3>${escapeHtml(invPersonName(s))}</h3>${s.alias?`<span class="muted">Alias : ${escapeHtml(s.alias)}</span>`:""}</div><span class="inv-tag ${invPriorityClass(s.danger)}">${escapeHtml(s.danger)}</span></div>
+    <div class="inv-meta">${s.group?`<span>Appartenance : <strong>${escapeHtml(s.group)}</strong></span>`:'<span>Appartenance : <strong>Non renseignée</strong></span>'}<span>${(s.caseIds||[]).length} dossier(s)</span></div>
+    ${s.role?`<div class="inv-meta">Rôle supposé : ${escapeHtml(s.role)}</div>`:""}${s.vehicles?`<div class="inv-meta">Véhicules : ${escapeHtml(s.vehicles)}</div>`:""}
+    <p class="inv-summary">${escapeHtml(s.notes||"Aucun commentaire.")}</p><div class="inv-actions"><button class="secondary-btn" data-inv-suspect-edit="${s.id}">Modifier</button><button class="danger-outline" data-inv-suspect-delete="${s.id}">Supprimer</button></div>
+  </article>`).join("")||'<div class="inv-empty">Aucune fiche suspect trouvée.</div>';
+  $$('[data-inv-suspect-edit]').forEach(b=>b.onclick=()=>openInvSuspectForm(b.dataset.invSuspectEdit));
+  $$('[data-inv-suspect-delete]').forEach(b=>b.onclick=()=>deleteInvSuspect(b.dataset.invSuspectDelete));
+}
+function openInvSuspectForm(id=null){
+  const s=id?invSuspects.find(x=>x.id===id):null;$("#invSuspectForm").reset();$("#invSuspectId").value=s?.id||"";
+  $("#invSuspectModalTitle").textContent=s?`Modifier ${s.id}`:"Nouvelle fiche suspect";
+  $("#invSuspectLastName").value=s?.lastName||"";$("#invSuspectFirstName").value=s?.firstName||"";$("#invSuspectAlias").value=s?.alias||"";
+  $("#invSuspectDanger").value=s?.danger||"Faible";$("#invSuspectGroup").value=s?.group||"";$("#invSuspectRole").value=s?.role||"";$("#invSuspectVehicles").value=s?.vehicles||"";$("#invSuspectNotes").value=s?.notes||"";
+  $("#invSuspectPhoto").value="";$("#invSuspectPhoto").dataset.current=s?.photo||"";renderPersonPhotoPreview("#invSuspectPhotoPreview",s?.photo);openModal("invSuspectModal")
+}
+function deleteInvSuspect(id){
+  const s=invSuspects.find(x=>x.id===id);if(!s||!confirm(`Supprimer la fiche ${invPersonName(s)} ?`))return;
+  invSuspects=invSuspects.filter(x=>x.id!==id);invCases.forEach(c=>c.suspectIds=(c.suspectIds||[]).filter(x=>x!==id));
+  Object.values(invBoards).forEach(b=>{b.nodes=(b.nodes||[]).filter(n=>!(n.kind==="Suspect"&&n.refId===id));cleanInvLinks(b)});
+  save(INV_STORAGE.suspects,invSuspects);save(INV_STORAGE.cases,invCases);save(INV_STORAGE.boards,invBoards);invRenderAll()
+}
+function renderPersonPhotoPreview(sel,data){const el=$(sel);if(!el)return;el.innerHTML=data?`<img src="${data}" alt="Aperçu"><span>Photo enregistrée</span>`:'<span class="muted">Aucune photo enregistrée.</span>'}
+
 function invRenderAll(){invRenderCases();invRenderSuspects();if(currentInvCaseId)renderInvBoard()}
 
-// Investigation board
-function getInvBoard(caseId){if(!invBoards[caseId])invBoards[caseId]={nodes:[]};return invBoards[caseId]}
-function openInvBoard(id){const c=invCases.find(x=>x.id===id);if(!c)return;currentInvCaseId=id;$("#invBoardCaseId").textContent=c.id;$("#invBoardCaseTitle").textContent=c.title;$("#invBoardCaseStatus").value=c.status;invZoom=1;renderInvBoard();openModal("invBoardModal");requestAnimationFrame(()=>centerInvBoard())}
+// ---------- Investigation board ----------
+function getInvBoard(caseId){if(!invBoards[caseId])invBoards[caseId]={nodes:[],links:[]};invBoards[caseId].nodes=invBoards[caseId].nodes||[];invBoards[caseId].links=invBoards[caseId].links||[];return invBoards[caseId]}
+function cleanInvLinks(board){const ids=new Set((board.nodes||[]).map(n=>n.id));board.links=(board.links||[]).filter(l=>ids.has(l.from)&&ids.has(l.to))}
+function openInvBoard(id){
+  const c=invCases.find(x=>x.id===id);if(!c)return;currentInvCaseId=id;invLinkMode=false;invLinkStartId=null;syncInvLinkUI();
+  $("#invBoardCaseId").textContent=c.id;$("#invBoardCaseTitle").textContent=c.title;$("#invBoardCaseStatus").value=c.status;invZoom=1;renderInvBoard();openModal("invBoardModal");requestAnimationFrame(()=>centerInvBoard())
+}
 function centerInvBoard(){const stage=$("#invBoardStage"),wrap=stage.parentElement;stage.style.left=`${Math.max(20,(wrap.clientWidth-2200*invZoom)/2)}px`;stage.style.top=`${Math.max(20,(wrap.clientHeight-1500*invZoom)/2)}px`;applyInvZoom()}
 function applyInvZoom(){const stage=$("#invBoardStage");stage.style.transform=`scale(${invZoom})`;$("#invZoomLabel").textContent=`${Math.round(invZoom*100)}%`}
-function renderInvBoard(){const c=invCases.find(x=>x.id===currentInvCaseId);if(!c)return;const b=getInvBoard(c.id);$("#invBoardCaseStatus").value=c.status;$("#invBoardSuspects").innerHTML=(c.suspectIds||[]).map(id=>invSuspects.find(s=>s.id===id)).filter(Boolean).map(s=>`<div class="inv-linked-item">${escapeHtml(s.name)}${s.group?`<br><small>${escapeHtml(s.group)}</small>`:""}</div>`).join("")||'<span class="muted small">Aucun suspect lié.</span>';$("#invBoardReports").innerHTML=(c.reportIds||[]).map(id=>reports.find(r=>r.id===id)).filter(Boolean).map(r=>`<div class="inv-linked-item">${escapeHtml(r.id)}<br><small>${escapeHtml(r.title)}</small></div>`).join("")||'<span class="muted small">Aucun rapport importé.</span>';$("#invBoardNodes").innerHTML=(b.nodes||[]).map(n=>invNodeHtml(n)).join("");$$('.inv-board-node').forEach(el=>makeInvNodeDraggable(el));$$('.node-remove').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const board=getInvBoard(currentInvCaseId);board.nodes=board.nodes.filter(n=>n.id!==btn.dataset.nodeRemove);save(INV_STORAGE.boards,invBoards);renderInvBoard()})}
-function invNodeHtml(n){let title=n.title||"Élément",body=n.body||"",img=n.image?`<img src="${n.image}" alt="Image dossier">`:"";return `<div class="inv-board-node" data-node-id="${n.id}" style="left:${n.x}px;top:${n.y}px"><button class="node-remove" data-node-remove="${n.id}">×</button><span class="node-type">${escapeHtml(n.kind)}</span><h4>${escapeHtml(title)}</h4><p>${escapeHtml(body)}</p>${img}</div>`}
-function makeInvNodeDraggable(el){let startX,startY,origX,origY,moved=false;const down=e=>{if(e.target.closest('button'))return;moved=false;startX=e.clientX;startY=e.clientY;origX=parseFloat(el.style.left)||0;origY=parseFloat(el.style.top)||0;el.setPointerCapture?.(e.pointerId);const move=ev=>{moved=true;const dx=(ev.clientX-startX)/invZoom,dy=(ev.clientY-startY)/invZoom;el.style.left=`${Math.max(0,origX+dx)}px`;el.style.top=`${Math.max(0,origY+dy)}px`};const up=ev=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);if(moved){const n=getInvBoard(currentInvCaseId).nodes.find(x=>x.id===el.dataset.nodeId);if(n){n.x=parseFloat(el.style.left);n.y=parseFloat(el.style.top);save(INV_STORAGE.boards,invBoards)}}};el.addEventListener('pointermove',move);el.addEventListener('pointerup',up)};el.addEventListener('pointerdown',down)}
-function addInvNode(kind,title,body,refId=null,image=null){const b=getInvBoard(currentInvCaseId),i=b.nodes.length;b.nodes.push({id:`node-${Date.now()}-${i}`,kind,title,body,refId,image,x:380+(i%4)*270,y:170+Math.floor(i/4)*180});save(INV_STORAGE.boards,invBoards);renderInvBoard()}
-function openInvPicker(mode){const c=invCases.find(x=>x.id===currentInvCaseId);if(!c)return;$("#invPickerSearch").value="";$("#invPickerTitle").textContent=mode==="suspect"?"Ajouter un suspect au dossier":"Importer un rapport BCSO";const draw=()=>{const q=$("#invPickerSearch").value.toLowerCase();let items;if(mode==="suspect")items=invSuspects.filter(s=>![...(c.suspectIds||[])].includes(s.id)&&[s.name,s.alias,s.group].join(" ").toLowerCase().includes(q));else items=reports.filter(r=>![...(c.reportIds||[])].includes(r.id)&&[r.id,r.title,r.author,r.summary].join(" ").toLowerCase().includes(q));$("#invPickerList").innerHTML=items.map(x=>`<div class="inv-picker-item"><div><strong>${escapeHtml(mode==="suspect"?x.name:`${x.id} — ${x.title}`)}</strong><small>${escapeHtml(mode==="suspect"?(x.grouped==="yes"?`Groupuscule : ${x.group}`:`${x.danger} • Sans groupuscule`):`${x.author} • ${formatDate(x.date)}`)}</small></div><button class="primary-btn" data-inv-pick="${x.id}">Ajouter</button></div>`).join("")||'<div class="empty-state">Aucun élément disponible.</div>';$$('[data-inv-pick]').forEach(b=>b.onclick=()=>{const id=b.dataset.invPick;if(mode==="suspect"){c.suspectIds=[...(c.suspectIds||[]),id];const s=invSuspects.find(x=>x.id===id);s.caseIds=[...new Set([...(s.caseIds||[]),c.id])];addInvNode("Suspect",s.name,[s.alias?`Alias : ${s.alias}`:"",s.grouped==="yes"?`Groupuscule : ${s.group}`:"Sans groupuscule",`Dangerosité : ${s.danger}`].filter(Boolean).join("\n"),s.id)}else{c.reportIds=[...(c.reportIds||[]),id];const r=reports.find(x=>x.id===id);addInvNode("Rapport BCSO",`${r.id} — ${r.title}`,`${r.author}\n${r.summary}`,r.id)}c.updatedAt=new Date().toISOString();save(INV_STORAGE.cases,invCases);save(INV_STORAGE.suspects,invSuspects);closeModal("invPickerModal");renderInvBoard();invRenderAll()})};$("#invPickerSearch").oninput=draw;draw();openModal("invPickerModal")}
+function renderInvBoard(){
+  const c=invCases.find(x=>x.id===currentInvCaseId);if(!c)return;const b=getInvBoard(c.id);cleanInvLinks(b);
+  $("#invBoardCaseStatus").value=c.status;
+  $("#invBoardSuspects").innerHTML=(c.suspectIds||[]).map(id=>invSuspects.find(s=>s.id===id)).filter(Boolean).map(s=>`<div class="inv-linked-item">${s.photo?`<img class="inv-linked-avatar" src="${s.photo}" alt="">`:""}${escapeHtml(invPersonName(s))}${s.group?`<br><small>${escapeHtml(s.group)}</small>`:""}</div>`).join("")||'<span class="muted small">Aucun suspect lié.</span>';
+  $("#invBoardWitnesses").innerHTML=(c.witnessIds||[]).map(id=>invWitnesses.find(w=>w.id===id)).filter(Boolean).map(w=>`<div class="inv-linked-item">${w.photo?`<img class="inv-linked-avatar" src="${w.photo}" alt="">`:""}${escapeHtml(invPersonName(w))}<br><small>${escapeHtml(w.type||"Témoin")}</small></div>`).join("")||'<span class="muted small">Aucun témoin lié.</span>';
+  $("#invBoardReports").innerHTML=(c.reportIds||[]).map(id=>reports.find(r=>r.id===id)).filter(Boolean).map(r=>`<div class="inv-linked-item">${escapeHtml(r.id)}<br><small>${escapeHtml(r.title)}</small></div>`).join("")||'<span class="muted small">Aucun rapport importé.</span>';
+  $("#invBoardNodes").innerHTML=(b.nodes||[]).map(n=>invNodeHtml(n)).join("");
+  renderInvLinks();
+  $$('.inv-board-node').forEach(el=>{makeInvNodeDraggable(el);el.onclick=e=>handleInvNodeLinkClick(e,el)});
+  $$('.node-remove').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const board=getInvBoard(currentInvCaseId);board.nodes=board.nodes.filter(n=>n.id!==btn.dataset.nodeRemove);cleanInvLinks(board);save(INV_STORAGE.boards,invBoards);renderInvBoard()});
+  syncInvLinkUI()
+}
+function sanitizeRichHtml(input){
+  const doc=new DOMParser().parseFromString(`<div>${input||""}</div>`,"text/html"),root=doc.body.firstElementChild;
+  const allowed=new Set(["P","DIV","BR","B","STRONG","I","EM","U","H2","H3","UL","OL","LI","SPAN","FONT"]);
+  [...root.querySelectorAll("*")].forEach(el=>{
+    if(!allowed.has(el.tagName)){el.replaceWith(...el.childNodes);return}
+    [...el.attributes].forEach(a=>{
+      const n=a.name.toLowerCase();
+      if(n==="style"){
+        const ok=(a.value.match(/(?:color|text-align)\s*:\s*[^;]+/gi)||[]).join("; ");
+        if(ok)el.setAttribute("style",ok);else el.removeAttribute("style");
+      }else if(el.tagName==="FONT"&&n==="color"){
+      }else el.removeAttribute(a.name);
+    });
+  });
+  return root.innerHTML;
+}
+function invNodeHtml(n){
+  const title=n.title||"Élément",img=n.image?`<img src="${n.image}" alt="Image dossier">`:"";
+  const rich=n.richHtml?`<div class="inv-node-rich">${sanitizeRichHtml(n.richHtml)}</div>`:`<p>${escapeHtml(n.body||"")}</p>`;
+  const cls=`inv-board-node kind-${String(n.kind||"").toLowerCase().replace(/[^a-z0-9]+/g,"-")} ${invLinkStartId===n.id?"link-selected":""}`;
+  return `<div class="${cls}" data-node-id="${n.id}" style="left:${n.x}px;top:${n.y}px"><button class="node-remove" data-node-remove="${n.id}">×</button><span class="node-type">${escapeHtml(n.kind)}</span><h4>${escapeHtml(title)}</h4>${rich}${img}</div>`
+}
+function makeInvNodeDraggable(el){
+  let startX,startY,origX,origY,moved=false;
+  const down=e=>{
+    if(e.target.closest('button')||invLinkMode)return;moved=false;startX=e.clientX;startY=e.clientY;origX=parseFloat(el.style.left)||0;origY=parseFloat(el.style.top)||0;
+    el.setPointerCapture?.(e.pointerId);
+    const move=ev=>{moved=true;const dx=(ev.clientX-startX)/invZoom,dy=(ev.clientY-startY)/invZoom;el.style.left=`${Math.max(0,origX+dx)}px`;el.style.top=`${Math.max(0,origY+dy)}px`;renderInvLinks()};
+    const up=()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);if(moved){const n=getInvBoard(currentInvCaseId).nodes.find(x=>x.id===el.dataset.nodeId);if(n){n.x=parseFloat(el.style.left);n.y=parseFloat(el.style.top);save(INV_STORAGE.boards,invBoards);renderInvLinks()}}};
+    el.addEventListener('pointermove',move);el.addEventListener('pointerup',up)
+  };el.addEventListener('pointerdown',down)
+}
+function addInvNode(kind,title,body="",refId=null,image=null,richHtml=null){
+  const b=getInvBoard(currentInvCaseId),i=b.nodes.length;
+  b.nodes.push({id:`node-${Date.now()}-${i}`,kind,title,body,refId,image,richHtml,x:380+(i%4)*270,y:170+Math.floor(i/4)*200});
+  save(INV_STORAGE.boards,invBoards);renderInvBoard()
+}
+function renderInvLinks(){
+  const svg=$("#invBoardLinks"),b=getInvBoard(currentInvCaseId);if(!svg||!b)return;
+  const nodeMap=new Map((b.nodes||[]).map(n=>[n.id,n]));
+  svg.innerHTML=(b.links||[]).map((l,i)=>{
+    const a=nodeMap.get(l.from),d=nodeMap.get(l.to);if(!a||!d)return"";
+    const x1=a.x+120,y1=a.y+70,x2=d.x+120,y2=d.y+70;
+    return `<line class="inv-link-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><circle class="inv-link-dot" cx="${x1}" cy="${y1}" r="4"/><circle class="inv-link-dot" cx="${x2}" cy="${y2}" r="4"/>`
+  }).join("")
+}
+function syncInvLinkUI(){
+  $("#invLinkElementsBtn").hidden=invLinkMode;$("#invCancelLinkBtn").hidden=!invLinkMode;$("#invLinkHint").hidden=!invLinkMode;
+  if(invLinkMode)$("#invLinkHint").textContent=invLinkStartId?"Premier élément sélectionné. Cliquez sur le second.":"Sélectionnez le premier élément, puis le second.";
+  $$(".inv-board-node").forEach(el=>el.classList.toggle("link-selected",el.dataset.nodeId===invLinkStartId))
+}
+function handleInvNodeLinkClick(e,el){
+  if(!invLinkMode||e.target.closest("button"))return;e.preventDefault();e.stopPropagation();const id=el.dataset.nodeId;
+  if(!invLinkStartId){invLinkStartId=id;syncInvLinkUI();return}
+  if(invLinkStartId===id){invLinkStartId=null;syncInvLinkUI();return}
+  const b=getInvBoard(currentInvCaseId),exists=(b.links||[]).some(l=>(l.from===invLinkStartId&&l.to===id)||(l.to===invLinkStartId&&l.from===id));
+  if(!exists)b.links.push({id:`link-${Date.now()}`,from:invLinkStartId,to:id});
+  invLinkStartId=null;save(INV_STORAGE.boards,invBoards);renderInvBoard()
+}
+function openInvPicker(mode){
+  const c=invCases.find(x=>x.id===currentInvCaseId);if(!c)return;$("#invPickerSearch").value="";
+  $("#invPickerTitle").textContent=mode==="suspect"?"Ajouter un suspect au dossier":"Ajouter un rapport enregistré sur le site";
+  const draw=()=>{
+    const q=$("#invPickerSearch").value.toLowerCase();let items;
+    if(mode==="suspect")items=invSuspects.filter(s=>!(c.suspectIds||[]).includes(s.id)&&[invPersonName(s),s.alias,s.group].join(" ").toLowerCase().includes(q));
+    else items=reports.filter(r=>!(c.reportIds||[]).includes(r.id)&&[r.id,r.title,r.author,r.summary].join(" ").toLowerCase().includes(q));
+    $("#invPickerList").innerHTML=items.map(x=>`<div class="inv-picker-item"><div><strong>${escapeHtml(mode==="suspect"?invPersonName(x):`${x.id} — ${x.title}`)}</strong><small>${escapeHtml(mode==="suspect"?(x.group?`Appartenance : ${x.group}`:`Dangerosité : ${x.danger}`):`${x.author} • ${formatDate(x.date)}`)}</small></div><button class="primary-btn" data-inv-pick="${x.id}">Ajouter</button></div>`).join("")||'<div class="empty-state">Aucun élément disponible.</div>';
+    $$('[data-inv-pick]').forEach(btn=>btn.onclick=()=>{
+      const id=btn.dataset.invPick;
+      if(mode==="suspect"){
+        c.suspectIds=[...(c.suspectIds||[]),id];const s=invSuspects.find(x=>x.id===id);s.caseIds=[...new Set([...(s.caseIds||[]),c.id])];
+        addInvNode("Suspect",invPersonName(s),[s.alias?`Alias : ${s.alias}`:"",s.group?`Appartenance : ${s.group}`:"",`Dangerosité : ${s.danger}`,s.notes||""].filter(Boolean).join("\n"),s.id,s.photo||null)
+      }else{
+        c.reportIds=[...(c.reportIds||[]),id];const r=reports.find(x=>x.id===id);addInvNode("Rapport BCSO",`${r.id} — ${r.title}`,`${r.author}\n${r.summary}`,r.id)
+      }
+      c.updatedAt=new Date().toISOString();save(INV_STORAGE.cases,invCases);save(INV_STORAGE.suspects,invSuspects);closeModal("invPickerModal");renderInvBoard();invRenderAll()
+    })
+  };$("#invPickerSearch").oninput=draw;draw();openModal("invPickerModal")
+}
 function fileToDataUrl(file){return new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.onerror=reject;fr.readAsDataURL(file)})}
 
+async function compressInvImage(file,maxW=1400,quality=.82){
+  const data=await fileToDataUrl(file);const img=new Image();
+  await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=data});
+  const scale=Math.min(1,maxW/img.width),w=Math.round(img.width*scale),h=Math.round(img.height*scale);
+  const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);
+  return c.toDataURL("image/webp",quality)
+}
+function setupRichToolbar(toolbar){
+  if(!toolbar)return;const editor=$("#"+toolbar.dataset.editorToolbar);
+  toolbar.querySelectorAll("[data-rich-cmd]").forEach(b=>b.onclick=()=>{editor.focus();document.execCommand(b.dataset.richCmd,false,null)});
+  toolbar.querySelector("[data-rich-block]")?.addEventListener("change",e=>{editor.focus();document.execCommand("formatBlock",false,e.target.value)});
+  toolbar.querySelector("[data-rich-color]")?.addEventListener("input",e=>{editor.focus();document.execCommand("foreColor",false,e.target.value)})
+}
+$$("[data-editor-toolbar]").forEach(setupRichToolbar);
+
+// ---------- Investigation events ----------
 $("#invNewCaseBtn").onclick=()=>openInvCaseForm();$("#invCaseSearch").oninput=invRenderCases;$("#invCaseStatus").onchange=invRenderCases;$("#invCasePriority").onchange=invRenderCases;
-$("#invCaseForm").onsubmit=e=>{e.preventDefault();const id=$("#invCaseId").value||invNextId("INV",invCases),old=invCases.find(x=>x.id===id),obj={id,title:$("#invCaseTitle").value.trim(),investigators:$("#invCaseInvestigators").value.trim(),status:$("#invCaseFormStatus").value,priority:$("#invCaseFormPriority").value,opened:$("#invCaseOpened").value,summary:$("#invCaseSummary").value.trim(),updatedAt:new Date().toISOString(),suspectIds:old?.suspectIds||[],reportIds:old?.reportIds||[]};const i=invCases.findIndex(x=>x.id===id);if(i>=0)invCases[i]=obj;else invCases.unshift(obj);save(INV_STORAGE.cases,invCases);closeModal("invCaseModal");invRenderAll();if(currentInvCaseId===id){$("#invBoardCaseTitle").textContent=obj.title;renderInvBoard()}};
-$("#invNewSuspectBtn").onclick=()=>openInvSuspectForm();$("#invSuspectSearch").oninput=invRenderSuspects;$("#invSuspectGroupFilter").onchange=invRenderSuspects;$("#invSuspectDangerFilter").onchange=invRenderSuspects;$("#invSuspectGrouped").onchange=toggleInvGroupField;
-$("#invSuspectForm").onsubmit=e=>{e.preventDefault();const id=$("#invSuspectId").value||invNextId("SUS",invSuspects),old=invSuspects.find(x=>x.id===id),obj={id,name:$("#invSuspectName").value.trim(),alias:$("#invSuspectAlias").value.trim(),danger:$("#invSuspectDanger").value,grouped:$("#invSuspectGrouped").value,group:$("#invSuspectGrouped").value==="yes"?$("#invSuspectGroup").value.trim():"",role:$("#invSuspectRole").value.trim(),vehicles:$("#invSuspectVehicles").value.trim(),notes:$("#invSuspectNotes").value.trim(),caseIds:old?.caseIds||[],createdBy:old?.createdBy||profile.name,updatedAt:new Date().toISOString()};const duplicate=invSuspects.find(s=>s.id!==id&&s.name.toLowerCase()===obj.name.toLowerCase());if(duplicate&&!confirm(`Une fiche existe déjà pour ${duplicate.name}. Créer / enregistrer quand même ?`))return;const i=invSuspects.findIndex(x=>x.id===id);if(i>=0)invSuspects[i]=obj;else invSuspects.unshift(obj);save(INV_STORAGE.suspects,invSuspects);closeModal("invSuspectModal");invRenderAll()};
-$("#invBoardCaseStatus").onchange=()=>{const c=invCases.find(x=>x.id===currentInvCaseId);if(c){c.status=$("#invBoardCaseStatus").value;c.updatedAt=new Date().toISOString();save(INV_STORAGE.cases,invCases);invRenderAll()}};$("#invBoardEditCase").onclick=()=>{closeModal("invBoardModal");openInvCaseForm(currentInvCaseId)};$("#invAddSuspectToBoard").onclick=()=>openInvPicker("suspect");$("#invImportReportBtn").onclick=()=>openInvPicker("report");$("#invAddNoteBtn").onclick=()=>{const t=prompt("Titre de la note :","Note enquêteur");if(t===null)return;const body=prompt("Contenu de la note :","");if(body===null)return;addInvNode("Note",t,body)};$("#invBoardImageInput").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>5*1024*1024){alert("Image limitée à 5 Mo.");e.target.value="";return}const data=await fileToDataUrl(f);addInvNode("Image",f.name,"",null,data);e.target.value=""};$("#invZoomIn").onclick=()=>{invZoom=Math.min(1.6,invZoom+.1);applyInvZoom()};$("#invZoomOut").onclick=()=>{invZoom=Math.max(.5,invZoom-.1);applyInvZoom()};$("#invResetView").onclick=centerInvBoard;
+$("#invCaseForm").onsubmit=e=>{e.preventDefault();const id=$("#invCaseId").value||invNextId("INV",invCases),old=invCases.find(x=>x.id===id),obj={id,title:$("#invCaseTitle").value.trim(),investigators:$("#invCaseInvestigators").value.trim(),status:$("#invCaseFormStatus").value,priority:$("#invCaseFormPriority").value,opened:$("#invCaseOpened").value,summary:$("#invCaseSummary").value.trim(),updatedAt:new Date().toISOString(),suspectIds:old?.suspectIds||[],witnessIds:old?.witnessIds||[],reportIds:old?.reportIds||[]};const i=invCases.findIndex(x=>x.id===id);if(i>=0)invCases[i]=obj;else invCases.unshift(obj);save(INV_STORAGE.cases,invCases);closeModal("invCaseModal");invRenderAll();if(currentInvCaseId===id){$("#invBoardCaseTitle").textContent=obj.title;renderInvBoard()}};
+
+$("#invNewSuspectBtn").onclick=()=>openInvSuspectForm();$("#invSuspectSearch").oninput=invRenderSuspects;$("#invSuspectGroupFilter").onchange=invRenderSuspects;$("#invSuspectDangerFilter").onchange=invRenderSuspects;
+$("#invSuspectPhoto").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>5*1024*1024){alert("Photo limitée à 5 Mo.");e.target.value="";return}const d=await compressInvImage(f,900,.82);e.target.dataset.current=d;renderPersonPhotoPreview("#invSuspectPhotoPreview",d)};
+$("#invSuspectForm").onsubmit=e=>{e.preventDefault();const id=$("#invSuspectId").value||invNextId("SUS",invSuspects),old=invSuspects.find(x=>x.id===id),firstName=$("#invSuspectFirstName").value.trim(),lastName=$("#invSuspectLastName").value.trim(),obj={id,firstName,lastName,name:[firstName,lastName].filter(Boolean).join(" "),alias:$("#invSuspectAlias").value.trim(),danger:$("#invSuspectDanger").value,group:$("#invSuspectGroup").value.trim(),role:$("#invSuspectRole").value.trim(),vehicles:$("#invSuspectVehicles").value.trim(),notes:$("#invSuspectNotes").value.trim(),photo:$("#invSuspectPhoto").dataset.current||old?.photo||null,caseIds:old?.caseIds||[],createdBy:old?.createdBy||profile.name,updatedAt:new Date().toISOString()};const duplicate=invSuspects.find(s=>s.id!==id&&invPersonName(s).toLowerCase()===invPersonName(obj).toLowerCase());if(duplicate&&!confirm(`Une fiche existe déjà pour ${invPersonName(duplicate)}. Enregistrer quand même ?`))return;const i=invSuspects.findIndex(x=>x.id===id);if(i>=0)invSuspects[i]=obj;else invSuspects.unshift(obj);save(INV_STORAGE.suspects,invSuspects);closeModal("invSuspectModal");invRenderAll()};
+
+$("#invBoardCaseStatus").onchange=()=>{const c=invCases.find(x=>x.id===currentInvCaseId);if(c){c.status=$("#invBoardCaseStatus").value;c.updatedAt=new Date().toISOString();save(INV_STORAGE.cases,invCases);invRenderAll()}};
+$("#invBoardEditCase").onclick=()=>{closeModal("invBoardModal");openInvCaseForm(currentInvCaseId)};
+$("#invAddSuspectToBoard").onclick=()=>openInvPicker("suspect");
+$("#invImportReportBtn").onclick=()=>openInvPicker("report");
+
+$("#invAddRichTextBtn").onclick=()=>{$("#invRichTextForm").reset();$("#invRichTextEditor").innerHTML="";openModal("invRichTextModal")};
+$("#invRichTextForm").onsubmit=e=>{e.preventDefault();const raw=$("#invRichTextEditor").innerHTML,title=$("#invRichTextCardTitle").value.trim()||"Note d'enquête";if(!$("#invRichTextEditor").textContent.trim())return alert("Ajoutez du contenu.");addInvNode("Texte",title,"",null,null,sanitizeRichHtml(raw));closeModal("invRichTextModal")};
+
+$("#invAddDocumentBtn").onclick=()=>{$("#invDocumentForm").reset();$("#invDocumentEditor").innerHTML="";openModal("invDocumentModal")};
+$("#invDocumentForm").onsubmit=e=>{e.preventDefault();const title=$("#invDocumentTitle").value.trim(),raw=$("#invDocumentEditor").innerHTML;if(!$("#invDocumentEditor").textContent.trim())return alert("Ajoutez du contenu au document.");addInvNode("Document",title,"",null,null,sanitizeRichHtml(raw));closeModal("invDocumentModal")};
+
+$("#invAddWitnessBtn").onclick=()=>{$("#invWitnessForm").reset();$("#invWitnessId").value="";$("#invWitnessPhoto").dataset.current="";renderPersonPhotoPreview("#invWitnessPhotoPreview",null);openModal("invWitnessModal")};
+$("#invWitnessPhoto").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>5*1024*1024){alert("Photo limitée à 5 Mo.");e.target.value="";return}const d=await compressInvImage(f,900,.82);e.target.dataset.current=d;renderPersonPhotoPreview("#invWitnessPhotoPreview",d)};
+$("#invWitnessForm").onsubmit=e=>{e.preventDefault();const c=invCases.find(x=>x.id===currentInvCaseId);if(!c)return;const id=invNextId("TEM",invWitnesses),w={id,lastName:$("#invWitnessLastName").value.trim(),firstName:$("#invWitnessFirstName").value.trim(),alias:$("#invWitnessAlias").value.trim(),affiliation:$("#invWitnessAffiliation").value.trim(),type:$("#invWitnessType").value,reliability:$("#invWitnessReliability").value,notes:$("#invWitnessNotes").value.trim(),photo:$("#invWitnessPhoto").dataset.current||null,caseIds:[c.id],createdBy:profile.name,updatedAt:new Date().toISOString()};invWitnesses.unshift(w);c.witnessIds=[...(c.witnessIds||[]),id];save(INV_STORAGE.witnesses,invWitnesses);save(INV_STORAGE.cases,invCases);addInvNode("Témoin",invPersonName(w),[w.alias?`Alias : ${w.alias}`:"",`Type : ${w.type}`,w.affiliation?`Appartenance / lien : ${w.affiliation}`:"",`Fiabilité : ${w.reliability}`,w.notes||""].filter(Boolean).join("\n"),w.id,w.photo);closeModal("invWitnessModal");renderInvBoard();invRenderCases()};
+
+$("#invBoardImageInput").onchange=async e=>{
+  const files=[...(e.target.files||[])];e.target.value="";if(!files.length)return;
+  invPendingImageQueue=[];
+  for(const f of files){if(f.size>5*1024*1024){alert(`${f.name} dépasse 5 Mo et a été ignorée.`);continue}invPendingImageQueue.push({name:f.name,data:await compressInvImage(f)})}
+  openNextInvImageMeta()
+};
+function openNextInvImageMeta(){const item=invPendingImageQueue.shift();if(!item)return;$("#invImagePendingData").value=item.data;$("#invImageTitle").value=item.name.replace(/\.[^.]+$/,"");$("#invImageCaption").value="";$("#invImageMetaPreview").innerHTML=`<img src="${item.data}" alt="">`;openModal("invImageMetaModal")}
+$("#invImageMetaForm").onsubmit=e=>{e.preventDefault();addInvNode("Photo",$("#invImageTitle").value.trim()||"Photo",$("#invImageCaption").value.trim(),null,$("#invImagePendingData").value);closeModal("invImageMetaModal");setTimeout(openNextInvImageMeta,80)};
+
+$("#invLinkElementsBtn").onclick=()=>{invLinkMode=true;invLinkStartId=null;syncInvLinkUI()};
+$("#invCancelLinkBtn").onclick=()=>{invLinkMode=false;invLinkStartId=null;syncInvLinkUI()};
+$("#invUndoLinkBtn").onclick=()=>{const b=getInvBoard(currentInvCaseId);if(!b.links.length)return alert("Aucune liaison à supprimer.");b.links.pop();save(INV_STORAGE.boards,invBoards);renderInvLinks()};
+$("#invZoomIn").onclick=()=>{invZoom=Math.min(1.6,invZoom+.1);applyInvZoom()};
+$("#invZoomOut").onclick=()=>{invZoom=Math.max(.5,invZoom-.1);applyInvZoom()};
+$("#invResetView").onclick=centerInvBoard;
 invRenderAll();
 
 // ==================== SEB — SPECIAL ENFORCEMENT BUREAU ====================
-const SEB_STORAGE = {
-  operations: "bcso_demo_seb_operations",
-  boards: "bcso_demo_seb_boards"
+const SEB_STORAGE={
+  operations:"bcso_demo_seb_operations",
+  boards:"bcso_demo_seb_boards"
 };
-const seedSebOperations = [
-  {
-    id:"SEB-2026-0001", title:"Intervention — Sandy Shores", lead:"K. Belkacem",
-    status:"En préparation", priority:"Élevée", date:"2026-09-12T22:00",
-    objective:"Interpellation de plusieurs individus retranchés et sécurisation des lieux.",
-    threats:"Présence possible d'armes longues. Nombre d'individus à confirmer.",
-    teams:"Alpha — entrée principale\nBravo — couverture / seconde entrée",
-    equipment:"Bouclier balistique, bélier, médical tactique.",
-    instructions:"Priorité à la sécurisation des civils et à la coordination radio.",
-    createdAt:"2026-09-10T02:20:00", updatedAt:"2026-09-10T02:20:00"
-  }
-];
-let sebOperations = load(SEB_STORAGE.operations, seedSebOperations);
-let sebBoards = load(SEB_STORAGE.boards, {});
-let currentSebOperationId = null, sebZoom = 1, sebTool = "select", sebDraftLine = null;
-save(SEB_STORAGE.operations, sebOperations); save(SEB_STORAGE.boards, sebBoards);
+const seedSebOperations=[{
+  id:"SEB-2026-0001",title:"Intervention — Sandy Shores",lead:"K. Belkacem",
+  status:"En préparation",priority:"Élevée",date:"2026-09-12T22:00",
+  objective:"Interpellation de plusieurs individus retranchés et sécurisation des lieux.",
+  threats:"Présence possible d'armes longues. Nombre d'individus à confirmer.",
+  teams:"Alpha — entrée principale\nBravo — couverture / seconde entrée",
+  equipment:"Bouclier balistique, bélier, médical tactique.",
+  instructions:"Priorité à la sécurisation des civils et à la coordination radio.",
+  createdAt:"2026-09-10T02:20:00",updatedAt:"2026-09-10T02:20:00"
+}];
 
-function sebNextId(){const y=new Date().getFullYear(),nums=sebOperations.filter(o=>o.id.startsWith(`SEB-${y}-`)).map(o=>parseInt(o.id.split("-").pop(),10)||0);return `SEB-${y}-${String(Math.max(0,...nums)+1).padStart(4,"0")}`}
+let sebOperations=load(SEB_STORAGE.operations,seedSebOperations);
+let sebBoards=load(SEB_STORAGE.boards,{});
+let currentSebOperationId=null;
+let sebLeafletMap=null,sebSatelliteLayer=null,sebPostalLayer=null,sebCurrentLayer="satellite";
+let sebLeafletObjects=[],sebActiveTool=null,sebDraftRoute=null,sebDraftRouteLayer=null;
+
+save(SEB_STORAGE.operations,sebOperations);save(SEB_STORAGE.boards,sebBoards);
+
+const SEB_MAP_BOUNDS=[[-16384,0],[0,16384]];
+const SEB_TILE_ROOT="https://cdn.jsdelivr.net/gh/fivenet-app/livemap-tiles@main/tiles";
+const SEB_PLACE_TYPES={
+  entry:{label:"Entrée",emoji:"🚪"},
+  exit:{label:"Sortie",emoji:"🚨"},
+  suspect:{label:"Suspect",emoji:"⚠️"},
+  hostage:{label:"Otage",emoji:"🧍"},
+  rally:{label:"Rassemblement",emoji:"📍"},
+  vehicle:{label:"Véhicule",emoji:"🚙"},
+  overwatch:{label:"Overwatch",emoji:"🎯"},
+  objective:{label:"Objectif",emoji:"⭐"},
+  alpha:{label:"Unité Alpha",emoji:"🟦"},
+  bravo:{label:"Unité Bravo",emoji:"🟩"},
+  charlie:{label:"Unité Charlie",emoji:"🟨"},
+  medic:{label:"Médical",emoji:"🚑"},
+  sniper:{label:"Tireur / Observation",emoji:"🔭"},
+  custom:{label:"Élément personnalisé",emoji:"😀"}
+};
+
+function sebNextId(){
+  const y=new Date().getFullYear(),nums=sebOperations.filter(o=>o.id.startsWith(`SEB-${y}-`)).map(o=>parseInt(o.id.split("-").pop(),10)||0);
+  return `SEB-${y}-${String(Math.max(0,...nums)+1).padStart(4,"0")}`
+}
 function sebStatusClass(s){return s==="Prête"?"ready":s==="En cours"?"live":s==="En préparation"?"prep":s==="Annulée"?"cancel":"done"}
 function sebRenderOperations(){
-  const q=($("#sebOperationSearch")?.value||"").toLowerCase(), st=$("#sebOperationStatus")?.value||"", pr=$("#sebOperationPriority")?.value||"";
+  const q=($("#sebOperationSearch")?.value||"").toLowerCase(),st=$("#sebOperationStatus")?.value||"",pr=$("#sebOperationPriority")?.value||"";
   const rows=sebOperations.filter(o=>(!st||o.status===st)&&(!pr||o.priority===pr)&&[o.id,o.title,o.lead,o.objective].join(" ").toLowerCase().includes(q));
   $("#sebPrepCount").textContent=sebOperations.filter(o=>o.status==="En préparation").length;
   $("#sebReadyCount").textContent=sebOperations.filter(o=>o.status==="Prête").length;
@@ -1212,93 +1472,211 @@ function sebRenderOperations(){
     <div class="seb-operation-meta"><span>Priorité : <strong>${escapeHtml(o.priority)}</strong></span><span>Lead : ${escapeHtml(o.lead)}</span>${o.date?`<span>${formatDate(o.date)}</span>`:""}</div>
     <p class="seb-operation-summary">${escapeHtml(o.objective||"Aucun objectif renseigné.")}</p>
     <div class="seb-operation-actions"><button class="primary-btn" data-seb-open="${o.id}">Ouvrir la carte</button><button class="secondary-btn" data-seb-edit="${o.id}">Modifier</button><button class="danger-outline" data-seb-delete="${o.id}">Supprimer</button></div>
-  </article>`).join("")||'<div class="inv-empty">Aucune opération ne correspond aux filtres.</div>';
-  $$('[data-seb-open]').forEach(b=>b.onclick=()=>openSebBoard(b.dataset.sebOpen));
-  $$('[data-seb-edit]').forEach(b=>b.onclick=()=>openSebOperationForm(b.dataset.sebEdit));
-  $$('[data-seb-delete]').forEach(b=>b.onclick=()=>deleteSebOperation(b.dataset.sebDelete));
+  </article>`).join("")||'<div class="empty-state">Aucune opération SEB.</div>';
+  $$("[data-seb-open]").forEach(b=>b.onclick=()=>openSebBoard(b.dataset.sebOpen));
+  $$("[data-seb-edit]").forEach(b=>b.onclick=()=>openSebOperationForm(b.dataset.sebEdit));
+  $$("[data-seb-delete]").forEach(b=>b.onclick=()=>deleteSebOperation(b.dataset.sebDelete));
 }
 function openSebOperationForm(id=null){
-  const o=id?sebOperations.find(x=>x.id===id):null; $("#sebOperationForm").reset();
-  $("#sebOperationId").value=o?.id||""; $("#sebOperationModalTitle").textContent=o?`Modifier ${o.id}`:"Nouvelle opération";
-  $("#sebOperationTitle").value=o?.title||""; $("#sebOperationLead").value=o?.lead||profile.name;
-  $("#sebOperationFormStatus").value=o?.status||"En préparation"; $("#sebOperationFormPriority").value=o?.priority||"Normale";
-  $("#sebOperationDate").value=o?.date||""; $("#sebOperationObjective").value=o?.objective||""; $("#sebOperationThreats").value=o?.threats||"";
-  $("#sebOperationTeams").value=o?.teams||""; $("#sebOperationEquipment").value=o?.equipment||""; $("#sebOperationInstructions").value=o?.instructions||"";
-  openModal("sebOperationModal");
+  const o=id?sebOperations.find(x=>x.id===id):null;$("#sebOperationForm").reset();$("#sebOperationId").value=o?.id||"";
+  $("#sebOperationModalTitle").textContent=o?`Modifier ${o.id}`:"Nouvelle opération SEB";$("#sebOperationTitle").value=o?.title||"";$("#sebOperationLead").value=o?.lead||profile.name;
+  $("#sebOperationFormStatus").value=o?.status||"En préparation";$("#sebOperationFormPriority").value=o?.priority||"Normale";$("#sebOperationDate").value=o?.date||"";
+  $("#sebOperationObjective").value=o?.objective||"";$("#sebOperationThreats").value=o?.threats||"";$("#sebOperationTeams").value=o?.teams||"";$("#sebOperationEquipment").value=o?.equipment||"";$("#sebOperationInstructions").value=o?.instructions||"";
+  openModal("sebOperationModal")
 }
-function deleteSebOperation(id){const o=sebOperations.find(x=>x.id===id);if(!o||!confirm(`Supprimer définitivement ${o.id} — ${o.title} ?`))return;sebOperations=sebOperations.filter(x=>x.id!==id);delete sebBoards[id];save(SEB_STORAGE.operations,sebOperations);save(SEB_STORAGE.boards,sebBoards);sebRenderOperations()}
-function getSebBoard(id){if(!sebBoards[id])sebBoards[id]={background:null,markers:[],lines:[]};return sebBoards[id]}
+function deleteSebOperation(id){
+  const o=sebOperations.find(x=>x.id===id);if(!o||!confirm(`Supprimer ${o.id} — ${o.title} ?`))return;
+  sebOperations=sebOperations.filter(x=>x.id!==id);delete sebBoards[id];save(SEB_STORAGE.operations,sebOperations);save(SEB_STORAGE.boards,sebBoards);sebRenderOperations()
+}
+function getSebBoard(id){
+  if(!sebBoards[id])sebBoards[id]={markers:[],routes:[],view:null,layer:"satellite"};
+  const b=sebBoards[id];b.markers=b.markers||[];b.routes=b.routes||[];b.layer=b.layer||"satellite";return b
+}
+function sebBriefingHtml(o){
+  return `<div><b>Objectif</b><p>${escapeHtml(o.objective||"—")}</p></div><div><b>Menaces</b><p>${escapeHtml(o.threats||"—")}</p></div><div><b>Effectifs</b><p>${escapeHtml(o.teams||"—").replace(/\n/g,"<br>")}</p></div><div><b>Équipement</b><p>${escapeHtml(o.equipment||"—").replace(/\n/g,"<br>")}</p></div><div><b>Consignes</b><p>${escapeHtml(o.instructions||"—").replace(/\n/g,"<br>")}</p></div>`
+}
+function sebEmojiIcon(emoji,label){
+  return L.divIcon({
+    className:"seb-leaflet-divicon",
+    html:`<div class="seb-emoji-marker"><span>${escapeHtml(emoji)}</span><small>${escapeHtml(label)}</small></div>`,
+    iconSize:[82,48],iconAnchor:[41,24]
+  })
+}
+function destroySebLeafletObjects(){
+  if(!sebLeafletMap)return;
+  sebLeafletObjects.forEach(o=>{try{sebLeafletMap.removeLayer(o)}catch{}});
+  sebLeafletObjects=[];
+  if(sebDraftRouteLayer){try{sebLeafletMap.removeLayer(sebDraftRouteLayer)}catch{};sebDraftRouteLayer=null}
+}
+function initSebLeafletMap(){
+  if(sebLeafletMap)return;
+  if(typeof L==="undefined"){alert("Leaflet n'a pas pu être chargé. Vérifiez votre connexion Internet.");return}
+  sebLeafletMap=L.map("sebLeafletMap",{
+    crs:L.CRS.Simple,
+    minZoom:1,maxZoom:9,
+    zoomSnap:.25,zoomDelta:.5,
+    wheelPxPerZoomLevel:70,
+    maxBounds:SEB_MAP_BOUNDS,
+    maxBoundsViscosity:1,
+    attributionControl:false
+  });
+  sebSatelliteLayer=L.tileLayer(`${SEB_TILE_ROOT}/satellite/{z}/{x}/{y}.webp`,{
+    minZoom:1,maxZoom:9,maxNativeZoom:7,tileSize:256,noWrap:true,tms:true,bounds:SEB_MAP_BOUNDS,
+    keepBuffer:4,updateWhenIdle:false
+  });
+  sebPostalLayer=L.tileLayer(`${SEB_TILE_ROOT}/postal/{z}/{x}/{y}.webp`,{
+    minZoom:1,maxZoom:9,maxNativeZoom:7,tileSize:256,noWrap:true,tms:true,bounds:SEB_MAP_BOUNDS,
+    keepBuffer:4,updateWhenIdle:false
+  });
+  sebSatelliteLayer.addTo(sebLeafletMap);
+  sebLeafletMap.fitBounds(SEB_MAP_BOUNDS,{padding:[15,15]});
+
+  sebLeafletMap.on("mousemove",e=>{
+    const x=Math.round(e.latlng.lng),y=Math.round(-e.latlng.lat);
+    const r=$("#sebCoordinateReadout");if(r)r.textContent=`X ${x} / Y ${y}`;
+  });
+  sebLeafletMap.on("click",handleSebLeafletClick);
+  sebLeafletMap.on("moveend zoomend",saveSebMapView);
+}
+function saveSebMapView(){
+  if(!currentSebOperationId||!sebLeafletMap)return;
+  const c=sebLeafletMap.getCenter(),b=getSebBoard(currentSebOperationId);
+  b.view={lat:c.lat,lng:c.lng,zoom:sebLeafletMap.getZoom()};
+  save(SEB_STORAGE.boards,sebBoards)
+}
+function setSebBaseLayer(layerName){
+  if(!sebLeafletMap)return;
+  const b=getSebBoard(currentSebOperationId);
+  if(sebSatelliteLayer)sebLeafletMap.removeLayer(sebSatelliteLayer);
+  if(sebPostalLayer)sebLeafletMap.removeLayer(sebPostalLayer);
+  (layerName==="postal"?sebPostalLayer:sebSatelliteLayer).addTo(sebLeafletMap);
+  sebCurrentLayer=layerName;b.layer=layerName;save(SEB_STORAGE.boards,sebBoards);
+  $$("[data-seb-layer]").forEach(x=>x.classList.toggle("active",x.dataset.sebLayer===layerName))
+}
+function renderSebMapData(){
+  if(!sebLeafletMap||!currentSebOperationId)return;
+  destroySebLeafletObjects();
+  const b=getSebBoard(currentSebOperationId);
+  setSebBaseLayer(b.layer||"satellite");
+
+  b.markers.forEach(m=>{
+    const marker=L.marker([m.lat,m.lng],{draggable:true,icon:sebEmojiIcon(m.emoji,m.label)}).addTo(sebLeafletMap);
+    marker.bindPopup(`<div class="seb-popup"><strong>${escapeHtml(m.label)}</strong>${m.detail?`<p>${escapeHtml(m.detail)}</p>`:""}<button type="button" data-seb-popup-remove="${m.id}">Supprimer</button></div>`);
+    marker.on("dragend",()=>{
+      const p=marker.getLatLng();m.lat=p.lat;m.lng=p.lng;save(SEB_STORAGE.boards,sebBoards)
+    });
+    marker.on("popupopen",()=>{
+      setTimeout(()=>{
+        document.querySelector(`[data-seb-popup-remove="${m.id}"]`)?.addEventListener("click",()=>{
+          b.markers=b.markers.filter(x=>x.id!==m.id);save(SEB_STORAGE.boards,sebBoards);renderSebMapData()
+        })
+      },0)
+    });
+    sebLeafletObjects.push(marker)
+  });
+
+  b.routes.forEach(r=>{
+    const opts=r.type==="convoy"?{weight:6,opacity:.9,dashArray:"12 8"}:{weight:5,opacity:.95};
+    const line=L.polyline(r.points.map(p=>[p.lat,p.lng]),opts).addTo(sebLeafletMap);
+    line.bindPopup(`<div class="seb-popup"><strong>${r.type==="convoy"?"Tracé convoi":"Axe d'assaut"}</strong>${r.label?`<p>${escapeHtml(r.label)}</p>`:""}<button type="button" data-seb-route-remove="${r.id}">Supprimer</button></div>`);
+    line.on("popupopen",()=>setTimeout(()=>document.querySelector(`[data-seb-route-remove="${r.id}"]`)?.addEventListener("click",()=>{
+      b.routes=b.routes.filter(x=>x.id!==r.id);save(SEB_STORAGE.boards,sebBoards);renderSebMapData()
+    }),0));
+    sebLeafletObjects.push(line)
+  });
+
+  if(b.view)sebLeafletMap.setView([b.view.lat,b.view.lng],b.view.zoom,{animate:false});
+  else sebLeafletMap.fitBounds(SEB_MAP_BOUNDS,{padding:[15,15]})
+}
 function openSebBoard(id){
-  const o=sebOperations.find(x=>x.id===id); if(!o)return; currentSebOperationId=id; sebZoom=1; sebTool="map"; sebDraftLine=null;
-  $("#sebBoardOperationId").textContent=o.id; $("#sebBoardOperationTitle").textContent=o.title; $("#sebBoardOperationStatus").value=o.status;
-  setSebTool("map"); renderSebBoard(); openModal("sebBoardModal"); requestAnimationFrame(centerSebBoard);
+  const o=sebOperations.find(x=>x.id===id);if(!o)return;
+  currentSebOperationId=id;$("#sebBoardOperationId").textContent=o.id;$("#sebBoardOperationTitle").textContent=o.title;$("#sebBoardOperationStatus").value=o.status;$("#sebBoardBriefing").innerHTML=sebBriefingHtml(o);
+  clearSebLeafletTool();openModal("sebBoardModal");
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    initSebLeafletMap();
+    sebLeafletMap?.invalidateSize();
+    renderSebMapData()
+  }))
 }
-function sebBriefingHtml(o){const items=[["Objectif",o.objective],["Menaces",o.threats],["Escouades",o.teams],["Équipement",o.equipment],["Consignes",o.instructions]];return items.map(([k,v])=>`<div class="seb-briefing-card"><span>${k}</span><p>${escapeHtml(v||"—")}</p></div>`).join("")}
-function centerSebBoard(){const stage=$("#sebMapStage");stage.style.left="0px";stage.style.top="0px";applySebZoom()}
-function applySebZoom(){const stage=$("#sebMapStage");stage.style.transform=`scale(${sebZoom})`;$("#sebZoomLabel").textContent=`${Math.round(sebZoom*100)}%`}
-const SEB_MARKERS={
-  entry:{label:"Point d'entrée",icon:"↪",color:"#55c98f"},exit:{label:"Point de sortie",icon:"↩",color:"#67b7ff"},suspect:{label:"Position suspect",icon:"!",color:"#f05f67"},
-  hostage:{label:"Otage",icon:"●",color:"#f6c64d"},rally:{label:"Rassemblement",icon:"◆",color:"#ad82ef"},vehicle:{label:"Véhicule",icon:"▣",color:"#fb9852"},
-  overwatch:{label:"Overwatch",icon:"◎",color:"#59cbd4"},objective:{label:"Objectif",icon:"★",color:"#f5d65f"},squad:{label:"Escouade",icon:"A",color:"#e7edf0"},note:{label:"Note",icon:"N",color:"#c6a86d"}
-};
-function renderSebBoard(){
-  const o=sebOperations.find(x=>x.id===currentSebOperationId);if(!o)return;const b=getSebBoard(o.id);
-  $("#sebBoardOperationStatus").value=o.status; $("#sebBoardBriefing").innerHTML=sebBriefingHtml(o);
-  const bg=$("#sebMapBackground"),forge=$("#sebForgeMap");
-  bg.style.backgroundImage=b.background?`url("${b.background}")`:"none";
-  $("#sebMapStage").classList.toggle("has-bg",!!b.background);
-  if(forge) forge.classList.toggle("hidden",!!b.background); $("#sebMapWrap").classList.toggle("map-interaction",sebTool==="map"&&!b.background);
-  $("#sebMapMarkers").innerHTML=(b.markers||[]).map(sebMarkerHtml).join("");
-  renderSebLines(); $$('.seb-map-marker').forEach(makeSebMarkerDraggable); $$('.seb-marker-remove').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const board=getSebBoard(currentSebOperationId);board.markers=board.markers.filter(m=>m.id!==btn.dataset.sebRemove);save(SEB_STORAGE.boards,sebBoards);renderSebBoard()});
+function setSebLeafletTool(tool){
+  sebActiveTool=tool;sebDraftRoute=null;
+  if(sebDraftRouteLayer&&sebLeafletMap){sebLeafletMap.removeLayer(sebDraftRouteLayer);sebDraftRouteLayer=null}
+  const status=$("#sebLeafletToolStatus"),finish=$("#sebFinishLeafletRoute"),cancel=$("#sebCancelLeafletTool");
+  finish.hidden=!["convoy","assault"].includes(tool);cancel.hidden=!tool;
+  if(tool==="convoy")status.textContent="Tracé convoi actif : cliquez successivement sur la route. Terminez avec ✓.";
+  else if(tool==="assault")status.textContent="Axe d'assaut actif : cliquez pour créer les points de progression.";
+  else if(tool)status.textContent=`${SEB_PLACE_TYPES[tool]?.label||"Élément"} : cliquez à l'endroit où le placer.`;
+  else status.textContent="Sélectionnez un repère ou un outil, puis cliquez sur la carte.";
+  document.querySelector("#sebLeafletMap")?.classList.toggle("placing",!!tool)
 }
-function sebMarkerHtml(m){const def=SEB_MARKERS[m.kind]||SEB_MARKERS.note;return `<div class="seb-map-marker" data-seb-marker-id="${m.id}" style="left:${m.x}px;top:${m.y}px;--marker:${m.color||def.color}"><button class="seb-marker-remove" data-seb-remove="${m.id}">×</button><span class="seb-marker-icon">${escapeHtml(m.icon||def.icon)}</span><strong>${escapeHtml(m.label||def.label)}</strong>${m.detail?`<small>${escapeHtml(m.detail)}</small>`:""}</div>`}
-function renderSebLines(preview=null){
-  const b=getSebBoard(currentSebOperationId),svg=$("#sebMapLines");
-  const defs=`<defs><marker id="sebArrowHead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#ffd34d"/></marker></defs>`;
-  const lines=(b.lines||[]).map(l=>{if(l.type==="route")return `<polyline class="seb-line" points="${l.points.map(p=>`${p.x},${p.y}`).join(" ")}"/>`;return `<line class="seb-line seb-line-arrow" x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}"/>`}).join("");
-  const pv=preview?(preview.type==="route"?`<polyline class="seb-line-preview" points="${preview.points.map(p=>`${p.x},${p.y}`).join(" ")}"/>`:`<line class="seb-line-preview" x1="${preview.x1}" y1="${preview.y1}" x2="${preview.x2}" y2="${preview.y2}"/>`):"";
-  svg.innerHTML=defs+lines+pv;
+function clearSebLeafletTool(){
+  sebActiveTool=null;sebDraftRoute=null;
+  if(sebDraftRouteLayer&&sebLeafletMap){sebLeafletMap.removeLayer(sebDraftRouteLayer);sebDraftRouteLayer=null}
+  const finish=$("#sebFinishLeafletRoute"),cancel=$("#sebCancelLeafletTool"),status=$("#sebLeafletToolStatus");
+  if(finish)finish.hidden=true;if(cancel)cancel.hidden=true;if(status)status.textContent="Sélectionnez un repère ou un outil, puis cliquez sur la carte.";
+  document.querySelector("#sebLeafletMap")?.classList.remove("placing")
 }
-function addSebMarker(kind){
-  const def=SEB_MARKERS[kind]||SEB_MARKERS.note; let label=def.label,detail="";
-  if(kind==="squad"){label=prompt("Nom de l'escouade :","Alpha")||"Alpha";detail=prompt("Membres / mission :","")||""}
-  else if(kind==="note"){label=prompt("Titre de la note :","Note")||"Note";detail=prompt("Contenu :","")||""}
-  else detail=prompt(`${def.label} — précision (optionnel) :`,"")||"";
-  const b=getSebBoard(currentSebOperationId),i=b.markers.length;b.markers.push({id:`seb-m-${Date.now()}-${i}`,kind,label,detail,icon:def.icon,color:def.color,x:900+(i%4)*60,y:600+(i%3)*60});save(SEB_STORAGE.boards,sebBoards);renderSebBoard();
-}
-function makeSebMarkerDraggable(el){
-  el.onpointerdown=e=>{if(sebTool!=="select"||e.target.closest("button"))return;e.stopPropagation();const startX=e.clientX,startY=e.clientY,ox=parseFloat(el.style.left),oy=parseFloat(el.style.top);el.setPointerCapture?.(e.pointerId);const move=ev=>{el.style.left=`${Math.max(0,Math.min(1800,ox+(ev.clientX-startX)/sebZoom))}px`;el.style.top=`${Math.max(0,Math.min(1200,oy+(ev.clientY-startY)/sebZoom))}px`};const up=()=>{el.removeEventListener("pointermove",move);el.removeEventListener("pointerup",up);const m=getSebBoard(currentSebOperationId).markers.find(x=>x.id===el.dataset.sebMarkerId);if(m){m.x=parseFloat(el.style.left);m.y=parseFloat(el.style.top);save(SEB_STORAGE.boards,sebBoards)}};el.addEventListener("pointermove",move);el.addEventListener("pointerup",up)};
-}
-function setSebTool(tool){sebTool=tool;sebDraftLine=null;$$(`[data-seb-tool]`).forEach(b=>b.classList.toggle("active",b.dataset.sebTool===tool));$("#sebMapStage").classList.toggle("tool-line",tool==="line");$("#sebMapStage").classList.toggle("tool-route",tool==="route");$("#sebMapWrap").classList.toggle("map-interaction",tool==="map"&&!getSebBoard(currentSebOperationId).background);renderSebLines()}
-function sebStagePoint(e){const stage=$("#sebMapStage"),r=stage.getBoundingClientRect();return{x:Math.max(0,Math.min(1800,(e.clientX-r.left)/sebZoom)),y:Math.max(0,Math.min(1200,(e.clientY-r.top)/sebZoom))}}
-function handleSebStageClick(e){
-  if(sebTool==="map")return;
-  if(e.target.closest('.seb-map-marker'))return;const p=sebStagePoint(e),b=getSebBoard(currentSebOperationId);
-  if(sebTool==="line"){
-    if(!sebDraftLine){sebDraftLine={type:"line",x1:p.x,y1:p.y,x2:p.x,y2:p.y};renderSebLines(sebDraftLine)}else{sebDraftLine.x2=p.x;sebDraftLine.y2=p.y;b.lines.push(sebDraftLine);sebDraftLine=null;save(SEB_STORAGE.boards,sebBoards);renderSebLines()}
-  } else if(sebTool==="route"){
-    if(!sebDraftLine)sebDraftLine={type:"route",points:[p]}; else sebDraftLine.points.push(p); renderSebLines(sebDraftLine);
+function handleSebLeafletClick(e){
+  if(!sebActiveTool||!currentSebOperationId)return;
+  const b=getSebBoard(currentSebOperationId);
+  if(["convoy","assault"].includes(sebActiveTool)){
+    if(!sebDraftRoute)sebDraftRoute={type:sebActiveTool,points:[]};
+    sebDraftRoute.points.push({lat:e.latlng.lat,lng:e.latlng.lng});
+    if(sebDraftRouteLayer)sebLeafletMap.removeLayer(sebDraftRouteLayer);
+    sebDraftRouteLayer=L.polyline(sebDraftRoute.points.map(p=>[p.lat,p.lng]),{weight:5,dashArray:sebActiveTool==="convoy"?"12 8":null}).addTo(sebLeafletMap);
+    return
   }
+  const def=SEB_PLACE_TYPES[sebActiveTool]||SEB_PLACE_TYPES.custom;
+  let emoji=def.emoji,label=def.label,detail="";
+  if(sebActiveTool==="custom"){
+    emoji=prompt("Emoji ou symbole :",def.emoji)||def.emoji;
+    label=prompt("Nom de l'élément :","Unité / élément")||"Élément";
+  }else if(["alpha","bravo","charlie","medic","sniper"].includes(sebActiveTool)){
+    label=prompt("Nom / indicatif de l'unité :",def.label)||def.label
+  }
+  detail=prompt("Précision / mission (optionnel) :","")||"";
+  b.markers.push({id:`seb-m-${Date.now()}`,kind:sebActiveTool,emoji,label,detail,lat:e.latlng.lat,lng:e.latlng.lng});
+  save(SEB_STORAGE.boards,sebBoards);renderSebMapData();clearSebLeafletTool()
 }
-function finishSebRoute(){if(sebTool!=="route"||!sebDraftLine||sebDraftLine.points.length<2)return;getSebBoard(currentSebOperationId).lines.push(sebDraftLine);sebDraftLine=null;save(SEB_STORAGE.boards,sebBoards);renderSebLines()}
-function initSebPan(){
-  const stage=$("#sebMapStage");stage.addEventListener("pointerdown",e=>{if(sebTool!=="move"||e.target.closest('.seb-map-marker'))return;e.preventDefault();const sx=e.clientX,sy=e.clientY,sl=parseFloat(stage.style.left)||0,st=parseFloat(stage.style.top)||0;stage.setPointerCapture?.(e.pointerId);const move=ev=>{stage.style.left=`${sl+(ev.clientX-sx)}px`;stage.style.top=`${st+(ev.clientY-sy)}px`};const up=()=>{stage.removeEventListener("pointermove",move);stage.removeEventListener("pointerup",up)};stage.addEventListener("pointermove",move);stage.addEventListener("pointerup",up)})
+function finishSebLeafletRoute(){
+  if(!sebDraftRoute||sebDraftRoute.points.length<2)return alert("Placez au moins deux points.");
+  const label=prompt(sebDraftRoute.type==="convoy"?"Nom du convoi / itinéraire :":"Nom de l'axe :",sebDraftRoute.type==="convoy"?"Convoi principal":"Axe Alpha")||"";
+  const b=getSebBoard(currentSebOperationId);b.routes.push({id:`seb-r-${Date.now()}`,type:sebDraftRoute.type,label,points:sebDraftRoute.points});
+  save(SEB_STORAGE.boards,sebBoards);clearSebLeafletTool();renderSebMapData()
+}
+function undoSebLeaflet(){
+  const b=getSebBoard(currentSebOperationId);
+  if(sebDraftRoute?.points?.length){sebDraftRoute.points.pop();if(sebDraftRouteLayer)sebLeafletMap.removeLayer(sebDraftRouteLayer);sebDraftRouteLayer=null;if(sebDraftRoute.points.length)sebDraftRouteLayer=L.polyline(sebDraftRoute.points.map(p=>[p.lat,p.lng]),{weight:5,dashArray:sebDraftRoute.type==="convoy"?"12 8":null}).addTo(sebLeafletMap);return}
+  const lastMarker=b.markers[b.markers.length-1],lastRoute=b.routes[b.routes.length-1];
+  if(!lastMarker&&!lastRoute)return;
+  if(lastMarker&&(!lastRoute||String(lastMarker.id).localeCompare(String(lastRoute.id))>0))b.markers.pop();else b.routes.pop();
+  save(SEB_STORAGE.boards,sebBoards);renderSebMapData()
 }
 
-$("#sebNewOperationBtn").onclick=()=>openSebOperationForm(); $("#sebOperationSearch").oninput=sebRenderOperations; $("#sebOperationStatus").onchange=sebRenderOperations; $("#sebOperationPriority").onchange=sebRenderOperations;
-$("#sebOperationForm").onsubmit=e=>{e.preventDefault();const id=$("#sebOperationId").value||sebNextId(),old=sebOperations.find(x=>x.id===id),obj={id,title:$("#sebOperationTitle").value.trim(),lead:$("#sebOperationLead").value.trim(),status:$("#sebOperationFormStatus").value,priority:$("#sebOperationFormPriority").value,date:$("#sebOperationDate").value,objective:$("#sebOperationObjective").value.trim(),threats:$("#sebOperationThreats").value.trim(),teams:$("#sebOperationTeams").value.trim(),equipment:$("#sebOperationEquipment").value.trim(),instructions:$("#sebOperationInstructions").value.trim(),createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};const i=sebOperations.findIndex(x=>x.id===id);if(i>=0)sebOperations[i]=obj;else sebOperations.unshift(obj);save(SEB_STORAGE.operations,sebOperations);closeModal("sebOperationModal");sebRenderOperations();if(currentSebOperationId===id){$("#sebBoardOperationTitle").textContent=obj.title;renderSebBoard()}};
-$("#sebBoardOperationStatus").onchange=()=>{const o=sebOperations.find(x=>x.id===currentSebOperationId);if(o){o.status=$("#sebBoardOperationStatus").value;o.updatedAt=new Date().toISOString();save(SEB_STORAGE.operations,sebOperations);sebRenderOperations();renderSebBoard()}};
+$("#sebNewOperationBtn").onclick=()=>openSebOperationForm();
+$("#sebOperationSearch").oninput=sebRenderOperations;$("#sebOperationStatus").onchange=sebRenderOperations;$("#sebOperationPriority").onchange=sebRenderOperations;
+$("#sebOperationForm").onsubmit=e=>{
+  e.preventDefault();const id=$("#sebOperationId").value||sebNextId(),old=sebOperations.find(x=>x.id===id);
+  const obj={id,title:$("#sebOperationTitle").value.trim(),lead:$("#sebOperationLead").value.trim(),status:$("#sebOperationFormStatus").value,priority:$("#sebOperationFormPriority").value,date:$("#sebOperationDate").value,objective:$("#sebOperationObjective").value.trim(),threats:$("#sebOperationThreats").value.trim(),teams:$("#sebOperationTeams").value.trim(),equipment:$("#sebOperationEquipment").value.trim(),instructions:$("#sebOperationInstructions").value.trim(),createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+  const i=sebOperations.findIndex(x=>x.id===id);if(i>=0)sebOperations[i]=obj;else sebOperations.unshift(obj);
+  save(SEB_STORAGE.operations,sebOperations);closeModal("sebOperationModal");sebRenderOperations();
+  if(currentSebOperationId===id){$("#sebBoardOperationTitle").textContent=obj.title;$("#sebBoardBriefing").innerHTML=sebBriefingHtml(obj)}
+};
+$("#sebBoardOperationStatus").onchange=()=>{const o=sebOperations.find(x=>x.id===currentSebOperationId);if(o){o.status=$("#sebBoardOperationStatus").value;o.updatedAt=new Date().toISOString();save(SEB_STORAGE.operations,sebOperations);sebRenderOperations()}};
 $("#sebBoardEditOperation").onclick=()=>{closeModal("sebBoardModal");openSebOperationForm(currentSebOperationId)};
-$$('[data-seb-marker]').forEach(b=>b.onclick=()=>addSebMarker(b.dataset.sebMarker)); $("#sebAddNoteBtn").onclick=()=>addSebMarker("note");
-$("#sebMapImageInput").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>8*1024*1024){alert("Carte limitée à 8 Mo pour la démo.");e.target.value="";return}const data=await fileToDataUrl(f);getSebBoard(currentSebOperationId).background=data;save(SEB_STORAGE.boards,sebBoards);renderSebBoard();e.target.value=""};
-$("#sebClearMapBtn").onclick=()=>{if(!confirm("Revenir à la carte Forge par défaut pour cette opération ?"))return;getSebBoard(currentSebOperationId).background=null;save(SEB_STORAGE.boards,sebBoards);renderSebBoard()};
-$$('[data-seb-tool]').forEach(b=>b.onclick=()=>setSebTool(b.dataset.sebTool)); $("#sebMapStage").addEventListener("click",handleSebStageClick); $("#sebMapStage").addEventListener("dblclick",e=>{if(sebTool==="route"){e.preventDefault();finishSebRoute()}}); initSebPan();
-$("#sebFinishRoute").onclick=finishSebRoute;
-$("#sebUndoLine").onclick=()=>{const b=getSebBoard(currentSebOperationId);if(sebDraftLine){sebDraftLine=null;renderSebLines();return}b.lines.pop();save(SEB_STORAGE.boards,sebBoards);renderSebLines()};
-$("#sebZoomIn").onclick=()=>{sebZoom=Math.min(1.8,sebZoom+.1);applySebZoom()}; $("#sebZoomOut").onclick=()=>{sebZoom=Math.max(.45,sebZoom-.1);applySebZoom()}; $("#sebResetView").onclick=centerSebBoard;
-$("#sebClearBoardBtn").onclick=()=>{if(!confirm("Effacer tous les marqueurs et tracés de cette carte ? Le fond de carte sera conservé."))return;const b=getSebBoard(currentSebOperationId);b.markers=[];b.lines=[];sebDraftLine=null;save(SEB_STORAGE.boards,sebBoards);renderSebBoard()};
+$$("[data-seb-place]").forEach(b=>b.onclick=()=>setSebLeafletTool(b.dataset.sebPlace));
+$$("[data-seb-layer]").forEach(b=>b.onclick=()=>setSebBaseLayer(b.dataset.sebLayer));
+$("#sebStartConvoyRoute").onclick=()=>setSebLeafletTool("convoy");
+$("#sebStartAssaultRoute").onclick=()=>setSebLeafletTool("assault");
+$("#sebFinishLeafletRoute").onclick=finishSebLeafletRoute;
+$("#sebCancelLeafletTool").onclick=clearSebLeafletTool;
+$("#sebUndoLeaflet").onclick=undoSebLeaflet;
+$("#sebFitGtaMap").onclick=()=>sebLeafletMap?.fitBounds(SEB_MAP_BOUNDS,{padding:[15,15]});
+$("#sebClearBoardBtn").onclick=()=>{
+  if(!confirm("Effacer tous les repères et tracés tactiques de cette opération ?"))return;
+  const b=getSebBoard(currentSebOperationId);b.markers=[];b.routes=[];save(SEB_STORAGE.boards,sebBoards);clearSebLeafletTool();renderSebMapData()
+};
 sebRenderOperations();
-
 
 // ==================== PROCEDURES & AIDES ====================
 const PROCEDURES = [

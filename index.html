@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
 <body>
 
@@ -26,10 +28,11 @@
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div class="brand-mark">★</div>
-        <div>
+        <div class="brand-copy">
           <strong>BCSO</strong>
           <span>Blaine County Sheriff's Office</span>
         </div>
+        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" type="button" aria-label="Replier le menu" title="Replier le menu">‹</button>
       </div>
 
       <button class="profile-card" id="openProfile">
@@ -946,10 +949,12 @@
   <div class="modal" id="invSuspectModal" aria-hidden="true">
     <div class="modal-card wide"><button class="modal-close" data-close="invSuspectModal">×</button><p class="eyebrow">Investigation Division</p><h2 id="invSuspectModalTitle">Nouvelle fiche suspect</h2>
       <form id="invSuspectForm"><input type="hidden" id="invSuspectId">
-        <div class="form-grid two"><label>Nom / identité<input id="invSuspectName" required></label><label>Alias<input id="invSuspectAlias" placeholder="Alias connus"></label></div>
-        <div class="form-grid three"><label>Dangerosité<select id="invSuspectDanger"><option>Faible</option><option>Moyenne</option><option>Élevée</option><option>Critique</option></select></label><label>Lié à un groupuscule ?<select id="invSuspectGrouped"><option value="no">Non</option><option value="yes">Oui</option></select></label><label>Groupuscule<input id="invSuspectGroup" placeholder="Nom du groupe"></label></div>
-        <div class="form-grid two"><label>Rôle supposé<input id="invSuspectRole" placeholder="Membre, chef, intermédiaire..."></label><label>Véhicules connus<input id="invSuspectVehicles" placeholder="Plaques / modèles"></label></div>
-        <label>Notes enquêteurs<textarea id="invSuspectNotes" rows="5" placeholder="Informations utiles, habitudes, liens connus..."></textarea></label>
+        <div class="form-grid two"><label>Nom<input id="invSuspectLastName" required placeholder="Nom"></label><label>Prénom<input id="invSuspectFirstName" required placeholder="Prénom"></label></div>
+        <div class="form-grid two"><label>Alias<input id="invSuspectAlias" placeholder="Alias connus"></label><label>Appartenance<input id="invSuspectGroup" placeholder="Gang, organisation, entreprise..."></label></div>
+        <div class="form-grid three"><label>Dangerosité<select id="invSuspectDanger"><option>Faible</option><option>Moyenne</option><option>Élevée</option><option>Critique</option></select></label><label>Rôle supposé<input id="invSuspectRole" placeholder="Membre, chef, intermédiaire..."></label><label>Véhicules connus<input id="invSuspectVehicles" placeholder="Plaques / modèles"></label></div>
+        <label>Commentaires enquêteurs<textarea id="invSuspectNotes" rows="5" placeholder="Informations utiles, habitudes, liens connus..."></textarea></label>
+        <label>Photo<input id="invSuspectPhoto" type="file" accept="image/png,image/jpeg,image/webp"></label>
+        <div id="invSuspectPhotoPreview" class="inv-person-photo-preview"></div>
         <div class="modal-actions"><button type="button" class="secondary-btn" data-close="invSuspectModal">Annuler</button><button class="primary-btn" type="submit">Enregistrer</button></div>
       </form>
     </div>
@@ -965,12 +970,19 @@
       </div>
       <div class="inv-board-layout">
         <aside class="inv-board-side">
-          <h3>Éléments liés</h3>
-          <button class="inv-side-action" id="invAddSuspectToBoard">+ Suspect</button>
-          <button class="inv-side-action" id="invImportReportBtn">+ Importer rapport BCSO</button>
-          <button class="inv-side-action" id="invAddNoteBtn">+ Note</button>
-          <label class="inv-side-action inv-file-action">+ Image<input id="invBoardImageInput" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>
-          <div class="inv-side-section"><h4>Suspects</h4><div id="invBoardSuspects"></div></div>
+          <h3>Ajouter un élément</h3>
+          <button class="inv-side-action" id="invImportReportBtn"><span>📄</span> Rapport enregistré</button>
+          <label class="inv-side-action inv-file-action"><span>📷</span> Photo<input id="invBoardImageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden></label>
+          <button class="inv-side-action" id="invAddRichTextBtn"><span>✍️</span> Texte enrichi</button>
+          <button class="inv-side-action" id="invAddDocumentBtn"><span>🗂️</span> Document</button>
+          <button class="inv-side-action" id="invAddSuspectToBoard"><span>🕵️</span> Suspect</button>
+          <button class="inv-side-action" id="invAddWitnessBtn"><span>👁️</span> Témoin</button>
+          <button class="inv-side-action link-action" id="invLinkElementsBtn"><span>🔗</span> Relier des éléments</button>
+          <button class="inv-side-action link-cancel-action" id="invCancelLinkBtn" hidden><span>×</span> Annuler la liaison</button>
+          <button class="inv-side-action" id="invUndoLinkBtn"><span>↶</span> Supprimer dernière liaison</button>
+          <div class="inv-link-hint" id="invLinkHint" hidden>Sélectionnez le premier élément, puis le second.</div>
+          <div class="inv-side-section"><h4>Suspects liés</h4><div id="invBoardSuspects"></div></div>
+          <div class="inv-side-section"><h4>Témoins liés</h4><div id="invBoardWitnesses"></div></div>
           <div class="inv-side-section"><h4>Rapports BCSO</h4><div id="invBoardReports"></div></div>
         </aside>
         <div class="inv-board-stage-wrap">
@@ -981,6 +993,81 @@
           <div class="inv-board-tools"><button id="invZoomOut">−</button><span id="invZoomLabel">100%</span><button id="invZoomIn">+</button><button id="invResetView">Centrer</button><span class="muted">Déplacez les cartes par glisser-déposer</span></div>
         </div>
       </div>
+    </div>
+  </div>
+
+
+  <div class="modal" id="invRichTextModal" aria-hidden="true">
+    <div class="modal-card wide">
+      <button class="modal-close" data-close="invRichTextModal">×</button>
+      <p class="eyebrow">Tableau d'enquête</p><h2>Ajouter du texte</h2>
+      <form id="invRichTextForm">
+        <label>Titre de la carte<input id="invRichTextCardTitle" placeholder="Ex. Hypothèse principale"></label>
+        <div class="inv-rich-toolbar" data-editor-toolbar="invRichTextEditor">
+          <select data-rich-block><option value="p">Texte</option><option value="h2">Titre</option><option value="h3">Titre secondaire</option></select>
+          <button type="button" data-rich-cmd="bold"><b>G</b></button>
+          <button type="button" data-rich-cmd="italic"><i>I</i></button>
+          <button type="button" data-rich-cmd="underline"><u>S</u></button>
+          <button type="button" data-rich-cmd="insertUnorderedList">• Liste</button>
+          <button type="button" data-rich-cmd="justifyLeft">↤</button>
+          <button type="button" data-rich-cmd="justifyCenter">↔</button>
+          <label class="rich-color-label">Couleur <input type="color" data-rich-color value="#e8e9eb"></label>
+        </div>
+        <div id="invRichTextEditor" class="inv-rich-editor" contenteditable="true" data-placeholder="Rédigez vos notes, hypothèses, chronologies..."></div>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="invRichTextModal">Annuler</button><button type="submit" class="primary-btn">Ajouter au tableau</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="invDocumentModal" aria-hidden="true">
+    <div class="modal-card wide">
+      <button class="modal-close" data-close="invDocumentModal">×</button>
+      <p class="eyebrow">Tableau d'enquête</p><h2>Ajouter un document</h2>
+      <form id="invDocumentForm">
+        <label>Titre du document<input id="invDocumentTitle" required placeholder="Ex. Compte rendu de surveillance"></label>
+        <div class="inv-rich-toolbar" data-editor-toolbar="invDocumentEditor">
+          <select data-rich-block><option value="p">Texte</option><option value="h2">Titre</option><option value="h3">Titre secondaire</option></select>
+          <button type="button" data-rich-cmd="bold"><b>G</b></button>
+          <button type="button" data-rich-cmd="italic"><i>I</i></button>
+          <button type="button" data-rich-cmd="underline"><u>S</u></button>
+          <button type="button" data-rich-cmd="insertUnorderedList">• Liste</button>
+          <button type="button" data-rich-cmd="justifyLeft">↤</button>
+          <button type="button" data-rich-cmd="justifyCenter">↔</button>
+          <label class="rich-color-label">Couleur <input type="color" data-rich-color value="#e8e9eb"></label>
+        </div>
+        <div id="invDocumentEditor" class="inv-rich-editor document-editor" contenteditable="true" data-placeholder="Contenu du document..."></div>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="invDocumentModal">Annuler</button><button type="submit" class="primary-btn">Ajouter au tableau</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="invWitnessModal" aria-hidden="true">
+    <div class="modal-card wide">
+      <button class="modal-close" data-close="invWitnessModal">×</button>
+      <p class="eyebrow">Investigation Division</p><h2 id="invWitnessModalTitle">Nouvelle fiche témoin</h2>
+      <form id="invWitnessForm"><input type="hidden" id="invWitnessId">
+        <div class="form-grid two"><label>Nom<input id="invWitnessLastName" required></label><label>Prénom<input id="invWitnessFirstName" required></label></div>
+        <div class="form-grid two"><label>Alias / surnom<input id="invWitnessAlias"></label><label>Appartenance / lien<input id="invWitnessAffiliation" placeholder="Organisation, relation avec l'affaire..."></label></div>
+        <div class="form-grid two"><label>Type<select id="invWitnessType"><option>Témoin</option><option>Victime</option><option>Informateur</option><option>Personne d'intérêt</option></select></label><label>Fiabilité<select id="invWitnessReliability"><option>À vérifier</option><option>Faible</option><option>Moyenne</option><option>Bonne</option><option>Élevée</option></select></label></div>
+        <label>Commentaires / déclaration<textarea id="invWitnessNotes" rows="6" placeholder="Déclaration, observations, éléments à vérifier..."></textarea></label>
+        <label>Photo<input id="invWitnessPhoto" type="file" accept="image/png,image/jpeg,image/webp"></label>
+        <div id="invWitnessPhotoPreview" class="inv-person-photo-preview"></div>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="invWitnessModal">Annuler</button><button type="submit" class="primary-btn">Enregistrer et ajouter</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="invImageMetaModal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="modal-close" data-close="invImageMetaModal">×</button>
+      <p class="eyebrow">Tableau d'enquête</p><h2>Ajouter une photo</h2>
+      <form id="invImageMetaForm">
+        <input type="hidden" id="invImagePendingData">
+        <label>Titre<input id="invImageTitle" placeholder="Ex. Caméra station-service"></label>
+        <label>Commentaire<textarea id="invImageCaption" rows="4" placeholder="Lieu, heure, observation..."></textarea></label>
+        <div id="invImageMetaPreview" class="inv-image-meta-preview"></div>
+        <div class="modal-actions"><button type="button" class="secondary-btn" data-close="invImageMetaModal">Annuler</button><button type="submit" class="primary-btn">Ajouter</button></div>
+      </form>
     </div>
   </div>
 
@@ -1010,44 +1097,67 @@
         <select id="sebBoardOperationStatus"><option>En préparation</option><option>Prête</option><option>En cours</option><option>Terminée</option><option>Annulée</option></select>
         <button class="secondary-btn" id="sebBoardEditOperation">Modifier le briefing</button>
       </div>
-      <div class="seb-board-layout">
-        <aside class="seb-board-side">
+
+      <div class="seb-board-layout seb-leaflet-layout">
+        <aside class="seb-board-side seb-map-side">
           <h3>Briefing</h3>
           <div id="sebBoardBriefing" class="seb-briefing"></div>
-          <h3 class="seb-side-heading">Éléments tactiques</h3>
+
+          <h3 class="seb-side-heading">Repères tactiques</h3>
           <div class="seb-tactical-grid">
-            <button class="seb-side-action" data-seb-marker="entry">↪ Entrée</button><button class="seb-side-action" data-seb-marker="exit">↩ Sortie</button>
-            <button class="seb-side-action" data-seb-marker="suspect">⚠ Suspect</button><button class="seb-side-action" data-seb-marker="hostage">● Otage</button>
-            <button class="seb-side-action" data-seb-marker="rally">◆ Rassemblement</button><button class="seb-side-action" data-seb-marker="vehicle">▣ Véhicule</button>
-            <button class="seb-side-action" data-seb-marker="overwatch">◎ Overwatch</button><button class="seb-side-action" data-seb-marker="objective">★ Objectif</button>
-            <button class="seb-side-action" data-seb-marker="squad">👥 Escouade</button><button class="seb-side-action" id="sebAddNoteBtn">📝 Note</button>
+            <button class="seb-side-action" data-seb-place="entry">🚪 Entrée</button>
+            <button class="seb-side-action" data-seb-place="exit">🚨 Sortie</button>
+            <button class="seb-side-action" data-seb-place="suspect">⚠️ Suspect</button>
+            <button class="seb-side-action" data-seb-place="hostage">🧍 Otage</button>
+            <button class="seb-side-action" data-seb-place="rally">📍 Rassemblement</button>
+            <button class="seb-side-action" data-seb-place="vehicle">🚙 Véhicule</button>
+            <button class="seb-side-action" data-seb-place="overwatch">🎯 Overwatch</button>
+            <button class="seb-side-action" data-seb-place="objective">⭐ Objectif</button>
           </div>
-          <label class="seb-side-action seb-file-action">🗺 Importer carte / plan<input id="sebMapImageInput" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>
-          <button class="seb-side-action" id="sebClearMapBtn">Revenir à la carte Forge</button>
+
+          <h3 class="seb-side-heading">Unités</h3>
+          <div class="seb-tactical-grid">
+            <button class="seb-side-action" data-seb-place="alpha">🟦 Alpha</button>
+            <button class="seb-side-action" data-seb-place="bravo">🟩 Bravo</button>
+            <button class="seb-side-action" data-seb-place="charlie">🟨 Charlie</button>
+            <button class="seb-side-action" data-seb-place="medic">🚑 Médical</button>
+            <button class="seb-side-action" data-seb-place="sniper">🔭 Tireur</button>
+            <button class="seb-side-action" data-seb-place="custom">😀 Personnalisé</button>
+          </div>
+
+          <h3 class="seb-side-heading">Dessin & itinéraires</h3>
+          <button class="seb-side-action route-action" id="sebStartConvoyRoute">🛣️ Tracé convoi</button>
+          <button class="seb-side-action route-action" id="sebStartAssaultRoute">➡️ Axe d'assaut</button>
+          <button class="seb-side-action" id="sebFinishLeafletRoute" hidden>✓ Terminer le tracé</button>
+          <button class="seb-side-action" id="sebCancelLeafletTool" hidden>× Annuler l'outil</button>
+          <button class="seb-side-action" id="sebUndoLeaflet">↶ Annuler le dernier élément</button>
+
+          <div class="seb-tool-status" id="sebLeafletToolStatus">
+            Sélectionnez un repère ou un outil, puis cliquez sur la carte.
+          </div>
+
+          <h3 class="seb-side-heading">Affichage</h3>
+          <div class="seb-layer-switch">
+            <button class="seb-side-action active" data-seb-layer="satellite">🛰️ Satellite</button>
+            <button class="seb-side-action" data-seb-layer="postal">🗺️ Atlas / Postal</button>
+          </div>
+          <button class="seb-side-action" id="sebFitGtaMap">◎ Recentrer San Andreas</button>
+          <button class="danger-outline seb-clear-map" id="sebClearBoardBtn">Effacer les annotations</button>
         </aside>
-        <div class="seb-map-wrap" id="sebMapWrap">
-          <div id="sebMapStage" class="seb-map-stage">
-            <iframe id="sebForgeMap" class="seb-forge-map" src="https://forge.plebmasters.de/map?x=-163.66636663666446&amp;y=6461.746174617462&amp;z=0&amp;b=Realmap&amp;o=" title="Carte tactique GTA V — Pleb Masters Forge" loading="eager" referrerpolicy="no-referrer"></iframe>
-            <div id="sebMapBackground" class="seb-map-background"><div class="seb-map-placeholder"><strong>Carte opérationnelle</strong><span>La carte Forge est chargée par défaut. Vous pouvez aussi importer un plan personnalisé.</span></div></div>
-            <svg id="sebMapLines" class="seb-map-lines"></svg>
-            <div id="sebMapMarkers"></div>
+
+        <div class="seb-map-wrap seb-leaflet-wrap" id="sebMapWrap">
+          <div id="sebLeafletMap" class="seb-leaflet-map" aria-label="Carte tactique GTA V"></div>
+
+          <div class="seb-map-legend">
+            <strong>Carte tactique SEB</strong>
+            <span>Molette : zoom • clic-glissé : déplacement • marqueurs déplaçables</span>
           </div>
-          <div class="seb-board-tools">
-            <button class="seb-tool active" data-seb-tool="map">🗺 Carte interactive</button>
-            <button class="seb-tool" data-seb-tool="select">⌖ Sélection</button>
-            <button class="seb-tool" data-seb-tool="move">✋ Déplacer</button>
-            <button class="seb-tool" data-seb-tool="line">↗ Flèche</button>
-            <button class="seb-tool" data-seb-tool="route">✎ Tracé</button>
-            <button id="sebFinishRoute">✓ Terminer tracé</button><button id="sebUndoLine">↶</button>
-            <span class="seb-tool-sep"></span>
-            <button id="sebZoomOut">−</button><span id="sebZoomLabel">100%</span><button id="sebZoomIn">+</button><button id="sebResetView">Centrer</button>
-            <button class="danger-outline" id="sebClearBoardBtn">Effacer le tableau</button>
-          </div>
+
+          <div class="seb-coordinate-readout" id="sebCoordinateReadout">X — / Y —</div>
         </div>
       </div>
     </div>
   </div>
-
 
   <div class="modal" id="siteCategoryModal" aria-hidden="true">
     <div class="modal-card wide"><button class="modal-close" data-close="siteCategoryModal">×</button><p class="eyebrow">Gestion du site</p><h2 id="siteCategoryModalTitle">Nouvelle catégorie</h2>
