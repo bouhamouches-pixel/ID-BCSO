@@ -2203,3 +2203,25 @@ if (sidebarWheelTarget && !sidebarWheelTarget.dataset.wheelScrollBound) {
     sidebarWheelTarget.scrollTop += event.deltaY;
   }, { passive: false });
 }
+
+
+// ===== Codes radio V2 =====
+const RADIO_CODES_V2 = [{"code": "Code 6", "label": "Arrivée sur les lieux.", "priority": "common"}, {"code": "10-3", "label": "Arrivée sur fréquence", "priority": "common"}, {"code": "10-4", "label": "Bien reçu", "priority": "common"}, {"code": "10-5", "label": "Négatif", "priority": "normal"}, {"code": "10-7", "label": "Indisponible", "priority": "normal"}, {"code": "10-8", "label": "Prise de service", "priority": "normal"}, {"code": "10-9", "label": "Répéter le call", "priority": "normal"}, {"code": "10-10", "label": "Fin de service", "priority": "normal"}, {"code": "10-12", "label": "Attente de dispatch", "priority": "normal"}, {"code": "10-15", "label": "Suspect arrêté", "priority": "normal"}, {"code": "10-19", "label": "En route vers...", "priority": "normal"}, {"code": "10-20", "label": "Votre localisation", "priority": "common"}, {"code": "10-21", "label": "Appel téléphonique", "priority": "normal"}, {"code": "10-22", "label": "Retour en patrouille", "priority": "normal"}, {"code": "10-31", "label": "Tir d", "priority": "normal"}, {"code": "10-35", "label": "Demande de renfort", "priority": "normal"}, {"code": "10-37", "label": "Cambriolage en cours", "priority": "normal"}, {"code": "10-38", "label": "Contrôle routier", "priority": "normal"}, {"code": "10-39", "label": "Braquage (ATM / SUP)", "priority": "normal"}, {"code": "10-40", "label": "Braquage de banque", "priority": "normal"}, {"code": "10-41", "label": "Prise de patrouille", "priority": "normal"}, {"code": "10-42", "label": "Fin de patrouille", "priority": "normal"}, {"code": "10-50", "label": "Accident", "priority": "normal"}, {"code": "10-52", "label": "Appel EMS", "priority": "normal"}, {"code": "10-56", "label": "Refus d", "priority": "normal"}, {"code": "10-57", "label": "Vol de véhicule", "priority": "normal"}, {"code": "10-59", "label": "Vol de sac à main", "priority": "normal"}, {"code": "10-60", "label": "Vente de drogue", "priority": "normal"}, {"code": "10-61", "label": "Braquage de Fleeca", "priority": "high"}, {"code": "10-62", "label": "Braquage de bijouterie", "priority": "high"}, {"code": "10-63", "label": "Braquage de container", "priority": "high"}, {"code": "10-64", "label": "Braquage d", "priority": "high"}];
+
+function renderRadioCodesV2(filter=""){
+  const grid=document.querySelector("#radioCodesGrid");
+  const empty=document.querySelector("#radioEmptyState");
+  if(!grid)return;
+  const q=String(filter||"").trim().toLowerCase();
+  const rows=RADIO_CODES_V2.filter(x=>!q||x.code.toLowerCase().includes(q)||x.label.toLowerCase().includes(q));
+  grid.innerHTML=rows.map(x=>`
+    <div class="radio-code-card" data-priority="${x.priority}">
+      <div class="radio-code-num">${escapeHtml?escapeHtml(x.code):x.code}</div>
+      <div class="radio-code-label">${escapeHtml?escapeHtml(x.label):x.label}</div>
+    </div>`).join("");
+  if(empty)empty.hidden=rows.length!==0;
+}
+document.addEventListener("input",e=>{
+  if(e.target?.id==="radioQuickSearch")renderRadioCodesV2(e.target.value);
+});
+window.addEventListener("DOMContentLoaded",()=>renderRadioCodesV2());

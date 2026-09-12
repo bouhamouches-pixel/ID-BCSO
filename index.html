@@ -341,10 +341,30 @@
       </section>
 
       <section class="view" id="view-radioCodes">
-        <div class="section-heading"><div><p class="eyebrow">Procédures & Aides</p><h2>Codes radio</h2><p class="muted">Indicatifs de patrouille, codes opérationnels et Ten-Codes.</p></div></div>
-        <div class="toolbar panel-lite"><input id="radioCodeSearch" type="search" placeholder="Rechercher un code, un call ou une signification..."></div>
-        <div id="radioCodesContent" class="radio-code-layout"></div>
-      </section>
+  <div class="radio-page-head">
+    <div>
+      <div class="eyebrow">AIDES</div>
+      <h1>Codes radio</h1>
+      <p>Référence rapide pour les communications opérationnelles.</p>
+    </div>
+    <div class="radio-search-wrap">
+      <span class="radio-search-icon">⌕</span>
+      <input id="radioQuickSearch" type="search" placeholder="Rechercher un code ou une signification…" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="radio-legend">
+    <span><i class="dot dot-gold"></i> Usage courant</span>
+    <span><i class="dot dot-muted"></i> Opérationnel</span>
+    <span><i class="dot dot-alert"></i> Intervention prioritaire</span>
+  </div>
+
+  <div id="radioCodesGrid" class="radio-codes-grid"></div>
+
+  <div id="radioEmptyState" class="radio-empty-state" hidden>
+    Aucun code ne correspond à votre recherche.
+  </div>
+</section>
 
       <section class="view" id="view-miranda">
         <div class="section-heading"><div><p class="eyebrow">Procédures & Aides</p><h2>Droits Miranda</h2><p class="muted">Texte de lecture lors d'une arrestation.</p></div></div>
