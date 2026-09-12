@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=v57-1789253990" />
+  <link rel="stylesheet" href="style.css?v=v571-1789254455" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
@@ -550,7 +550,68 @@
 
 
       
-      <section class="view park-ranger-view" id="view-parkFishing"><div class="section-head"><div><p class="eyebrow">PARK RANGER · REGISTRE</p><h2>Permis de pêche</h2><p class="muted">Registre complet issu du tableau officiel.</p></div></div><div class="stats-grid four"><article class="stat-card"><span>Total registre</span><strong id="parkFishingTotal">0</strong><small>permis</small></article><article class="stat-card"><span>Personnels</span><strong id="parkFishingPersonal">0</strong><small>permis</small></article><article class="stat-card"><span>Professionnels</span><strong id="parkFishingPro">0</strong><small>permis</small></article><article class="stat-card"><span>À surveiller</span><strong id="parkFishingRenew">0</strong><small>échéances</small></article></div><div class="toolbar panel-lite park-toolbar park-fishing-toolbar"><input id="parkFishingSearch" type="search" placeholder="Rechercher un détenteur..."><select id="parkFishingFilter"><option value="">Tous les permis</option><option>Personnel</option><option>Professionnel</option></select><select id="parkFishingStatusFilter"><option value="">Tous les statuts</option><option>Valide</option><option>Bientôt</option><option>Expiré</option></select></div><div class="park-fishing-count" id="parkFishingResultCount">0 résultat</div><section class="panel-card park-register-card"><div class="park-register-head fishing-seven"><span>Date de passage</span><span>Nom et prénom</span><span>Type de permis</span><span>Prix initial</span><span>Prochain renouvellement</span><span>Coût renouvellement</span><span>Statut</span></div><div id="parkFishingRegister"></div><div id="parkFishingEmpty" class="empty-state" hidden>Aucun résultat.</div></section></section><section class="view park-ranger-view" id="view-parkHunting">
+      <section class="view park-ranger-view" id="view-parkFishing">
+        <div class="section-head park-fishing-head">
+          <div>
+            <p class="eyebrow">PARK RANGER · REGISTRE PUBLIC BCSO</p>
+            <h2>Permis de pêche</h2>
+            <p class="muted">Registre consultable par tous les agents. Recherche rapide des titulaires, types de permis et échéances.</p>
+          </div>
+          <div class="park-rules-mini">
+            <span><b>Personnel</b> 6 000 $</span>
+            <span><b>Professionnel</b> 3 000 $</span>
+            <span><b>Renouvellement</b> tous les 2 mois · 50 % du prix</span>
+          </div>
+        </div>
+
+        <div class="stats-grid four park-fishing-stats">
+          <article class="stat-card"><span>Total registre</span><strong id="parkFishingTotal">0</strong><small>permis enregistrés</small></article>
+          <article class="stat-card"><span>Personnels</span><strong id="parkFishingPersonal">0</strong><small>6 000 $ · refresh 3 000 $</small></article>
+          <article class="stat-card"><span>Professionnels</span><strong id="parkFishingPro">0</strong><small>3 000 $ · refresh 1 500 $</small></article>
+          <article class="stat-card"><span>À surveiller</span><strong id="parkFishingRenew">0</strong><small>renouvellement proche / dépassé</small></article>
+        </div>
+
+        <div class="toolbar panel-lite park-toolbar park-fishing-toolbar">
+          <div class="park-search-wrap">
+            <span>⌕</span>
+            <input type="search" id="parkFishingSearch" placeholder="Rechercher un nom, un type ou une date...">
+          </div>
+          <select id="parkFishingFilter">
+            <option value="">Tous les permis</option>
+            <option>Personnel</option>
+            <option>Professionnel</option>
+          </select>
+          <select id="parkFishingStatusFilter">
+            <option value="">Tous les statuts</option>
+            <option value="Valide">Valide</option>
+            <option value="Bientôt">Bientôt</option>
+            <option value="Expiré">Expiré</option>
+          </select>
+        </div>
+
+        <div class="park-fishing-legend">
+          <span><i class="permit-dot valid"></i> Valide</span>
+          <span><i class="permit-dot soon"></i> Renouvellement dans ≤ 7 jours</span>
+          <span><i class="permit-dot expired"></i> Renouvellement dépassé</span>
+          <span class="park-fishing-count" id="parkFishingResultCount">0 résultat</span>
+        </div>
+
+        <section class="panel-card park-register-card">
+          <div class="park-register-head park-fishing-table-head full-excel">
+            <span>Date de passage</span>
+            <span>Nom et prénom</span>
+            <span>Type de permis</span>
+            <span>Prix initial</span>
+            <span>Prochain renouvellement</span>
+            <span>Coût renouvellement</span>
+            <span>Statut</span>
+          </div>
+          <div id="parkFishingRegister" class="park-fishing-register"></div>
+          <div id="parkFishingEmpty" class="empty-state park-empty" hidden>Aucun permis ne correspond à cette recherche.</div>
+        </section>
+      </section>
+
+      <section class="view park-ranger-view" id="view-parkHunting">
         <div class="section-head">
           <div>
             <p class="eyebrow">PARK RANGER · LICENCES</p>
@@ -592,7 +653,22 @@
           </div>
         </div>
 
-        <div class="stats-grid three park-training-stats"><article class="stat-card"><span>Agents formés</span><strong id="parkQualifiedCount">0</strong><small>agents répertoriés</small></article><article class="stat-card"><span>Formation Marine</span><strong id="parkMarineCount">0</strong><small>agents qualifiés</small></article><article class="stat-card"><span>Formation Quad</span><strong id="parkQuadCount">0</strong><small>agents qualifiés</small></article></div><div class="park-training-grid"><article class="park-training-card"><div class="park-training-icon">⚓</div><div><span class="eyebrow">PARK RANGER</span><h3>Formation Marine</h3><p>Qualification aux opérations nautiques et interventions en milieu maritime.</p></div></article><article class="park-training-card"><div class="park-training-icon">🏞️</div><div><span class="eyebrow">PARK RANGER</span><h3>Formation Quad</h3><p>Qualification à la conduite et aux patrouilles en quad sur terrains difficiles.</p></div></article></div><div class="toolbar panel-lite park-training-toolbar">
+        <div class="stats-grid three park-training-stats">
+          <article class="stat-card"><span>Agents formés</span><strong id="parkQualifiedCount">0</strong><small>agents répertoriés</small></article>
+          <article class="stat-card"><span>Formation Marine</span><strong id="parkMarineCount">0</strong><small>agents qualifiés</small></article>
+          <article class="stat-card"><span>Formation Quad</span><strong id="parkQuadCount">0</strong><small>agents qualifiés</small></article>
+        </div>
+        <div class="park-training-grid">
+          <article class="park-training-card">
+            <div class="park-training-icon">⚓</div>
+            <div><span class="eyebrow">PARK RANGER</span><h3>Formation Marine</h3><p>Qualification aux opérations nautiques et interventions en milieu maritime.</p></div>
+          </article>
+          <article class="park-training-card">
+            <div class="park-training-icon">🏞️</div>
+            <div><span class="eyebrow">PARK RANGER</span><h3>Formation Quad</h3><p>Qualification à la conduite et aux patrouilles en quad sur terrains difficiles.</p></div>
+          </article>
+        </div>
+        <div class="toolbar panel-lite park-training-toolbar">
           <input id="parkQualifiedSearch" type="search" placeholder="Rechercher un agent, matricule ou formation...">
           <select id="parkQualifiedFilter"><option value="">Toutes les formations</option><option>Marine</option><option>Quad</option></select>
         </div>
@@ -1600,9 +1676,9 @@
   </div>
 
 
-  <script src="app.js?v=v57-1789253990"></script>
-  <script type="module" src="firebase-auth.js?v=v57-1789253990"></script>
-  <script type="module" src="auth-ui.js?v=v57-1789253990"></script>
+  <script src="app.js?v=v571-1789254455"></script>
+  <script type="module" src="firebase-auth.js?v=v571-1789254455"></script>
+  <script type="module" src="auth-ui.js?v=v571-1789254455"></script>
 
   <div class="modal-backdrop" id="parkQualifiedModal" hidden>
     <div class="modal park-qualified-modal">
@@ -1617,7 +1693,10 @@
           </label>
         </div>
         <label>Formations réussies</label>
-        <div class="park-training-checks"><label><input type="checkbox" name="parkTraining" value="Marine"> ⚓ Formation Marine</label><label><input type="checkbox" name="parkTraining" value="Quad"> 🏞️ Formation Quad</label></div>
+        <div class="park-training-checks">
+          <label><input type="checkbox" name="parkTraining" value="Marine"> ⚓ Formation Marine</label>
+          <label><input type="checkbox" name="parkTraining" value="Quad"> 🏞️ Formation Quad</label>
+        </div>
         <label>Formateur / Instructeur
           <input id="parkQualifiedInstructor" type="text" placeholder="Nom ou matricule du formateur">
         </label>
