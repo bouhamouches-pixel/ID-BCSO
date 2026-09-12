@@ -52,7 +52,10 @@ function startAgentsSync(claims){
     }
 
     window.dispatchEvent(new CustomEvent("bcso:firebase-agents",{detail:agents}));
-  },err=>console.error("Agent sync Firestore:",err));
+  },err=>{
+    console.error("Agent sync Firestore:",err);
+    window.dispatchEvent(new CustomEvent("bcso:sync-error",{detail:{scope:"agents",message:err?.message||String(err)}}));
+  });
 }
 window.addEventListener("bcso:set-agent-badge",async e=>{
   const id=e.detail?.id,badge=e.detail?.badge;
@@ -274,11 +277,23 @@ function startSharedStateSync(session){
   if(!session?.claims?.bcso)return;
   for(const id of allowedSharedStateIds(session.claims)){
     const stop=onSnapshot(doc(db,"sharedState",id),snap=>{
-      if(!snap.exists())return;
-      const data=snap.data();
       const key=SHARED_STATE_REVERSE[id];
+      if(!snap.exists()){
+        if(key){
+          try{
+            const local=JSON.parse(localStorage.getItem(key));
+            const has=Array.isArray(local)?local.length>0:(local&&typeof local==="object"?Object.keys(local).length>0:local!==null&&local!==undefined&&local!=="");
+            if(has)writeSharedState(key,local,"missing-doc-recovery").catch(err=>console.error("Seed shared state",id,err));
+          }catch{}
+        }
+        return;
+      }
+      const data=snap.data();
       if(key)window.dispatchEvent(new CustomEvent("bcso:shared-state",{detail:{key,value:data.value}}));
-    },err=>console.error("Shared state",id,err));
+    },err=>{
+      console.error("Shared state",id,err);
+      window.dispatchEvent(new CustomEvent("bcso:sync-error",{detail:{scope:id,message:err?.message||String(err)}}));
+    });
     stopSharedStateSync.push(stop);
   }
 }

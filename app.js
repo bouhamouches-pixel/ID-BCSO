@@ -50,7 +50,18 @@ const SHARED_OPERATIONAL_KEYS = new Set([
   "bcso_site_categories","bcso_site_pages","bcso_site_settings","bcso_site_audit"
 ]);
 let applyingRemoteSharedState=false;
+
+function stateHasData(value){
+  if(Array.isArray(value)) return value.length>0;
+  if(value && typeof value==="object") return Object.keys(value).length>0;
+  return value!==null && value!==undefined && value!=="";
+}
+
 function save(key, value) {
+  try{
+    const previous=JSON.parse(localStorage.getItem(key));
+    if(stateHasData(previous))localStorage.setItem(`bcso_backup_${key}`,JSON.stringify(previous));
+  }catch{}
   localStorage.setItem(key, JSON.stringify(value));
   if(!applyingRemoteSharedState && SHARED_OPERATIONAL_KEYS.has(key)){
     window.dispatchEvent(new CustomEvent("bcso:shared-state-write",{detail:{key,value}}));
@@ -733,6 +744,14 @@ function refreshSharedUi(key){
 window.addEventListener("bcso:shared-state",e=>{
   const {key,value}=e.detail||{};
   if(!key||!SHARED_OPERATIONAL_KEYS.has(key))return;
+  let current=null;
+  try{current=JSON.parse(localStorage.getItem(key));}catch{}
+  if(!stateHasData(value) && stateHasData(current)){
+    console.warn("État Firebase vide pour",key,"— conservation du cache local et resynchronisation.");
+    window.dispatchEvent(new CustomEvent("bcso:shared-state-write",{detail:{key,value:current}}));
+    refreshSharedUi(key);
+    return;
+  }
   applyingRemoteSharedState=true;
   try{
     localStorage.setItem(key,JSON.stringify(value));
@@ -777,6 +796,13 @@ function sharedMigrationPayload(){
 window.addEventListener("bcso:auth-ready",()=>{renderMyReports();renderReportsDb();renderReportSupervision?.();populateDisciplinaryAgentSelect();});
 
 window.addEventListener("bcso:auth-ready",()=>{
+  for(const key of SHARED_OPERATIONAL_KEYS){
+    let current=null,backup=null;
+    try{current=JSON.parse(localStorage.getItem(key));backup=JSON.parse(localStorage.getItem(`bcso_backup_${key}`));}catch{}
+    if(!stateHasData(current)&&stateHasData(backup)){
+      localStorage.setItem(key,JSON.stringify(backup));
+    }
+  }
   setTimeout(()=>window.dispatchEvent(new CustomEvent("bcso:migrate-shared-state",{detail:{states:sharedMigrationPayload()}})),1200);
 });
 
@@ -1055,6 +1081,11 @@ function renderNewAgentAlerts(){
 }
 window.addEventListener("bcso:firebase-agents",e=>{
   const rows=Array.isArray(e.detail)?e.detail:[];
+  if(!rows.length && Array.isArray(supAgents) && supAgents.length){
+    console.warn("Snapshot agents vide : conservation du cache local existant.");
+    renderSupervision();renderNewAgentAlerts();
+    return;
+  }
   supAgents=rows.map(a=>({
     id:a.id,discordId:a.discordId||null,badge:a.badge||"",badgeLocked:Boolean(a.badgeLocked),
     name:a.displayName||a.name||a.username||"Agent BCSO",rank:a.gradeLabel||a.rank||"Non classé",
@@ -1069,6 +1100,13 @@ window.addEventListener("bcso:firebase-agents",e=>{
 });
 window.addEventListener("bcso:firebase-reports",e=>{
   const incoming=Array.isArray(e.detail)?e.detail:[];
+  if(!incoming.length && !firebaseReportsReady && Array.isArray(reports) && reports.length){
+    console.warn("Snapshot rapports vide : conservation temporaire du cache local et migration vers Firebase.");
+    window.dispatchEvent(new CustomEvent("bcso:migrate-legacy-reports",{detail:{reports:[...reports]}}));
+    firebaseReportsReady=true;
+    renderMyReports();renderReportsDb();renderReportSupervision?.();
+    return;
+  }
   firebaseReportsReady=true;
   reports=incoming.sort((a,b)=>new Date(b.date||b.createdAt||0)-new Date(a.date||a.createdAt||0));
   save(STORAGE.reports,reports);
@@ -1086,6 +1124,13 @@ window.addEventListener("bcso:firebase-reports",e=>{
 
 window.addEventListener("bcso:firebase-services",e=>{
   const incoming=Array.isArray(e.detail)?e.detail:[];
+  if(!incoming.length && !firebaseServicesReady && ((supServices||[]).length||(supActiveServices||[]).length||(sessions||[]).length||activeService)){
+    console.warn("Snapshot services vide : conservation temporaire des données locales et migration.");
+    window.dispatchEvent(new CustomEvent("bcso:migrate-legacy-services",{detail:{sessions:[...sessions],activeService:activeService?{...activeService}:null}}));
+    firebaseServicesReady=true;
+    renderServices();renderSupervision();updateLiveServiceCount();
+    return;
+  }
   firebaseServicesReady=true;
   supServices=incoming.filter(s=>s.end);
   supActiveServices=incoming.filter(s=>!s.end&&s.status==="active");
@@ -2339,3 +2384,15 @@ if (sidebarWheelTarget && !sidebarWheelTarget.dataset.wheelScrollBound) {
 window.addEventListener("DOMContentLoaded",()=>updateLiveServiceCount());
 window.addEventListener("bcso:firebase-services",()=>updateLiveServiceCount());
 setInterval(updateLiveServiceCount,5000);
+
+window.addEventListener("bcso:sync-error",e=>{
+  const scope=e.detail?.scope||"Firebase";
+  console.error("Erreur de synchronisation",scope,e.detail?.message||"");
+  const existing=document.querySelector("#bcsoSyncWarning");
+  if(existing)return;
+  const el=document.createElement("div");
+  el.id="bcsoSyncWarning";
+  el.textContent=`⚠ Synchronisation ${scope} interrompue`;
+  el.style.cssText="position:fixed;right:18px;bottom:18px;z-index:99999;background:#3b2023;border:1px solid #8b3d45;color:#ffd6d9;padding:9px 12px;border-radius:10px;font:600 12px system-ui;box-shadow:0 8px 28px rgba(0,0,0,.3)";
+  document.body.appendChild(el);
+});
