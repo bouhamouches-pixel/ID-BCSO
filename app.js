@@ -1023,8 +1023,8 @@ function hydrateAgentsFromFirebase(payload){
 }
 window.BCSO_HYDRATE_AGENTS=hydrateAgentsFromFirebase;
 window.addEventListener("bcso:firebase-agents",e=>hydrateAgentsFromFirebase(e.detail));
-window.addEventListener("bcso:firebase-reports",e=>{
-  const incoming=Array.isArray(e.detail)?e.detail:[];
+function hydrateReportsFromFirebase(payload){
+  const incoming=Array.isArray(payload)?payload:[];
   firebaseReportsReady=true;
   reports=incoming.sort((a,b)=>new Date(b.date||b.createdAt||0)-new Date(a.date||a.createdAt||0));
   save(STORAGE.reports,reports);
@@ -1038,7 +1038,9 @@ window.addEventListener("bcso:firebase-reports",e=>{
     const agent=(supAgents||[]).find(a=>title.includes(a.name));
     if(agent)openAgentProfile(agent.id,"reports");
   }
-});
+}
+window.BCSO_HYDRATE_REPORTS=hydrateReportsFromFirebase;
+window.addEventListener("bcso:firebase-reports",e=>hydrateReportsFromFirebase(e.detail));
 
 function hydrateServicesFromFirebase(payload){
   const incoming=Array.isArray(payload)?payload:[];
@@ -2330,3 +2332,12 @@ function showCriticalSyncStatus(text,ok=true){
   el.style.borderColor=ok?"#2e6547":"#7c333a";
 }
 window.BCSO_CRITICAL_SYNC_STATUS=showCriticalSyncStatus;
+
+function refreshReportsEverywhere(){
+  try{
+    renderMyReports?.();
+    renderReportsDb?.();
+    renderReportSupervision?.();
+  }catch(err){console.error("Refresh reports UI:",err)}
+}
+window.BCSO_REFRESH_REPORTS=refreshReportsEverywhere;

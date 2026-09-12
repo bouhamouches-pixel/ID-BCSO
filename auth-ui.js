@@ -145,7 +145,11 @@ function reportDocId(uid,id){
   return `${String(uid).replace(/[^a-zA-Z0-9_-]/g,"_")}_${String(id||Date.now()).replace(/[^a-zA-Z0-9_-]/g,"_")}`;
 }
 function emitReports(){
-  window.dispatchEvent(new CustomEvent("bcso:firebase-reports",{detail:[...publicReportsCache,...disciplinaryReportsCache]}));
+  const all=[...publicReportsCache,...disciplinaryReportsCache];
+  window.BCSO_HYDRATE_REPORTS?.(all);
+  window.dispatchEvent(new CustomEvent("bcso:firebase-reports",{detail:all}));
+  window.BCSO_REFRESH_REPORTS?.();
+  window.BCSO_CRITICAL_SYNC_STATUS?.(`Firebase : ${all.length} rapport(s)`,true);
 }
 function startReportsSync(session){
   if(stopReportsSync){stopReportsSync();stopReportsSync=null}
@@ -157,7 +161,7 @@ function startReportsSync(session){
   stopReportsSync=onSnapshot(collection(db,"reports"),snap=>{
     publicReportsCache=snap.docs.map(d=>({firestoreDocId:d.id,_collection:"reports",...d.data()}));
     emitReports();
-  },err=>console.error("Reports sync Firestore:",err));
+  },err=>{console.error("Reports sync Firestore:",err);window.BCSO_CRITICAL_SYNC_STATUS?.(`Erreur rapports : ${err.code||err.message}`,false)});
 
   const disciplinarySource=session.claims?.supervision
     ? collection(db,"disciplinaryReports")
@@ -166,7 +170,7 @@ function startReportsSync(session){
   stopDisciplinarySync=onSnapshot(disciplinarySource,snap=>{
     disciplinaryReportsCache=snap.docs.map(d=>({firestoreDocId:d.id,_collection:"disciplinaryReports",...d.data()}));
     emitReports();
-  },err=>console.error("Disciplinary reports sync Firestore:",err));
+  },err=>{console.error("Disciplinary reports sync Firestore:",err);window.BCSO_CRITICAL_SYNC_STATUS?.(`Erreur rapports disciplinaires : ${err.code||err.message}`,false)});
 }
 
 async function upsertReport(raw,source="portal"){
@@ -246,4 +250,26 @@ async function forceCriticalHydration(session){
     window.BCSO_CRITICAL_SYNC_STATUS?.(`Erreur services : ${err.code||err.message}`,false);
   }
 }
-observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}currentSession=s;permissions(s.claims);await forceCriticalHydration(s);startAgentsSync(s.claims);startServicesSync(s);startReportsSync(s);hide();});
+
+async function forceReportsHydration(session){
+  if(!session?.claims?.bcso)return;
+  try{
+    const publicSnap=await getDocs(collection(db,"reports"));
+    publicReportsCache=publicSnap.docs.map(d=>({firestoreDocId:d.id,_collection:"reports",...d.data()}));
+
+    if(session.claims?.supervision){
+      const discSnap=await getDocs(collection(db,"disciplinaryReports"));
+      disciplinaryReportsCache=discSnap.docs.map(d=>({firestoreDocId:d.id,_collection:"disciplinaryReports",...d.data()}));
+    }else{
+      const discQ=query(collection(db,"disciplinaryReports"),where("authorUid","==",session.user.uid));
+      const discSnap=await getDocs(discQ);
+      disciplinaryReportsCache=discSnap.docs.map(d=>({firestoreDocId:d.id,_collection:"disciplinaryReports",...d.data()}));
+    }
+
+    emitReports();
+  }catch(err){
+    console.error("Force reports hydration:",err);
+    window.BCSO_CRITICAL_SYNC_STATUS?.(`Erreur rapports : ${err.code||err.message}`,false);
+  }
+}
+observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}currentSession=s;permissions(s.claims);await forceCriticalHydration(s);await forceReportsHydration(s);startAgentsSync(s.claims);startServicesSync(s);startReportsSync(s);hide();});
