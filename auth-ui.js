@@ -51,13 +51,8 @@ function startAgentsSync(claims){
       }
     }
 
-    window.BCSO_APPLY_FIREBASE_AGENTS?.(agents);
     window.dispatchEvent(new CustomEvent("bcso:firebase-agents",{detail:agents}));
-    window.BCSO_SET_SYNC_HEALTH?.("agents",true,`${agents.length} agent(s)`);
-  },err=>{
-    console.error("Agent sync Firestore:",err);
-    window.BCSO_SET_SYNC_HEALTH?.("agents",false,err?.message||String(err)); window.dispatchEvent(new CustomEvent("bcso:sync-error",{detail:{scope:"agents",message:err?.message||String(err)}}));
-  });
+  },err=>console.error("Agent sync Firestore:",err));
 }
 window.addEventListener("bcso:set-agent-badge",async e=>{
   const id=e.detail?.id,badge=e.detail?.badge;
@@ -101,13 +96,8 @@ function startServicesSync(session){
   const source=session.claims?.supervision?collection(db,"services"):query(collection(db,"services"),where("agentId","==",uid));
   stopServicesSync=onSnapshot(source,snap=>{
     const services=snap.docs.map(d=>{const x=d.data();return{id:d.id,...x,start:serviceIso(x.start),end:serviceIso(x.end)};}).filter(s=>s.start);
-    window.BCSO_APPLY_FIREBASE_SERVICES?.(services);
     window.dispatchEvent(new CustomEvent("bcso:firebase-services",{detail:services}));
-    window.BCSO_SET_SYNC_HEALTH?.("services",true,`${services.length} service(s)`);
-  },err=>{
-    console.error("Services sync Firestore:",err);
-    window.BCSO_SET_SYNC_HEALTH?.("services",false,err?.message||String(err));
-});
+  },err=>console.error("Services sync Firestore:",err));
 }
 window.addEventListener("bcso:start-duty",async e=>{
   const s=currentSession;if(!s?.claims?.bcso)return;
@@ -155,10 +145,7 @@ function reportDocId(uid,id){
   return `${String(uid).replace(/[^a-zA-Z0-9_-]/g,"_")}_${String(id||Date.now()).replace(/[^a-zA-Z0-9_-]/g,"_")}`;
 }
 function emitReports(){
-  const all=[...publicReportsCache,...disciplinaryReportsCache];
-  window.BCSO_APPLY_FIREBASE_REPORTS?.(all);
-  window.dispatchEvent(new CustomEvent("bcso:firebase-reports",{detail:all}));
-  window.BCSO_SET_SYNC_HEALTH?.("reports",true,`${all.length} rapport(s)`);
+  window.dispatchEvent(new CustomEvent("bcso:firebase-reports",{detail:[...publicReportsCache,...disciplinaryReportsCache]}));
 }
 function startReportsSync(session){
   if(stopReportsSync){stopReportsSync();stopReportsSync=null}
@@ -227,131 +214,4 @@ window.addEventListener("bcso:migrate-legacy-reports",async e=>{
   }
 });
 
-
-const SHARED_STATE_MAP={
-  "bcso_demo_events":"agenda",
-  "bcso_demo_complaints":"complaints",
-  "bcso_demo_warrants":"warrants",
-  "bcso_demo_material_requests":"materialRequests",
-  "bcso_demo_notifications":"notifications",
-  "bcso_demo_convocations":"convocations",
-  "bcso_demo_supervision_service_audit":"serviceAudit",
-  "bcso_demo_bcsa_interviews":"bcsaInterviews",
-  "bcso_demo_bcsa_candidates":"bcsaCandidates",
-  "bcso_demo_bcsa_badges":"bcsaBadges",
-  "bcso_demo_bcsa_agent_files":"bcsaAgentFiles",
-  "bcso_demo_bcsa_patrol_reports":"bcsaPatrolReports",
-  "bcso_demo_inv_cases":"investigationCases",
-  "bcso_demo_inv_suspects":"investigationSuspects",
-  "bcso_demo_inv_witnesses":"investigationWitnesses",
-  "bcso_demo_inv_boards":"investigationBoards",
-  "bcso_demo_seb_operations":"sebOperations",
-  "bcso_demo_seb_boards":"sebBoards",
-  "bcso_site_categories":"siteCategories",
-  "bcso_site_pages":"sitePages",
-  "bcso_site_settings":"siteSettings",
-  "bcso_site_audit":"siteAudit"
-};
-const SHARED_STATE_REVERSE=Object.fromEntries(Object.entries(SHARED_STATE_MAP).map(([k,v])=>[v,k]));
-let stopSharedStateSync=[];
-
-function cleanLegacyDemoState(key,value){
-  if(!Array.isArray(value))return value;
-  const removeIds={
-    "bcso_demo_events":new Set(["evt-1","evt-2"]),
-    "bcso_demo_complaints":new Set(["P-2026-0040","P-2026-0041","P-2026-0042"]),
-    "bcso_demo_warrants":new Set(["M-2026-0001"]),
-    "bcso_demo_bcsa_interviews":new Set(["INT-2026-0001"]),
-    "bcso_demo_inv_cases":new Set(["INV-2026-0001","INV-2026-0002"]),
-    "bcso_demo_inv_suspects":new Set(["SUS-2026-0001","SUS-2026-0002"]),
-    "bcso_demo_seb_operations":new Set(["SEB-2026-0001"])
-  };
-  const set=removeIds[key];
-  if(set)value=value.filter(x=>!set.has(String(x?.id||"")));
-  if(key==="bcso_demo_bcsa_candidates")value=value.filter(x=>!/^bcsa-c-[1-6]$/.test(String(x?.id||"")));
-  return value;
-}
-
-function allowedSharedStateIds(claims){
-  const ids=["agenda","complaints","warrants","materialRequests","notifications","convocations"];
-  if(claims?.supervision)ids.push("serviceAudit");
-  const div=Array.isArray(claims?.divisions)?claims.divisions:[];
-  if(claims?.supervision||div.includes("bcsa"))ids.push("bcsaInterviews","bcsaCandidates","bcsaBadges","bcsaAgentFiles","bcsaPatrolReports");
-  if(claims?.supervision||div.includes("investigation"))ids.push("investigationCases","investigationSuspects","investigationWitnesses","investigationBoards");
-  if(claims?.supervision||div.includes("seb"))ids.push("sebOperations","sebBoards");
-  if(claims?.siteManager||claims?.admin)ids.push("siteCategories","sitePages","siteSettings","siteAudit");
-  return ids;
-}
-function startSharedStateSync(session){
-  stopSharedStateSync.forEach(fn=>{try{fn()}catch{}});stopSharedStateSync=[];
-  if(!session?.claims?.bcso)return;
-  for(const id of allowedSharedStateIds(session.claims)){
-    const stop=onSnapshot(doc(db,"sharedState",id),snap=>{
-      const key=SHARED_STATE_REVERSE[id];
-      if(!snap.exists()){
-        if(key){
-          try{
-            const local=JSON.parse(localStorage.getItem(key));
-            const has=Array.isArray(local)?local.length>0:(local&&typeof local==="object"?Object.keys(local).length>0:local!==null&&local!==undefined&&local!=="");
-            if(has)writeSharedState(key,local,"missing-doc-recovery").catch(err=>console.error("Seed shared state",id,err));
-          }catch{}
-        }
-        return;
-      }
-      const data=snap.data();
-      if(key){
-        const payload={key,value:data.value};
-        window.BCSO_APPLY_SHARED_STATE?.(payload);
-        window.dispatchEvent(new CustomEvent("bcso:shared-state",{detail:payload}));
-        window.BCSO_SET_SYNC_HEALTH?.(`shared:${id}`,true);
-      }
-    },err=>{
-      console.error("Shared state",id,err);
-      window.BCSO_SET_SYNC_HEALTH?.(`shared:${id}`,false,err?.message||String(err)); window.dispatchEvent(new CustomEvent("bcso:sync-error",{detail:{scope:id,message:err?.message||String(err)}}));
-    });
-    stopSharedStateSync.push(stop);
-  }
-}
-async function writeSharedState(key,value,source="portal"){
-  const s=currentSession;if(!s?.claims?.bcso)return;
-  const id=SHARED_STATE_MAP[key];if(!id)return;
-  const json=JSON.stringify(value??null);
-  if(json.length>850000){
-    console.error("Shared state trop volumineux",id,json.length);
-    alert("Cette donnée est trop volumineuse pour être synchronisée telle quelle avec Firebase. Réduisez les images/pièces jointes de ce module.");
-    return;
-  }
-  await setDoc(doc(db,"sharedState",id),{
-    value:cleanFirestoreValue(value),
-    updatedAt:new Date().toISOString(),
-    updatedBy:s.user.uid,
-    source
-  },{merge:true});
-}
-window.addEventListener("bcso:shared-state-write",e=>{
-  const {key,value}=e.detail||{};
-  writeSharedState(key,value).catch(err=>{console.error("Shared state write",key,err);});
-});
-window.addEventListener("bcso:migrate-shared-state",async e=>{
-  const s=currentSession;if(!s?.claims?.bcso)return;
-  const states=e.detail?.states||{};
-  const allowed=new Set(allowedSharedStateIds(s.claims));
-  for(const [key,raw] of Object.entries(states)){
-    const id=SHARED_STATE_MAP[key];if(!id||!allowed.has(id))continue;
-    const value=cleanLegacyDemoState(key,raw);
-    // N'envoie pas les états vides pendant une migration.
-    const empty=Array.isArray(value)?value.length===0:(value&&typeof value==="object"?Object.keys(value).length===0:false);
-    if(empty)continue;
-    try{
-      // merge true: si le doc existe déjà, on n'écrase pas silencieusement depuis un appareil ancien
-      // Migration uniquement si ce client a des données; snapshots temps réel prennent ensuite le relais.
-      await setDoc(doc(db,"sharedState",id),{
-        value:cleanFirestoreValue(value),
-        updatedAt:new Date().toISOString(),
-        updatedBy:s.user.uid,
-        source:"legacy-local-migration"
-      },{merge:true});
-    }catch(err){console.error("Shared migration",id,err)}
-  }
-});
-observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}currentSession=s;permissions(s.claims);startAgentsSync(s.claims);startServicesSync(s);startReportsSync(s);startSharedStateSync(s);hide();});
+observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}currentSession=s;permissions(s.claims);startAgentsSync(s.claims);startServicesSync(s);startReportsSync(s);hide();});
