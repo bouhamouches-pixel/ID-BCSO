@@ -2249,17 +2249,6 @@ if (sidebarWheelTarget && !sidebarWheelTarget.dataset.wheelScrollBound) {
 
 
 
-// ===== AIDES · DEFCON =====
-document.addEventListener("click",e=>{
-  const nav=e.target.closest('[data-page="defcon"]');
-  if(!nav)return;
-  e.preventDefault();
-  document.querySelectorAll(".page,[data-page-panel]").forEach(p=>{if(p.id!=="page-defcon")p.hidden=true});
-  const page=document.querySelector("#page-defcon");
-  if(page){page.hidden=false;page.scrollIntoView({block:"start"});}
-  document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
-  nav.classList.add("active");
-});
 
 window.addEventListener("DOMContentLoaded",()=>updateLiveServiceCount());
 window.addEventListener("bcso:firebase-services",()=>updateLiveServiceCount());
