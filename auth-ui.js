@@ -51,10 +51,12 @@ function startAgentsSync(claims){
       }
     }
 
+    window.BCSO_APPLY_FIREBASE_AGENTS?.(agents);
     window.dispatchEvent(new CustomEvent("bcso:firebase-agents",{detail:agents}));
+    window.BCSO_SET_SYNC_HEALTH?.("agents",true,`${agents.length} agent(s)`);
   },err=>{
     console.error("Agent sync Firestore:",err);
-    window.dispatchEvent(new CustomEvent("bcso:sync-error",{detail:{scope:"agents",message:err?.message||String(err)}}));
+    window.BCSO_SET_SYNC_HEALTH?.("agents",false,err?.message||String(err)); window.dispatchEvent(new CustomEvent("bcso:sync-error",{detail:{scope:"agents",message:err?.message||String(err)}}));
   });
 }
 window.addEventListener("bcso:set-agent-badge",async e=>{
@@ -99,8 +101,13 @@ function startServicesSync(session){
   const source=session.claims?.supervision?collection(db,"services"):query(collection(db,"services"),where("agentId","==",uid));
   stopServicesSync=onSnapshot(source,snap=>{
     const services=snap.docs.map(d=>{const x=d.data();return{id:d.id,...x,start:serviceIso(x.start),end:serviceIso(x.end)};}).filter(s=>s.start);
+    window.BCSO_APPLY_FIREBASE_SERVICES?.(services);
     window.dispatchEvent(new CustomEvent("bcso:firebase-services",{detail:services}));
-  },err=>console.error("Services sync Firestore:",err));
+    window.BCSO_SET_SYNC_HEALTH?.("services",true,`${services.length} service(s)`);
+  },err=>{
+    console.error("Services sync Firestore:",err);
+    window.BCSO_SET_SYNC_HEALTH?.("services",false,err?.message||String(err));
+});
 }
 window.addEventListener("bcso:start-duty",async e=>{
   const s=currentSession;if(!s?.claims?.bcso)return;
@@ -148,7 +155,10 @@ function reportDocId(uid,id){
   return `${String(uid).replace(/[^a-zA-Z0-9_-]/g,"_")}_${String(id||Date.now()).replace(/[^a-zA-Z0-9_-]/g,"_")}`;
 }
 function emitReports(){
-  window.dispatchEvent(new CustomEvent("bcso:firebase-reports",{detail:[...publicReportsCache,...disciplinaryReportsCache]}));
+  const all=[...publicReportsCache,...disciplinaryReportsCache];
+  window.BCSO_APPLY_FIREBASE_REPORTS?.(all);
+  window.dispatchEvent(new CustomEvent("bcso:firebase-reports",{detail:all}));
+  window.BCSO_SET_SYNC_HEALTH?.("reports",true,`${all.length} rapport(s)`);
 }
 function startReportsSync(session){
   if(stopReportsSync){stopReportsSync();stopReportsSync=null}
@@ -289,10 +299,15 @@ function startSharedStateSync(session){
         return;
       }
       const data=snap.data();
-      if(key)window.dispatchEvent(new CustomEvent("bcso:shared-state",{detail:{key,value:data.value}}));
+      if(key){
+        const payload={key,value:data.value};
+        window.BCSO_APPLY_SHARED_STATE?.(payload);
+        window.dispatchEvent(new CustomEvent("bcso:shared-state",{detail:payload}));
+        window.BCSO_SET_SYNC_HEALTH?.(`shared:${id}`,true);
+      }
     },err=>{
       console.error("Shared state",id,err);
-      window.dispatchEvent(new CustomEvent("bcso:sync-error",{detail:{scope:id,message:err?.message||String(err)}}));
+      window.BCSO_SET_SYNC_HEALTH?.(`shared:${id}`,false,err?.message||String(err)); window.dispatchEvent(new CustomEvent("bcso:sync-error",{detail:{scope:id,message:err?.message||String(err)}}));
     });
     stopSharedStateSync.push(stop);
   }

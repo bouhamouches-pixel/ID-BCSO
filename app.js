@@ -741,8 +741,8 @@ function refreshSharedUi(key){
   }catch(err){console.error("Refresh shared UI",key,err);}
 }
 
-window.addEventListener("bcso:shared-state",e=>{
-  const {key,value}=e.detail||{};
+function applyFirebaseSharedState(payload){
+  const {key,value}=payload||{};
   if(!key||!SHARED_OPERATIONAL_KEYS.has(key))return;
   let current=null;
   try{current=JSON.parse(localStorage.getItem(key));}catch{}
@@ -781,7 +781,9 @@ window.addEventListener("bcso:shared-state",e=>{
     applyingRemoteSharedState=false;
   }
   refreshSharedUi(key);
-});
+}
+window.BCSO_APPLY_SHARED_STATE=applyFirebaseSharedState;
+window.addEventListener("bcso:shared-state",e=>applyFirebaseSharedState(e.detail));
 
 function sharedMigrationPayload(){
   const out={};
@@ -1079,8 +1081,8 @@ function renderNewAgentAlerts(){
   </div>`:"";
   $$("[data-new-agent-open]").forEach(b=>b.onclick=()=>openAgentProfile(b.dataset.newAgentOpen));
 }
-window.addEventListener("bcso:firebase-agents",e=>{
-  const rows=Array.isArray(e.detail)?e.detail:[];
+function applyFirebaseAgents(payload){
+  const rows=Array.isArray(payload)?payload:[];
   if(!rows.length && Array.isArray(supAgents) && supAgents.length){
     console.warn("Snapshot agents vide : conservation du cache local existant.");
     renderSupervision();renderNewAgentAlerts();
@@ -1097,9 +1099,11 @@ window.addEventListener("bcso:firebase-agents",e=>{
   save(SUP_STORAGE.agents,supAgents);renderSupervision();renderNewAgentAlerts();
   if(typeof renderBcsaBadges==="function")renderBcsaBadges();
   if(typeof populateDisciplinaryAgentSelect==="function")populateDisciplinaryAgentSelect($("#reportDisciplinaryAgent")?.value||"");
-});
-window.addEventListener("bcso:firebase-reports",e=>{
-  const incoming=Array.isArray(e.detail)?e.detail:[];
+}
+window.BCSO_APPLY_FIREBASE_AGENTS=applyFirebaseAgents;
+window.addEventListener("bcso:firebase-agents",e=>applyFirebaseAgents(e.detail));
+function applyFirebaseReports(payload){
+  const incoming=Array.isArray(payload)?payload:[];
   if(!incoming.length && !firebaseReportsReady && Array.isArray(reports) && reports.length){
     console.warn("Snapshot rapports vide : conservation temporaire du cache local et migration vers Firebase.");
     window.dispatchEvent(new CustomEvent("bcso:migrate-legacy-reports",{detail:{reports:[...reports]}}));
@@ -1120,10 +1124,12 @@ window.addEventListener("bcso:firebase-reports",e=>{
     const agent=(supAgents||[]).find(a=>title.includes(a.name));
     if(agent)openAgentProfile(agent.id,"reports");
   }
-});
+}
+window.BCSO_APPLY_FIREBASE_REPORTS=applyFirebaseReports;
+window.addEventListener("bcso:firebase-reports",e=>applyFirebaseReports(e.detail));
 
-window.addEventListener("bcso:firebase-services",e=>{
-  const incoming=Array.isArray(e.detail)?e.detail:[];
+function applyFirebaseServices(payload){
+  const incoming=Array.isArray(payload)?payload:[];
   if(!incoming.length && !firebaseServicesReady && ((supServices||[]).length||(supActiveServices||[]).length||(sessions||[]).length||activeService)){
     console.warn("Snapshot services vide : conservation temporaire des données locales et migration.");
     window.dispatchEvent(new CustomEvent("bcso:migrate-legacy-services",{detail:{sessions:[...sessions],activeService:activeService?{...activeService}:null}}));
@@ -1144,7 +1150,9 @@ window.addEventListener("bcso:firebase-services",e=>{
     save(STORAGE.serviceSessions,sessions);save(STORAGE.activeService,activeService);
   }
   renderServices();renderSupervision();updateLiveServiceCount();
-});
+}
+window.BCSO_APPLY_FIREBASE_SERVICES=applyFirebaseServices;
+window.addEventListener("bcso:firebase-services",e=>applyFirebaseServices(e.detail));
 window.addEventListener("bcso:agent-acknowledged",e=>{
   const a=agentById(e.detail?.id);if(a)a.onboardingState="active";
   save(SUP_STORAGE.agents,supAgents);renderNewAgentAlerts();renderAgentManagement();
@@ -2396,3 +2404,22 @@ window.addEventListener("bcso:sync-error",e=>{
   el.style.cssText="position:fixed;right:18px;bottom:18px;z-index:99999;background:#3b2023;border:1px solid #8b3d45;color:#ffd6d9;padding:9px 12px;border-radius:10px;font:600 12px system-ui;box-shadow:0 8px 28px rgba(0,0,0,.3)";
   document.body.appendChild(el);
 });
+
+function setFirebaseSyncHealth(scope, ok, detail=""){
+  window.__BCSO_SYNC_HEALTH=window.__BCSO_SYNC_HEALTH||{};
+  window.__BCSO_SYNC_HEALTH[scope]={ok,detail,at:new Date().toISOString()};
+  let badge=document.querySelector("#bcsoFirebaseHealth");
+  if(!badge){
+    badge=document.createElement("button");
+    badge.id="bcsoFirebaseHealth";
+    badge.type="button";
+    badge.style.cssText="position:fixed;right:18px;bottom:18px;z-index:99998;border:1px solid #33404a;background:#15191e;color:#cfd5dc;padding:8px 11px;border-radius:10px;font:600 11px system-ui;box-shadow:0 8px 28px rgba(0,0,0,.3)";
+    document.body.appendChild(badge);
+  }
+  const vals=Object.values(window.__BCSO_SYNC_HEALTH);
+  const anyBad=vals.some(x=>x.ok===false);
+  badge.textContent=anyBad?"⚠ Firebase : erreur":"● Firebase synchronisé";
+  badge.style.color=anyBad?"#ffd6d9":"#8dd9aa";
+  badge.onclick=()=>alert(Object.entries(window.__BCSO_SYNC_HEALTH).map(([k,v])=>`${k}: ${v.ok?"OK":"ERREUR"}${v.detail?` — ${v.detail}`:""}`).join("\n"));
+}
+window.BCSO_SET_SYNC_HEALTH=setFirebaseSyncHealth;
