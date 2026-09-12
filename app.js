@@ -2495,3 +2495,53 @@ $("#parkQualifiedForm")?.addEventListener("submit",e=>{
 });
 window.addEventListener("bcso:firebase-agents",()=>{if(!$("#parkQualifiedModal")?.hidden)parkOpenQualifiedModal();renderParkQualified()});
 window.addEventListener("DOMContentLoaded",renderParkQualified);
+
+
+// ===== V5.8 — RESTAURATION LECTURE SEULE DES PANNEAUX FIREBASE =====
+function bcsoRefreshRestoredPanel(key){
+  try{
+    if(key===STORAGE.events){renderEvents?.();renderAgendaManagement?.();}
+    else if(key===STORAGE.complaints){renderComplaints?.();renderComplaintManagement?.();}
+    else if(key===STORAGE.warrants){renderWarrants?.();renderWarrantManagement?.();}
+    else if(key===STORAGE.materialRequests){renderMaterialNotifications?.();renderMaterialManagement?.();renderNotificationBadge?.();}
+    else if(key===STORAGE.notifications){renderNotificationBadge?.();renderNotificationsCenter?.();}
+    else if(key===STORAGE.convocations){renderNotificationBadge?.();}
+    else if(typeof SUP_STORAGE!=="undefined" && key===SUP_STORAGE.audit){renderServiceTracking?.();}
+    else if(typeof BCSA_STORAGE!=="undefined" && Object.values(BCSA_STORAGE).includes(key)){renderBcsa?.();}
+    else if(typeof INV_STORAGE!=="undefined" && Object.values(INV_STORAGE).includes(key)){invRenderAll?.();}
+    else if(typeof SEB_STORAGE!=="undefined" && Object.values(SEB_STORAGE).includes(key)){
+      sebRenderOperations?.();
+      if(typeof currentSebOperationId!=="undefined" && currentSebOperationId)renderSebMapData?.();
+    }
+  }catch(err){console.error("Restore panel UI",key,err);}
+}
+
+window.addEventListener("bcso:shared-state-readonly",e=>{
+  const {key,value}=e.detail||{};
+  if(!key)return;
+  try{
+    // Keep a local cache so all existing V5 render functions can work unchanged.
+    localStorage.setItem(key,JSON.stringify(value));
+
+    if(key===STORAGE.events)events=Array.isArray(value)?value:[];
+    else if(key===STORAGE.complaints)complaints=Array.isArray(value)?value:[];
+    else if(key===STORAGE.warrants)warrants=Array.isArray(value)?value:[];
+    else if(key===STORAGE.materialRequests)materialRequests=Array.isArray(value)?value:[];
+    else if(key===STORAGE.notifications)portalNotifications=Array.isArray(value)?value:[];
+    else if(key===STORAGE.convocations)convocations=Array.isArray(value)?value:[];
+    else if(typeof SUP_STORAGE!=="undefined" && key===SUP_STORAGE.audit)supAudit=Array.isArray(value)?value:[];
+    else if(typeof BCSA_STORAGE!=="undefined" && key===BCSA_STORAGE.interviews)bcsaInterviews=Array.isArray(value)?value:[];
+    else if(typeof BCSA_STORAGE!=="undefined" && key===BCSA_STORAGE.candidates)bcsaCandidates=Array.isArray(value)?value:[];
+    else if(typeof BCSA_STORAGE!=="undefined" && key===BCSA_STORAGE.badges)bcsaBadges=value&&typeof value==="object"?value:{};
+    else if(typeof BCSA_STORAGE!=="undefined" && key===BCSA_STORAGE.agentFiles)bcsaAgentFiles=Array.isArray(value)?value:[];
+    else if(typeof BCSA_STORAGE!=="undefined" && key===BCSA_STORAGE.patrolReports)bcsaPatrolReports=Array.isArray(value)?value:[];
+    else if(typeof INV_STORAGE!=="undefined" && key===INV_STORAGE.cases)invCases=Array.isArray(value)?value:[];
+    else if(typeof INV_STORAGE!=="undefined" && key===INV_STORAGE.suspects)invSuspects=Array.isArray(value)?value:[];
+    else if(typeof INV_STORAGE!=="undefined" && key===INV_STORAGE.witnesses)invWitnesses=Array.isArray(value)?value:[];
+    else if(typeof INV_STORAGE!=="undefined" && key===INV_STORAGE.boards)invBoards=value&&typeof value==="object"?value:{};
+    else if(typeof SEB_STORAGE!=="undefined" && key===SEB_STORAGE.operations)sebOperations=Array.isArray(value)?value:[];
+    else if(typeof SEB_STORAGE!=="undefined" && key===SEB_STORAGE.boards)sebBoards=value&&typeof value==="object"?value:{};
+
+    bcsoRefreshRestoredPanel(key);
+  }catch(err){console.error("Restore shared-state",key,err);}
+});

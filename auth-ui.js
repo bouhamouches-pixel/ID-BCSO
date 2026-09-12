@@ -338,4 +338,59 @@ window.addEventListener("bcso:park-qualification-delete",async e=>{
     alert(`Impossible de retirer la qualification : ${err.code||err.message}`);
   }
 });
-observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}currentSession=s;permissions(s.claims);await forceCriticalHydration(s);await forceReportsHydration(s);await forceParkQualificationsHydration(s);startAgentsSync(s.claims);startServicesSync(s);startReportsSync(s);startParkQualificationsSync(s);hide();});
+
+// ===== V5.8 — LECTURE SEULE DES ANCIENS MODULES PARTAGÉS =====
+const RESTORE_SHARED_MAP={
+  agenda:"bcso_demo_events",
+  complaints:"bcso_demo_complaints",
+  warrants:"bcso_demo_warrants",
+  materialRequests:"bcso_demo_material_requests",
+  notifications:"bcso_demo_notifications",
+  convocations:"bcso_demo_convocations",
+  serviceAudit:"bcso_demo_supervision_service_audit",
+  bcsaInterviews:"bcso_demo_bcsa_interviews",
+  bcsaCandidates:"bcso_demo_bcsa_candidates",
+  bcsaBadges:"bcso_demo_bcsa_badges",
+  bcsaAgentFiles:"bcso_demo_bcsa_agent_files",
+  bcsaPatrolReports:"bcso_demo_bcsa_patrol_reports",
+  investigationCases:"bcso_demo_inv_cases",
+  investigationSuspects:"bcso_demo_inv_suspects",
+  investigationWitnesses:"bcso_demo_inv_witnesses",
+  investigationBoards:"bcso_demo_inv_boards",
+  sebOperations:"bcso_demo_seb_operations",
+  sebBoards:"bcso_demo_seb_boards"
+};
+let restoreSharedStops=[];
+
+function restoreAllowedIds(claims){
+  const ids=["agenda","complaints","warrants","materialRequests","notifications","convocations"];
+  if(claims?.supervision)ids.push("serviceAudit");
+  const div=Array.isArray(claims?.divisions)?claims.divisions:[];
+  if(claims?.supervision||div.includes("bcsa"))
+    ids.push("bcsaInterviews","bcsaCandidates","bcsaBadges","bcsaAgentFiles","bcsaPatrolReports");
+  if(claims?.supervision||div.includes("investigation"))
+    ids.push("investigationCases","investigationSuspects","investigationWitnesses","investigationBoards");
+  if(claims?.supervision||div.includes("seb"))
+    ids.push("sebOperations","sebBoards");
+  return ids;
+}
+
+function startRestoreSharedReadOnly(session){
+  restoreSharedStops.forEach(fn=>{try{fn()}catch{}});
+  restoreSharedStops=[];
+  if(!session?.claims?.bcso)return;
+
+  for(const id of restoreAllowedIds(session.claims)){
+    const stop=onSnapshot(doc(db,"sharedState",id),snap=>{
+      if(!snap.exists())return;
+      const key=RESTORE_SHARED_MAP[id];
+      if(!key)return;
+      window.dispatchEvent(new CustomEvent("bcso:shared-state-readonly",{
+        detail:{key,value:snap.data()?.value}
+      }));
+    },err=>console.error("Restore shared state",id,err));
+    restoreSharedStops.push(stop);
+  }
+}
+
+observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}currentSession=s;permissions(s.claims);await forceCriticalHydration(s);await forceReportsHydration(s);await forceParkQualificationsHydration(s);startAgentsSync(s.claims);startServicesSync(s);startReportsSync(s);startParkQualificationsSync(s);startRestoreSharedReadOnly(s);hide();});
