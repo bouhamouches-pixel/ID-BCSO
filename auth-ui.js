@@ -1,5 +1,5 @@
 import {startDiscordLogin,finishDiscordLoginIfNeeded,observeBcsoAuth,logoutBcso,db} from "./firebase-auth.js";
-import {collection,onSnapshot,doc,updateDoc,setDoc,deleteDoc,query,where} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import {collection,onSnapshot,doc,updateDoc,setDoc,deleteDoc,query,where,getDocs} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const gate=document.querySelector("#authGate"), login=document.querySelector("#discordLoginBtn"), logout=document.querySelector("#logoutBtn"), status=document.querySelector("#authStatus");
 function avatar(p){if(!p?.avatar||!p?.discordId)return null;const e=p.avatar.startsWith("a_")?"gif":"webp";return `https://cdn.discordapp.com/avatars/${p.discordId}/${p.avatar}.${e}?size=256`;}
 function syncProfile(p){
@@ -51,8 +51,8 @@ function startAgentsSync(claims){
       }
     }
 
-    window.dispatchEvent(new CustomEvent("bcso:firebase-agents",{detail:agents}));
-  },err=>console.error("Agent sync Firestore:",err));
+    window.BCSO_HYDRATE_AGENTS?.(agents); window.dispatchEvent(new CustomEvent("bcso:firebase-agents",{detail:agents})); window.BCSO_CRITICAL_SYNC_STATUS?.(`Firebase : ${agents.length} agent(s)`,true);
+  },err=>{console.error("Agent sync Firestore:",err);window.BCSO_CRITICAL_SYNC_STATUS?.(`Erreur agents : ${err.code||err.message}`,false)});
 }
 window.addEventListener("bcso:set-agent-badge",async e=>{
   const id=e.detail?.id,badge=e.detail?.badge;
@@ -96,8 +96,8 @@ function startServicesSync(session){
   const source=session.claims?.supervision?collection(db,"services"):query(collection(db,"services"),where("agentId","==",uid));
   stopServicesSync=onSnapshot(source,snap=>{
     const services=snap.docs.map(d=>{const x=d.data();return{id:d.id,...x,start:serviceIso(x.start),end:serviceIso(x.end)};}).filter(s=>s.start);
-    window.dispatchEvent(new CustomEvent("bcso:firebase-services",{detail:services}));
-  },err=>console.error("Services sync Firestore:",err));
+    window.BCSO_HYDRATE_SERVICES?.(services); window.dispatchEvent(new CustomEvent("bcso:firebase-services",{detail:services}));
+  },err=>{console.error("Services sync Firestore:",err);window.BCSO_CRITICAL_SYNC_STATUS?.(`Erreur services : ${err.code||err.message}`,false)});
 }
 window.addEventListener("bcso:start-duty",async e=>{
   const s=currentSession;if(!s?.claims?.bcso)return;
@@ -214,4 +214,36 @@ window.addEventListener("bcso:migrate-legacy-reports",async e=>{
   }
 });
 
-observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}currentSession=s;permissions(s.claims);startAgentsSync(s.claims);startServicesSync(s);startReportsSync(s);hide();});
+
+async function forceCriticalHydration(session){
+  if(!session?.claims?.bcso)return;
+  try{
+    const aSnap=await getDocs(collection(db,"agents"));
+    const agents=aSnap.docs.map(d=>{
+      const x=d.data(),ts=v=>v?.toDate?v.toDate().toISOString():(typeof v==="string"?v:"");
+      return {id:d.id,...x,firstLoginAt:ts(x.firstLoginAt),lastLoginAt:ts(x.lastLoginAt),createdAt:ts(x.createdAt),updatedAt:ts(x.updatedAt)};
+    });
+    window.BCSO_HYDRATE_AGENTS?.(agents);
+    window.BCSO_CRITICAL_SYNC_STATUS?.(`Firebase : ${agents.length} agent(s)`,true);
+  }catch(err){
+    console.error("Force agents hydration:",err);
+    window.BCSO_CRITICAL_SYNC_STATUS?.(`Erreur agents : ${err.code||err.message}`,false);
+  }
+
+  try{
+    const uid=session.user.uid;
+    const source=session.claims?.supervision
+      ? collection(db,"services")
+      : query(collection(db,"services"),where("agentId","==",uid));
+    const sSnap=await getDocs(source);
+    const services=sSnap.docs.map(d=>{
+      const x=d.data();
+      return {id:d.id,...x,start:serviceIso(x.start),end:serviceIso(x.end)};
+    }).filter(s=>s.start);
+    window.BCSO_HYDRATE_SERVICES?.(services);
+  }catch(err){
+    console.error("Force services hydration:",err);
+    window.BCSO_CRITICAL_SYNC_STATUS?.(`Erreur services : ${err.code||err.message}`,false);
+  }
+}
+observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}currentSession=s;permissions(s.claims);await forceCriticalHydration(s);startAgentsSync(s.claims);startServicesSync(s);startReportsSync(s);hide();});

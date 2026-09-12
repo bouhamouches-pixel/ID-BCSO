@@ -1007,8 +1007,8 @@ function renderNewAgentAlerts(){
   </div>`:"";
   $$("[data-new-agent-open]").forEach(b=>b.onclick=()=>openAgentProfile(b.dataset.newAgentOpen));
 }
-window.addEventListener("bcso:firebase-agents",e=>{
-  const rows=Array.isArray(e.detail)?e.detail:[];
+function hydrateAgentsFromFirebase(payload){
+  const rows=Array.isArray(payload)?payload:[];
   supAgents=rows.map(a=>({
     id:a.id,discordId:a.discordId||null,badge:a.badge||"",badgeLocked:Boolean(a.badgeLocked),
     name:a.displayName||a.name||a.username||"Agent BCSO",rank:a.gradeLabel||a.rank||"Non classé",
@@ -1020,7 +1020,9 @@ window.addEventListener("bcso:firebase-agents",e=>{
   save(SUP_STORAGE.agents,supAgents);renderSupervision();renderNewAgentAlerts();
   if(typeof renderBcsaBadges==="function")renderBcsaBadges();
   if(typeof populateDisciplinaryAgentSelect==="function")populateDisciplinaryAgentSelect($("#reportDisciplinaryAgent")?.value||"");
-});
+}
+window.BCSO_HYDRATE_AGENTS=hydrateAgentsFromFirebase;
+window.addEventListener("bcso:firebase-agents",e=>hydrateAgentsFromFirebase(e.detail));
 window.addEventListener("bcso:firebase-reports",e=>{
   const incoming=Array.isArray(e.detail)?e.detail:[];
   firebaseReportsReady=true;
@@ -1038,8 +1040,8 @@ window.addEventListener("bcso:firebase-reports",e=>{
   }
 });
 
-window.addEventListener("bcso:firebase-services",e=>{
-  const incoming=Array.isArray(e.detail)?e.detail:[];
+function hydrateServicesFromFirebase(payload){
+  const incoming=Array.isArray(payload)?payload:[];
   firebaseServicesReady=true;
   supServices=incoming.filter(s=>s.end);
   supActiveServices=incoming.filter(s=>!s.end&&s.status==="active");
@@ -1053,7 +1055,9 @@ window.addEventListener("bcso:firebase-services",e=>{
     save(STORAGE.serviceSessions,sessions);save(STORAGE.activeService,activeService);
   }
   renderServices();renderSupervision();updateLiveServiceCount();
-});
+}
+window.BCSO_HYDRATE_SERVICES=hydrateServicesFromFirebase;
+window.addEventListener("bcso:firebase-services",e=>hydrateServicesFromFirebase(e.detail));
 window.addEventListener("bcso:agent-acknowledged",e=>{
   const a=agentById(e.detail?.id);if(a)a.onboardingState="active";
   save(SUP_STORAGE.agents,supAgents);renderNewAgentAlerts();renderAgentManagement();
@@ -2312,3 +2316,17 @@ if (sidebarWheelTarget && !sidebarWheelTarget.dataset.wheelScrollBound) {
 window.addEventListener("DOMContentLoaded",()=>updateLiveServiceCount());
 window.addEventListener("bcso:firebase-services",()=>updateLiveServiceCount());
 setInterval(updateLiveServiceCount,5000);
+
+function showCriticalSyncStatus(text,ok=true){
+  let el=document.getElementById("criticalSyncStatus");
+  if(!el){
+    el=document.createElement("div");
+    el.id="criticalSyncStatus";
+    el.style.cssText="position:fixed;right:16px;bottom:16px;z-index:99999;padding:8px 11px;border-radius:10px;border:1px solid #343b44;background:#15191e;font:600 11px system-ui";
+    document.body.appendChild(el);
+  }
+  el.textContent=text;
+  el.style.color=ok?"#8dd9aa":"#ffd1d5";
+  el.style.borderColor=ok?"#2e6547":"#7c333a";
+}
+window.BCSO_CRITICAL_SYNC_STATUS=showCriticalSyncStatus;
