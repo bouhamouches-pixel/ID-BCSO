@@ -26,52 +26,13 @@ const defaultProfile = {
   discordId: null
 };
 
-const seedReports = [
-  { id:"R-2026-0004", type:"Arrestation", title:"Interpellation — Route 68", author:"K. Belkacem", date:"2026-09-08T20:34", location:"Route 68", persons:"J. Anderson", summary:"Interpellation à la suite d'un contrôle routier.", offenses:"Conduite dangereuse", evidence:"Dashcam unité 214", notes:"", status:"Finalisé" },
-  { id:"R-2026-0003", type:"Intervention", title:"Renfort — Sandy Shores", author:"J. Carter", date:"2026-09-07T23:12", location:"Sandy Shores", persons:"", summary:"Renfort demandé sur une intervention en cours.", offenses:"", evidence:"", notes:"", status:"Finalisé" },
-  { id:"R-2026-0002", type:"Intervention", title:"Patrouille secteur Nord", author:"K. Belkacem", date:"2026-09-06T18:00", location:"Paleto Bay", persons:"", summary:"Patrouille de prévention et présence visible.", offenses:"", evidence:"", notes:"", status:"Finalisé" }
-];
+const seedReports = [];
 
-const seedEvents = [
-  {
-    id: "evt-1",
-    type: "Formation",
-    title: "Formation générale BCSO",
-    date: "2026-09-12T20:00",
-    place: "Sheriff's Office — Sandy Shores",
-    organizer: "Command Staff",
-    description: "Formation générale et rappel des procédures opérationnelles.",
-    max: 15,
-    participants: [
-      {name:"J. Carter", rank:"Sergeant"},
-      {name:"M. Owens", rank:"Deputy"},
-      {name:"A. Johnson", rank:"Deputy"}
-    ]
-  },
-  {
-    id: "evt-2",
-    type: "Réunion",
-    title: "Réunion mensuelle",
-    date: "2026-09-18T20:30",
-    place: "Salle de briefing",
-    organizer: "Supervision",
-    description: "Point mensuel sur l'activité du service et les objectifs opérationnels.",
-    max: null,
-    participants: [
-      {name:"K. Belkacem", rank:"Captain"},
-      {name:"J. Carter", rank:"Sergeant"}
-    ]
-  }
-];
+const seedEvents = [];
 
+const seedWarrants = [];
 
-const seedWarrants = [{id:"M-2026-0001",name:"John William",dob:"2003-09-11",danger:"Maximum",priority:"Priorité élevée",charges:"Non présentation à une convocation\nPort illégal d'arme de catégorie C\nDétention / possession d'arme sans PPA\nUsage d'une arme en dehors du cadre établi par le code pénal",notes:"Individu à interpeller et conduire devant l'autorité compétente.",author:"K. Belkacem",createdAt:"2026-08-31T23:24",status:"Actif",image:null}];
-
-const seedComplaints = [
-  { id:"P-2026-0042", type:"Plainte contre un agent", writer:"J. Carter", date:"2026-09-08T18:10", subject:"Comportement lors d'un contrôle", assignedTo:null, status:"En attente" },
-  { id:"P-2026-0041", type:"Plainte citoyenne", writer:"K. Belkacem", date:"2026-09-07T16:20", subject:"Dégradation de propriété", assignedTo:"M. Owens", status:"En cours" },
-  { id:"P-2026-0040", type:"Contestation", writer:"A. Johnson", date:"2026-09-05T21:40", subject:"Contestation d'une verbalisation", assignedTo:null, status:"En attente" }
-];
+const seedComplaints = [];
 
 function load(key, fallback) {
   try {
@@ -79,13 +40,29 @@ function load(key, fallback) {
     return v ?? fallback;
   } catch { return fallback; }
 }
-function save(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+const SHARED_OPERATIONAL_KEYS = new Set([
+  "bcso_demo_events","bcso_demo_complaints","bcso_demo_warrants",
+  "bcso_demo_material_requests","bcso_demo_notifications","bcso_demo_convocations",
+  "bcso_demo_supervision_service_audit",
+  "bcso_demo_bcsa_interviews","bcso_demo_bcsa_candidates","bcso_demo_bcsa_badges","bcso_demo_bcsa_agent_files","bcso_demo_bcsa_patrol_reports",
+  "bcso_demo_inv_cases","bcso_demo_inv_suspects","bcso_demo_inv_witnesses","bcso_demo_inv_boards",
+  "bcso_demo_seb_operations","bcso_demo_seb_boards",
+  "bcso_site_categories","bcso_site_pages","bcso_site_settings","bcso_site_audit"
+]);
+let applyingRemoteSharedState=false;
+function save(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+  if(!applyingRemoteSharedState && SHARED_OPERATIONAL_KEYS.has(key)){
+    window.dispatchEvent(new CustomEvent("bcso:shared-state-write",{detail:{key,value}}));
+  }
+}
 
 let profile = load(STORAGE.profile, defaultProfile);
 let sessions = load(STORAGE.serviceSessions, []);
 let activeService = load(STORAGE.activeService, null);
 let firebaseServicesReady = false;
 let reports = load(STORAGE.reports, seedReports);
+let firebaseReportsReady = false;
 let events = load(STORAGE.events, seedEvents);
 let complaints = load(STORAGE.complaints, seedComplaints);
 let warrants = load(STORAGE.warrants, seedWarrants);
@@ -552,8 +529,13 @@ function numericFine(v){
 }
 function isSupervisionUser(){ return Boolean(window.BCSO_AUTH?.claims?.supervision); }
 function isDisciplinaryReport(r){ return reportTypeLabel(r?.type)==="Rapport disciplinaire"; }
-function canViewReport(r){ return !isDisciplinaryReport(r) || r.author===profile.name || isSupervisionUser(); }
-function canEditReport(r){ return r?.author===profile.name || (isDisciplinaryReport(r)&&isSupervisionUser()); }
+function currentAgentId(){ return typeof getPersonalAgent==="function" ? (getPersonalAgent()?.id||null) : null; }
+function isReportAuthor(r){
+  const uid=currentAgentId();
+  return (!!uid && r?.authorUid===uid) || r?.author===profile.name;
+}
+function canViewReport(r){ return !isDisciplinaryReport(r) || isReportAuthor(r) || isSupervisionUser(); }
+function canEditReport(r){ return isReportAuthor(r) || (isDisciplinaryReport(r)&&isSupervisionUser()); }
 
 function initReportChargeSelectors(){
   const cat=$("#reportChargeCategory"); if(!cat)return;
@@ -648,11 +630,27 @@ function openEditReport(id){
 }
 
 $("#reportForm").addEventListener("submit",e=>{
-  e.preventDefault();const editId=$("#reportEditId").value,data=collectReportFormData();if(!data.type||!data.title||!data.summary)return;
+  e.preventDefault();
+  const editId=$("#reportEditId").value,data=collectReportFormData();
+  if(!data.type||!data.title||!data.summary)return;
   if(data.type==="Rapport disciplinaire"&&!data.disciplinary.agentId)return alert("Sélectionnez l'agent impliqué dans le rapport disciplinaire.");
-  if(editId){const r=reports.find(x=>x.id===editId);if(r&&canEditReport(r))Object.assign(r,data,{updatedAt:new Date().toISOString()});}
-  else reports.unshift({id:nextReportId(),...data,status:"Finalisé",createdAt:new Date().toISOString()});
-  save(STORAGE.reports,reports);resetReportForm();closeModal("reportModal");renderMyReports();renderReportsDb();renderReportSupervision?.();
+
+  const now=new Date().toISOString();
+  let report;
+  if(editId){
+    const existing=reports.find(x=>x.id===editId);
+    if(!existing||!canEditReport(existing))return;
+    report={...existing,...data,updatedAt:now};
+    Object.assign(existing,report);
+  }else{
+    report={id:nextReportId(),...data,status:"Finalisé",createdAt:now,updatedAt:now};
+    reports.unshift(report);
+  }
+
+  save(STORAGE.reports,reports);
+  window.dispatchEvent(new CustomEvent("bcso:save-report",{detail:{report}}));
+  resetReportForm();closeModal("reportModal");
+  renderMyReports();renderReportsDb();renderReportSupervision?.();
 });
 
 function reportCard(r){
@@ -661,7 +659,7 @@ function reportCard(r){
 }
 function renderMyReports(){
   const q=($("#myReportSearch").value||"").toLowerCase(),type=$("#myReportFilter").value;
-  const list=reports.filter(r=>r.author===profile.name&&canViewReport(r)).filter(r=>!type||reportTypeLabel(r.type)===type).filter(r=>[r.id,r.title,r.type,r.author,r.persons||"",r.location||"",r.complaint?.complainant||"",r.interview?.person||"",r.disciplinary?.agentName||""].join(" ").toLowerCase().includes(q));
+  const list=reports.filter(r=>isReportAuthor(r)&&canViewReport(r)).filter(r=>!type||reportTypeLabel(r.type)===type).filter(r=>[r.id,r.title,r.type,r.author,r.persons||"",r.location||"",r.complaint?.complainant||"",r.interview?.person||"",r.disciplinary?.agentName||""].join(" ").toLowerCase().includes(q));
   $("#myReportsList").innerHTML=list.length?list.map(reportCard).join(""):`<div class="empty-state panel-lite">Aucun rapport trouvé.</div>`;bindReportViewers();
 }
 function renderReportsDb(){
@@ -715,7 +713,80 @@ window.addEventListener("bcso:auth-ready",()=>{
     detail:{sessions:[...sessions],activeService:activeService?{...activeService}:null}
   }));
 });
+
+function refreshSharedUi(key){
+  try{
+    if(key===STORAGE.events)renderEvents();
+    else if(key===STORAGE.complaints)renderComplaints();
+    else if(key===STORAGE.warrants)renderWarrants();
+    else if(key===STORAGE.materialRequests){renderMaterialNotifications();renderMaterialManagement?.();renderNotificationBadge?.();}
+    else if(key===STORAGE.notifications){renderNotificationBadge?.();renderNotificationsCenter?.();}
+    else if(key===STORAGE.convocations){renderNotificationBadge?.();}
+    else if(key===SUP_STORAGE.audit)renderServiceSupervision?.();
+    else if(Object.values(BCSA_STORAGE).includes(key))renderBcsa?.();
+    else if(Object.values(INV_STORAGE).includes(key))invRenderAll?.();
+    else if(Object.values(SEB_STORAGE).includes(key)){sebRenderOperations?.();if(currentSebOperationId)renderSebMapData?.();}
+    else if(typeof SITE_STORAGE!=="undefined" && Object.values(SITE_STORAGE).includes(key)){applySiteSettings?.();renderDynamicSite?.();}
+  }catch(err){console.error("Refresh shared UI",key,err);}
+}
+
+window.addEventListener("bcso:shared-state",e=>{
+  const {key,value}=e.detail||{};
+  if(!key||!SHARED_OPERATIONAL_KEYS.has(key))return;
+  applyingRemoteSharedState=true;
+  try{
+    localStorage.setItem(key,JSON.stringify(value));
+    if(key===STORAGE.events)events=Array.isArray(value)?value:[];
+    else if(key===STORAGE.complaints)complaints=Array.isArray(value)?value:[];
+    else if(key===STORAGE.warrants)warrants=Array.isArray(value)?value:[];
+    else if(key===STORAGE.materialRequests)materialRequests=Array.isArray(value)?value:[];
+    else if(key===STORAGE.notifications)portalNotifications=Array.isArray(value)?value:[];
+    else if(key===STORAGE.convocations)convocations=Array.isArray(value)?value:[];
+    else if(key===SUP_STORAGE.audit)supAudit=Array.isArray(value)?value:[];
+    else if(key===BCSA_STORAGE.interviews)bcsaInterviews=Array.isArray(value)?value:[];
+    else if(key===BCSA_STORAGE.candidates)bcsaCandidates=Array.isArray(value)?value:[];
+    else if(key===BCSA_STORAGE.badges)bcsaBadges=value&&typeof value==="object"?value:{};
+    else if(key===BCSA_STORAGE.agentFiles)bcsaAgentFiles=Array.isArray(value)?value:[];
+    else if(key===BCSA_STORAGE.patrolReports)bcsaPatrolReports=Array.isArray(value)?value:[];
+    else if(key===INV_STORAGE.cases)invCases=Array.isArray(value)?value:[];
+    else if(key===INV_STORAGE.suspects)invSuspects=Array.isArray(value)?value:[];
+    else if(key===INV_STORAGE.witnesses)invWitnesses=Array.isArray(value)?value:[];
+    else if(key===INV_STORAGE.boards)invBoards=value&&typeof value==="object"?value:{};
+    else if(key===SEB_STORAGE.operations)sebOperations=Array.isArray(value)?value:[];
+    else if(key===SEB_STORAGE.boards)sebBoards=value&&typeof value==="object"?value:{};
+    else if(typeof SITE_STORAGE!=="undefined"&&key===SITE_STORAGE.categories)siteCategories=Array.isArray(value)?value:[];
+    else if(typeof SITE_STORAGE!=="undefined"&&key===SITE_STORAGE.pages)sitePages=Array.isArray(value)?value:[];
+    else if(typeof SITE_STORAGE!=="undefined"&&key===SITE_STORAGE.settings)siteSettings=value&&typeof value==="object"?value:{portalName:"BCSO",subtitle:"Blaine County Sheriff's Office",notice:""};
+    else if(typeof SITE_STORAGE!=="undefined"&&key===SITE_STORAGE.audit)siteAudit=Array.isArray(value)?value:[];
+  }finally{
+    applyingRemoteSharedState=false;
+  }
+  refreshSharedUi(key);
+});
+
+function sharedMigrationPayload(){
+  const out={};
+  for(const key of SHARED_OPERATIONAL_KEYS){
+    const raw=localStorage.getItem(key);
+    if(raw===null)continue;
+    try{out[key]=JSON.parse(raw);}catch{}
+  }
+  return out;
+}
+
 window.addEventListener("bcso:auth-ready",()=>{renderMyReports();renderReportsDb();renderReportSupervision?.();populateDisciplinaryAgentSelect();});
+
+window.addEventListener("bcso:auth-ready",()=>{
+  setTimeout(()=>window.dispatchEvent(new CustomEvent("bcso:migrate-shared-state",{detail:{states:sharedMigrationPayload()}})),1200);
+});
+
+window.addEventListener("bcso:auth-ready",()=>{
+  setTimeout(()=>{
+    const demoIds=new Set(["R-2026-0002","R-2026-0003","R-2026-0004"]);
+    const legacy=(reports||[]).filter(r=>r?.id&&!demoIds.has(r.id));
+    if(legacy.length)window.dispatchEvent(new CustomEvent("bcso:migrate-legacy-reports",{detail:{reports:legacy}}));
+  },800);
+});
 initReportChargeSelectors();renderReportSelectedCharges();reportTypeMode();
 
 
@@ -948,7 +1019,7 @@ function openAgentProfile(id,tab="info"){
   const a=agentById(id); if(!a)return;
   const range=periodRange("week");
   const agentServices=allCompletedServices().filter(s=>s.agentId===id).sort((x,y)=>new Date(y.start)-new Date(x.start));
-  const agentReports=reports.filter(r=>r.author===a.name);
+  const agentReports=reports.filter(r=>r.authorUid===a.id||(!r.authorUid&&r.author===a.name)).filter(canViewReport);
   const agentComplaints=complaints.filter(c=>c.writer===a.name||c.assignedTo===a.name);
   $("#agentModalTitle").textContent=`${a.badge?`#${a.badge} ・ `:""}${a.name}`;
   $("#agentProfileContent").innerHTML=`
@@ -996,6 +1067,23 @@ window.addEventListener("bcso:firebase-agents",e=>{
   if(typeof renderBcsaBadges==="function")renderBcsaBadges();
   if(typeof populateDisciplinaryAgentSelect==="function")populateDisciplinaryAgentSelect($("#reportDisciplinaryAgent")?.value||"");
 });
+window.addEventListener("bcso:firebase-reports",e=>{
+  const incoming=Array.isArray(e.detail)?e.detail:[];
+  firebaseReportsReady=true;
+  reports=incoming.sort((a,b)=>new Date(b.date||b.createdAt||0)-new Date(a.date||a.createdAt||0));
+  save(STORAGE.reports,reports);
+  renderMyReports();
+  renderReportsDb();
+  renderReportSupervision?.();
+  // Refresh an open supervision agent profile so its "Rapports" tab is immediately current.
+  const openAgentModal=document.querySelector("#agentModal.open");
+  if(openAgentModal){
+    const title=$("#agentModalTitle")?.textContent||"";
+    const agent=(supAgents||[]).find(a=>title.includes(a.name));
+    if(agent)openAgentProfile(agent.id,"reports");
+  }
+});
+
 window.addEventListener("bcso:firebase-services",e=>{
   const incoming=Array.isArray(e.detail)?e.detail:[];
   firebaseServicesReady=true;
@@ -1244,14 +1332,10 @@ const BCSA_QUESTIONS = [
   ["Vous êtes en service et vous arrivez sur une scène où un collègue est en difficulté face à un individu armé. Vous êtes seul sur place et l'individu représente une menace importante. Quelle est votre réaction ?",false],
   ["Avez-vous quelque chose à ajouter pour convaincre le jury de vous recruter ?",true]
 ];
-const seedBcsaCandidates = ["Delilah Crowne","Jack Bright","Jackson Morrow","Joao Silva","Josh Rupantarra","Kamel Belkacem"].map((name,i)=>({id:`bcsa-c-${i+1}`,name,workshops:Object.fromEntries(BCSA_WORKSHOPS.map(w=>[w.key,{done:i===1&&w.key==="1031",validatedBy:i===1&&w.key==="1031"?"K. Belkacem":null,validatedAt:i===1&&w.key==="1031"?"2026-09-09T22:10":null,comment:""}]))}));
-const seedBcsaInterviews = [{id:"INT-2026-0001",candidate:"Jack Bright",date:"2026-09-06",recruiter:"K. Belkacem",answers:BCSA_QUESTIONS.map(()=>({answer:"",evaluation:null})),decision:"Admis à la BCSA",overall:"Profil compatible avec les attentes de l'Academy.",status:"Clôturé"}];
+const seedBcsaCandidates = [];
+const seedBcsaInterviews = [];
 const seedBcsaAgentFiles = [];
-const seedBcsaPatrolReports = [
-  {id:"PR-2026-0010",date:"2026-09-04",traineeId:"bcsa-a-2",trainee:"J. Rupantarra",duration:"3h00",examiner:"C. O’Malley",examBadge:"154",examRank:"Deputy III",interventions:"Contrôle routier et intervention de proximité.",positive:"Bonne communication et attitude professionnelle.",improve:"Fluidifier les annonces radio.",skills:["Radio","Contrôles routiers","Contact civil"],otherSkill:"",overall:"Patrouille sérieuse, progression satisfaisante.",opinion:"Favorable",status:"Finalisé"},
-  {id:"PR-2026-0009",date:"2026-09-02",traineeId:"bcsa-a-4",trainee:"K. Belkacem",duration:"3h",examiner:"N. Winchester",examBadge:"166",examRank:"Sergeant",interventions:"Patrouille générale.",positive:"Bon comportement.",improve:"Approfondir les procédures.",skills:["Procédures","Radio"],otherSkill:"",overall:"En progression.",opinion:"Favorable",status:"Finalisé"},
-  {id:"PR-2026-0008",date:"2026-09-01",traineeId:"bcsa-a-8",trainee:"W. Kessler",duration:"1h30",examiner:"N. Winchester",examBadge:"166",examRank:"Sergeant",interventions:"Patrouille de secteur.",positive:"Bonne écoute.",improve:"Prendre davantage d'initiatives.",skills:["Contact civil"],otherSkill:"",overall:"Patrouille correcte.",opinion:"Mitigé",status:"Finalisé"}
-];
+const seedBcsaPatrolReports = [];
 let bcsaInterviews=load(BCSA_STORAGE.interviews,seedBcsaInterviews);
 let bcsaCandidates=load(BCSA_STORAGE.candidates,seedBcsaCandidates);
 let bcsaAgentFiles=load(BCSA_STORAGE.agentFiles,seedBcsaAgentFiles);
@@ -1367,14 +1451,8 @@ const INV_STORAGE={
   witnesses:"bcso_demo_inv_witnesses",
   boards:"bcso_demo_inv_boards"
 };
-const seedInvCases=[
-  {id:"INV-2026-0001",title:"Trafic d’armes — Sandy Shores",status:"En cours",priority:"Élevée",investigators:"K. Belkacem, J. Carter",opened:"2026-09-08",summary:"Enquête portant sur plusieurs transactions suspectes et un possible réseau de revente d’armes.",updatedAt:"2026-09-10T01:42:00",suspectIds:["SUS-2026-0001"],witnessIds:[],reportIds:["R-2026-0004"]},
-  {id:"INV-2026-0002",title:"Série de vols — Grapeseed",status:"Ouvert",priority:"Normale",investigators:"M. Owens",opened:"2026-09-09",summary:"Rapprochement de plusieurs faits similaires signalés dans le secteur de Grapeseed.",updatedAt:"2026-09-09T23:10:00",suspectIds:[],witnessIds:[],reportIds:["R-2026-0003"]}
-];
-const seedInvSuspects=[
-  {id:"SUS-2026-0001",lastName:"William",firstName:"John",name:"John William",alias:"JW",danger:"Élevée",group:"Red Vultures",role:"Intermédiaire présumé",vehicles:"Sultan noir — plaque inconnue",notes:"Suspect relié à plusieurs contacts identifiés dans le dossier armes.",photo:null,caseIds:["INV-2026-0001"],createdBy:"K. Belkacem",updatedAt:"2026-09-10T01:30:00"},
-  {id:"SUS-2026-0002",lastName:"Carter",firstName:"Michael",name:"Michael Carter",alias:"",danger:"Moyenne",group:"",role:"",vehicles:"Baller gris — 6ABC219",notes:"À vérifier. Présence récurrente sur plusieurs scènes.",photo:null,caseIds:[],createdBy:"J. Carter",updatedAt:"2026-09-09T20:05:00"}
-];
+const seedInvCases=[];
+const seedInvSuspects=[];
 const seedInvWitnesses=[];
 let invCases=load(INV_STORAGE.cases,seedInvCases),
     invSuspects=load(INV_STORAGE.suspects,seedInvSuspects),
@@ -1623,16 +1701,7 @@ const SEB_STORAGE={
   operations:"bcso_demo_seb_operations",
   boards:"bcso_demo_seb_boards"
 };
-const seedSebOperations=[{
-  id:"SEB-2026-0001",title:"Intervention — Sandy Shores",lead:"K. Belkacem",
-  status:"En préparation",priority:"Élevée",date:"2026-09-12T22:00",
-  objective:"Interpellation de plusieurs individus retranchés et sécurisation des lieux.",
-  threats:"Présence possible d'armes longues. Nombre d'individus à confirmer.",
-  teams:"Alpha — entrée principale\nBravo — couverture / seconde entrée",
-  equipment:"Bouclier balistique, bélier, médical tactique.",
-  instructions:"Priorité à la sécurisation des civils et à la coordination radio.",
-  createdAt:"2026-09-10T02:20:00",updatedAt:"2026-09-10T02:20:00"
-}];
+const seedSebOperations=[];
 
 let sebOperations=load(SEB_STORAGE.operations,seedSebOperations);
 let sebBoards=load(SEB_STORAGE.boards,{});
