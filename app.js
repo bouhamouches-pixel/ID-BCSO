@@ -838,6 +838,31 @@ function hoursValue(ms){ return ms/3600000; }
 function getPersonalAgent(){
   return supAgents.find(a=>a.discordId===profile.discordId) || supAgents.find(a=>a.name===profile.name) || null;
 }
+
+function updateLiveServiceCount(){
+  const count=(typeof currentActiveServices==="function" ? currentActiveServices() : (supActiveServices||[])).length;
+  const candidates=[
+    "#topActiveAgentsCount",
+    "#agentsInServiceCount",
+    "#headerAgentsInServiceCount",
+    "[data-live-service-count]"
+  ];
+  let el=null;
+  for(const sel of candidates){ el=document.querySelector(sel); if(el)break; }
+  if(!el){
+    // Fallback: find the header label "Agents en service" and update the nearest numeric element.
+    const labels=[...document.querySelectorAll("body *")].filter(n=>n.childElementCount===0 && n.textContent.trim()==="Agents en service");
+    const label=labels[0];
+    if(label){
+      const parent=label.parentElement;
+      if(parent){
+        el=[...parent.querySelectorAll("*")].find(n=>/^\d{1,3}$/.test(n.textContent.trim()));
+      }
+    }
+  }
+  if(el) el.textContent=String(count).padStart(2,"0");
+}
+
 function currentActiveServices(){
   if(firebaseServicesReady) return supActiveServices.filter(s=>agentById(s.agentId)?.active!==false);
   const list = supActiveServices.filter(s=>agentById(s.agentId)?.active);
@@ -985,7 +1010,7 @@ window.addEventListener("bcso:firebase-services",e=>{
     activeService=live?{id:live.id,start:live.start}:null;
     save(STORAGE.serviceSessions,sessions);save(STORAGE.activeService,activeService);
   }
-  renderServices();renderSupervision();
+  renderServices();renderSupervision();updateLiveServiceCount();
 });
 window.addEventListener("bcso:agent-acknowledged",e=>{
   const a=agentById(e.detail?.id);if(a)a.onboardingState="active";
@@ -1949,8 +1974,26 @@ const RADIO_GROUPS=[
   {title:"Codes opérationnels",rows:[["Code 2","Prioritaire, sans sirène."],["Code 3","Urgent, gyrophare et sirène activés."],["Code 4","Aucune assistance nécessaire, situation stable."],["Code 5","En surveillance, d'autres unités doivent éviter les lieux."],["Code 6","Arrivée sur les lieux."],["Code 99","Agent en danger, besoin d'aide en urgence (10-99)."],["Banane","Mot en cas d'incapacité de dire code 10-99."]]},
   {title:"Ten-Codes",rows:[["10-3","Arrivée sur fréquence"],["10-4","Bien reçu"],["10-5","Négatif"],["10-7","Indisponible"],["10-8","Prise de service"],["10-9","Répéter le call"],["10-10","Fin de service"],["10-12","Attente de dispatch"],["10-15","Suspect arrêté"],["10-19","En route vers..."],["10-20","Votre localisation"],["10-21","Appel téléphonique"],["10-22","Retour en patrouille"],["10-31","Tir d'arme à feu"],["10-35","Demande de renfort"],["10-37","Cambriolage en cours"],["10-38","Contrôle routier"],["10-39","Braquage (ATM / SUP)"],["10-40","Braquage de banque"],["10-41","Prise de patrouille"],["10-42","Fin de patrouille"],["10-50","Accident"],["10-52","Appel EMS"],["10-56","Refus d'obtempérer"],["10-57","Vol de véhicule"],["10-59","Vol de sac à main"],["10-60","Vente de drogue"],["10-61","Braquage de Fleeca"],["10-62","Braquage de bijouterie"],["10-63","Braquage de container"],["10-64","Braquage d'Ammunation"]]}
 ];
-function renderRadioCodes(){const q=($("#radioCodeSearch")?.value||"").toLowerCase();$("#radioCodesContent").innerHTML=RADIO_GROUPS.map(g=>{const rows=g.rows.filter(r=>r.join(" ").toLowerCase().includes(q));if(!rows.length)return"";return `<section class="radio-section"><h3>${escapeHtml(g.title)}</h3><table class="radio-table"><thead><tr><th>Code / Call</th><th>Description</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r[0])}</td><td>${escapeHtml(r[1])}</td></tr>`).join("")}</tbody></table></section>`}).join("")||'<div class="empty-state">Aucun code trouvé.</div>'}
-$("#radioCodeSearch").oninput=renderRadioCodes;renderRadioCodes();
+function renderRadioCodes(){
+  const grid=$("#radioCodesGrid");
+  if(!grid)return;
+  const q=($("#radioQuickSearch")?.value||"").trim().toLowerCase();
+  const priorityCodes=new Set(["10-61","10-62","10-63","10-64","Code 99","Banane"]);
+  const commonCodes=new Set(["10-3","10-4","10-20","Code 2","Code 3","Code 4","Code 6"]);
+  const rows=RADIO_GROUPS.flatMap(g=>g.rows.map(r=>({group:g.title,code:r[0],label:r[1]})))
+    .filter(x=>!q||`${x.code} ${x.label} ${x.group}`.toLowerCase().includes(q));
+  grid.innerHTML=rows.map(x=>{
+    const p=priorityCodes.has(x.code)?"high":commonCodes.has(x.code)?"common":"normal";
+    return `<div class="radio-code-card" data-priority="${p}">
+      <div class="radio-code-num">${escapeHtml(x.code)}</div>
+      <div class="radio-code-label">${escapeHtml(x.label)}<span class="radio-code-meta">${escapeHtml(x.group)}</span></div>
+    </div>`;
+  }).join("");
+  const empty=$("#radioEmptyState");
+  if(empty)empty.hidden=rows.length!==0;
+}
+if($("#radioQuickSearch"))$("#radioQuickSearch").oninput=renderRadioCodes;
+renderRadioCodes();
 
 // Fiche co-négociateur
 function coText(){return `🧾 FICHE CO-NÉGOCIATEUR\n\n📍 Braquage : ${$("#coBraquage").value}\n📍 Lieu : ${$("#coLieu").value}\n🕒 Heure : ${$("#coHeure").value}\n\n👥 Nombre de braqueurs : ${$("#coBraqueurs").value}\n🧍 Nombre d’otages / identités : ${$("#coOtages").value}\n🔫 Armement : ${$("#coArmement").value}\n\n📢 Revendications :\n${$("#coRevendications").value}\n\n🚔 Contre-proposition BCSO :\n${$("#coContre").value}\n\n✅ Accord retenu :\n${$("#coAccord").value}\n\n📝 Notes importantes :\n${$("#coNotes").value}`}
@@ -2205,23 +2248,19 @@ if (sidebarWheelTarget && !sidebarWheelTarget.dataset.wheelScrollBound) {
 }
 
 
-// ===== Codes radio V2 =====
-const RADIO_CODES_V2 = [{"code": "Code 6", "label": "Arrivée sur les lieux.", "priority": "common"}, {"code": "10-3", "label": "Arrivée sur fréquence", "priority": "common"}, {"code": "10-4", "label": "Bien reçu", "priority": "common"}, {"code": "10-5", "label": "Négatif", "priority": "normal"}, {"code": "10-7", "label": "Indisponible", "priority": "normal"}, {"code": "10-8", "label": "Prise de service", "priority": "normal"}, {"code": "10-9", "label": "Répéter le call", "priority": "normal"}, {"code": "10-10", "label": "Fin de service", "priority": "normal"}, {"code": "10-12", "label": "Attente de dispatch", "priority": "normal"}, {"code": "10-15", "label": "Suspect arrêté", "priority": "normal"}, {"code": "10-19", "label": "En route vers...", "priority": "normal"}, {"code": "10-20", "label": "Votre localisation", "priority": "common"}, {"code": "10-21", "label": "Appel téléphonique", "priority": "normal"}, {"code": "10-22", "label": "Retour en patrouille", "priority": "normal"}, {"code": "10-31", "label": "Tir d", "priority": "normal"}, {"code": "10-35", "label": "Demande de renfort", "priority": "normal"}, {"code": "10-37", "label": "Cambriolage en cours", "priority": "normal"}, {"code": "10-38", "label": "Contrôle routier", "priority": "normal"}, {"code": "10-39", "label": "Braquage (ATM / SUP)", "priority": "normal"}, {"code": "10-40", "label": "Braquage de banque", "priority": "normal"}, {"code": "10-41", "label": "Prise de patrouille", "priority": "normal"}, {"code": "10-42", "label": "Fin de patrouille", "priority": "normal"}, {"code": "10-50", "label": "Accident", "priority": "normal"}, {"code": "10-52", "label": "Appel EMS", "priority": "normal"}, {"code": "10-56", "label": "Refus d", "priority": "normal"}, {"code": "10-57", "label": "Vol de véhicule", "priority": "normal"}, {"code": "10-59", "label": "Vol de sac à main", "priority": "normal"}, {"code": "10-60", "label": "Vente de drogue", "priority": "normal"}, {"code": "10-61", "label": "Braquage de Fleeca", "priority": "high"}, {"code": "10-62", "label": "Braquage de bijouterie", "priority": "high"}, {"code": "10-63", "label": "Braquage de container", "priority": "high"}, {"code": "10-64", "label": "Braquage d", "priority": "high"}];
 
-function renderRadioCodesV2(filter=""){
-  const grid=document.querySelector("#radioCodesGrid");
-  const empty=document.querySelector("#radioEmptyState");
-  if(!grid)return;
-  const q=String(filter||"").trim().toLowerCase();
-  const rows=RADIO_CODES_V2.filter(x=>!q||x.code.toLowerCase().includes(q)||x.label.toLowerCase().includes(q));
-  grid.innerHTML=rows.map(x=>`
-    <div class="radio-code-card" data-priority="${x.priority}">
-      <div class="radio-code-num">${escapeHtml?escapeHtml(x.code):x.code}</div>
-      <div class="radio-code-label">${escapeHtml?escapeHtml(x.label):x.label}</div>
-    </div>`).join("");
-  if(empty)empty.hidden=rows.length!==0;
-}
-document.addEventListener("input",e=>{
-  if(e.target?.id==="radioQuickSearch")renderRadioCodesV2(e.target.value);
+// ===== AIDES · DEFCON =====
+document.addEventListener("click",e=>{
+  const nav=e.target.closest('[data-page="defcon"]');
+  if(!nav)return;
+  e.preventDefault();
+  document.querySelectorAll(".page,[data-page-panel]").forEach(p=>{if(p.id!=="page-defcon")p.hidden=true});
+  const page=document.querySelector("#page-defcon");
+  if(page){page.hidden=false;page.scrollIntoView({block:"start"});}
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
+  nav.classList.add("active");
 });
-window.addEventListener("DOMContentLoaded",()=>renderRadioCodesV2());
+
+window.addEventListener("DOMContentLoaded",()=>updateLiveServiceCount());
+window.addEventListener("bcso:firebase-services",()=>updateLiveServiceCount());
+setInterval(updateLiveServiceCount,5000);

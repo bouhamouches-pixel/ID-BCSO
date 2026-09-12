@@ -75,7 +75,8 @@
         <button class="nav-item" data-view="procedures"><span>📋</span><span>Procédures</span></button>
         <button class="nav-item" data-view="helpSheets"><span>💡</span><span>Fiches d'aide</span></button>
         <button class="nav-item" data-view="radioCodes"><span>📻</span><span>Codes radio</span></button>
-        <button class="nav-item" data-view="miranda"><span>⚖️</span><span>Droits Miranda</span></button>
+        <button class="nav-item" data-view="miranda"><span>⚖️</span><span>Droits Miranda</span>
+<a class="nav-item" data-page="defcon"><span>🛡️</span><span>DEFCON</span></a></button>
       </nav>
 
       <button class="nav-label supervision-label nav-section-toggle" type="button" data-nav-section="supervision" aria-expanded="true">
@@ -682,7 +683,98 @@
       </section>
 
 
-    </main>
+    
+<section id="page-defcon" class="page defcon-page" data-page-panel="defcon" hidden>
+  <div class="defcon-head">
+    <div>
+      <div class="eyebrow">AIDES · RÉGLEMENTATION</div>
+      <h1>Niveaux DEFCON</h1>
+      <p>Référence opérationnelle du Blaine County Sheriff’s Office. Plus le niveau descend, plus la menace et le dispositif augmentent.</p>
+    </div>
+    <div class="defcon-scale">
+      <span>STABLE</span><i></i><i></i><i></i><i></i><i></i><span>URGENCE</span>
+    </div>
+  </div>
+
+  <div class="defcon-grid">
+    <article class="defcon-card d5">
+      <header><div><b>DEFCON 5</b><span>Fonctionnement classique</span></div><em>Situation stable</em></header>
+      <p>Le département fonctionne normalement, sans mesure de sécurité particulière.</p>
+      <ul>
+        <li>Patrouilles classiques.</li><li>Tenue réglementaire habituelle.</li><li>Équipement standard.</li>
+        <li>Aucune arme lourde autorisée en patrouille.</li><li>PPA 2 et PPA 3 interdits.</li>
+        <li>GPB interdit en patrouille, sauf fusillade ou braquage.</li><li>Aucun dispositif exceptionnel déployé.</li>
+      </ul>
+      <footer>Service au quotidien</footer>
+    </article>
+
+    <article class="defcon-card d4">
+      <header><div><b>DEFCON 4</b><span>Vigilance renforcée</span></div><em>Prévention</em></header>
+      <p>Le niveau de vigilance est augmenté afin d’anticiper une éventuelle dégradation de la situation.</p>
+      <ul>
+        <li>Patrouilles renforcées.</li><li>Patrouille en Lincoln interdite.</li><li>Patrouille en Adam minimum obligatoire.</li>
+        <li>Renforcement des contrôles douaniers.</li><li>Renforcement des contrôles en ville.</li><li>Renforcement des contrôles et interventions autoroutières.</li>
+        <li>Hélicoptère prêt à intervenir, sans patrouille aérienne.</li><li>SWAT prêt à intervenir, sans patrouille active.</li>
+        <li>Équipement classique.</li><li>PPA 2 et PPA 3 interdits.</li><li>GPB obligatoire dans le coffre de chaque véhicule de patrouille par agent.</li>
+      </ul>
+      <footer>Anticiper · Contrôler · Prévenir</footer>
+    </article>
+
+    <article class="defcon-card d3">
+      <header><div><b>DEFCON 3</b><span>Menace sérieuse</span></div><em>Réactivité</em></header>
+      <p>Une menace sérieuse est identifiée. Les forces de l’ordre renforcent leur présence et leur capacité d’intervention.</p>
+      <ul>
+        <li>Patrouilles renforcées.</li><li>Patrouille en Adam minimum obligatoire.</li><li>Patrouille en Tango renforcée.</li>
+        <li>Renforcement des contrôles en ville.</li><li>Renforcement des contrôles et interventions autoroutières.</li><li>Contrôles douaniers obligatoires.</li>
+        <li>Contrôle K9 sur les douanes obligatoire : individu + véhicule, 1 à 2 véhicules sur 3.</li>
+        <li>Hélicoptère prêt à intervenir, sans patrouille aérienne.</li><li>SWAT léger déployé : 1 fusil à pompe et 1 MP5.</li>
+        <li>PPA 2 interdit en Adam.</li><li>1 seul PPA 2 autorisé par Tango.</li><li>Port du GPB obligatoire.</li>
+      </ul>
+      <footer>Présence · Contrôle · Réactivité</footer>
+    </article>
+
+    <article class="defcon-card d2">
+      <header><div><b>DEFCON 2</b><span>Menace critique</span></div><em>Dispositif renforcé</em></header>
+      <p>La menace est considérée comme critique. Le département passe en dispositif renforcé permanent.</p>
+      <ul>
+        <li>Patrouilles renforcées.</li><li>Patrouilles Tango obligatoires.</li><li>Renforcement des contrôles en ville.</li>
+        <li>Renforcement des contrôles et interventions autoroutières.</li><li>Contrôles douaniers obligatoires.</li>
+        <li>Contrôle K9 sur les douanes obligatoire : individu + véhicule, tous les véhicules.</li>
+        <li>Fouille complète de tous les véhicules et individus aux douanes.</li><li>Hélicoptère en patrouille active.</li>
+        <li>SWAT lourd déployé : 2 MP5, 2 fusils à pompe et 1 M4.</li><li>Maximum 1 PPA 2 par Tango.</li><li>Port du GPB obligatoire.</li>
+      </ul>
+      <footer>Contrôle total</footer>
+    </article>
+
+    <article class="defcon-card d1">
+      <header><div><b>DEFCON 1</b><span>État d’urgence</span></div><em>Mobilisation totale</em></header>
+      <p>L’état d’urgence est déclaré. La menace est maximale et nécessite la mobilisation totale du département.</p>
+      <ul>
+        <li>Renforcement maximal des effectifs sur l’ensemble du territoire.</li>
+        <li>Priorité aux contrôles liés à la recherche d’armes à feu.</li><li>Contrôle systématique de l’ensemble des citoyens.</li>
+        <li>Contrôles douaniers constants.</li><li>Contrôle systématique de tous les véhicules.</li><li>K9 déployés sur les points de contrôle.</li>
+        <li>Hélicoptères déployés en continu selon les besoins opérationnels.</li><li>SWAT pleinement mobilisé.</li>
+        <li>Suppression des restrictions concernant les armes et leur quantité.</li>
+      </ul>
+      <footer>Sécurité à tout prix</footer>
+    </article>
+
+    <aside class="defcon-reminders">
+      <div class="defcon-reminder-title">Rappels importants</div>
+      <ul>
+        <li>Respectez toujours le niveau DEFCON en vigueur.</li>
+        <li>Adaptez votre comportement, votre équipement et vos patrouilles en conséquence.</li>
+        <li>Restez professionnels et ne prenez aucune initiative hors procédure.</li>
+        <li>Communiquez clairement sur les canaux radio.</li>
+        <li>La sécurité des citoyens et des agents est la priorité.</li>
+        <li>En cas de doute, demandez confirmation au commandement.</li>
+      </ul>
+      <div class="defcon-mission"><b>Notre mission</b><span>Un comté sûr, des citoyens protégés, aujourd’hui et demain.</span></div>
+    </aside>
+  </div>
+</section>
+
+</main>
   </div>
 
   <div class="modal" id="profileModal" aria-hidden="true">
