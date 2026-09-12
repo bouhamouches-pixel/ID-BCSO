@@ -951,3 +951,176 @@ body.sidebar-collapsed .brand-mark{display:none!important}
 @media(max-width:620px){
   .radio-category-grid{grid-template-columns:1fr;}
 }
+
+
+/* ===== Park Ranger ===== */
+.park-ranger-label{color:#aebf91}
+.park-ranger-nav .nav-item.active{
+  border-color:rgba(142,168,105,.62);
+  background:rgba(122,147,89,.12);
+  color:#d8e3c6;
+}
+.park-ranger-view .eyebrow{color:#a7bb85}
+.park-toolbar{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 240px;
+  gap:10px;
+  margin-bottom:16px;
+}
+.park-register-card{overflow:hidden}
+.park-info-badge{
+  border:1px solid rgba(167,187,133,.25);
+  background:rgba(167,187,133,.07);
+  color:#b9ca9f;
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:11px;
+  font-weight:700;
+}
+.park-register-head{
+  display:grid;
+  grid-template-columns:1.4fr .8fr .9fr 1fr 1fr;
+  gap:12px;
+  padding:11px 14px;
+  margin-top:12px;
+  border-top:1px solid rgba(255,255,255,.06);
+  border-bottom:1px solid rgba(255,255,255,.06);
+  color:#737c87;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.park-hunting-head{grid-template-columns:1.5fr 1fr 1fr .8fr}
+.park-empty{margin:0;border:0;border-radius:0;min-height:110px;display:flex;align-items:center;justify-content:center}
+.park-training-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  margin-bottom:16px;
+}
+.park-training-card{
+  display:flex;
+  gap:14px;
+  align-items:flex-start;
+  padding:16px;
+  border:1px solid rgba(255,255,255,.075);
+  border-radius:14px;
+  background:linear-gradient(180deg,rgba(167,187,133,.045),rgba(255,255,255,.012));
+}
+.park-training-icon{
+  width:44px;height:44px;flex:0 0 44px;border-radius:12px;
+  display:grid;place-items:center;font-size:22px;
+  background:rgba(167,187,133,.09);
+  border:1px solid rgba(167,187,133,.17);
+}
+.park-training-card h3{margin:3px 0 5px;font-size:16px}
+.park-training-card p{margin:0;color:#9299a3;font-size:12px;line-height:1.45}
+@media(max-width:900px){
+  .park-toolbar{grid-template-columns:1fr}
+  .park-training-grid{grid-template-columns:1fr}
+  .park-register-head{display:none}
+}
+
+
+/* ===== Park Ranger · Permis pêche ===== */
+.park-fishing-head{align-items:flex-end}
+.park-rules-mini{
+  display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end;max-width:600px
+}
+.park-rules-mini span{
+  border:1px solid rgba(167,187,133,.18);
+  background:rgba(167,187,133,.055);
+  color:#aeb7a2;
+  padding:6px 9px;border-radius:8px;font-size:10.5px
+}
+.park-rules-mini b{color:#d7e2c6;margin-right:3px}
+.park-fishing-toolbar{
+  grid-template-columns:minmax(260px,1fr) 190px 190px
+}
+.park-search-wrap{
+  display:flex;align-items:center;gap:8px;padding:0 11px;
+  border:1px solid rgba(255,255,255,.08);border-radius:10px;background:#101318
+}
+.park-search-wrap span{color:#737c87;font-size:17px}
+.park-search-wrap input{border:0!important;background:transparent!important;padding-left:0!important;width:100%}
+.park-fishing-legend{
+  display:flex;align-items:center;gap:15px;flex-wrap:wrap;
+  color:#858e99;font-size:10.5px;margin:0 2px 9px
+}
+.park-fishing-legend>span{display:inline-flex;align-items:center;gap:6px}
+.park-fishing-count{margin-left:auto!important;color:#a8b0ba!important}
+.permit-dot{width:7px;height:7px;border-radius:50%}
+.permit-dot.valid{background:#58b785}.permit-dot.soon{background:#df9e49}.permit-dot.expired{background:#d75c64}
+.park-fishing-table-head{
+  grid-template-columns:1.55fr .72fr .78fr 1fr .72fr .65fr
+}
+.park-fishing-register{display:flex;flex-direction:column}
+.park-permit-row{
+  display:grid;
+  grid-template-columns:1.55fr .72fr .78fr 1fr .72fr .65fr;
+  gap:12px;align-items:center;
+  padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.055);
+  transition:background .12s ease
+}
+.park-permit-row:last-child{border-bottom:0}
+.park-permit-row:hover{background:rgba(255,255,255,.018)}
+.park-permit-holder{display:flex;align-items:center;gap:9px;min-width:0}
+.park-permit-avatar{
+  width:32px;height:32px;flex:0 0 32px;border-radius:9px;
+  display:grid;place-items:center;
+  color:#b9ca9f;background:rgba(167,187,133,.08);
+  border:1px solid rgba(167,187,133,.15);
+  font-size:10px;font-weight:900;letter-spacing:.04em
+}
+.park-permit-holder strong{display:block;color:#e4e7ea;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.park-permit-holder small{display:block;color:#69727e;font-size:9px;margin-top:2px}
+.permit-type,.permit-status{
+  display:inline-flex;align-items:center;gap:5px;
+  border-radius:999px;padding:4px 7px;font-size:9.5px;font-weight:800
+}
+.permit-type.personal{color:#d3bb82;background:rgba(198,168,109,.09);border:1px solid rgba(198,168,109,.18)}
+.permit-type.pro{color:#9ec1de;background:rgba(78,145,216,.09);border:1px solid rgba(78,145,216,.18)}
+.permit-status i{width:6px;height:6px;border-radius:50%}
+.permit-status.valid{color:#8dd9aa;background:rgba(88,183,133,.08);border:1px solid rgba(88,183,133,.16)}
+.permit-status.valid i{background:#58b785}
+.permit-status.soon{color:#f1c47e;background:rgba(223,158,73,.08);border:1px solid rgba(223,158,73,.17)}
+.permit-status.soon i{background:#df9e49}
+.permit-status.expired{color:#efa0a6;background:rgba(215,92,100,.08);border:1px solid rgba(215,92,100,.17)}
+.permit-status.expired i{background:#d75c64}
+.permit-date{color:#abb2bb;font-size:10.5px}
+.permit-date strong{color:#e1e4e8;font-weight:700}
+.permit-money{color:#d3bb82;font-size:10.5px;font-weight:800}
+@media(max-width:1050px){
+  .park-fishing-table-head{display:none}
+  .park-permit-row{grid-template-columns:1.6fr .8fr 1fr .7fr}
+  .park-permit-row>.permit-date:nth-of-type(2){display:none}
+  .park-permit-row>.permit-money{display:none}
+}
+@media(max-width:760px){
+  .park-fishing-toolbar{grid-template-columns:1fr}
+  .park-rules-mini{justify-content:flex-start}
+  .park-permit-row{grid-template-columns:1.45fr .8fr .9fr}
+  .park-permit-row>.permit-date{display:none}
+  .park-fishing-count{margin-left:0!important}
+}
+
+/* Park Ranger — registre agents formés */
+.park-training-toolbar{grid-template-columns:minmax(0,1fr) 240px}
+.park-qualified-head,.park-qualified-row{
+  display:grid;grid-template-columns:1.25fr .55fr 2fr .75fr 1fr 38px;gap:10px;align-items:center
+}
+.park-qualified-head{padding:10px 14px;color:#737c87;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06)}
+.park-qualified-row{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.055);color:#abb2bb;font-size:10.5px}
+.park-qualified-agent{display:flex;align-items:center;gap:9px;min-width:0}.park-qualified-agent strong{color:#e4e7ea;overflow:hidden;text-overflow:ellipsis}
+.park-qualified-badge{color:#d3bb82;font-weight:800}.park-qualified-tags{display:flex;gap:4px;flex-wrap:wrap}
+.park-qualified-tags span{padding:3px 6px;border-radius:999px;border:1px solid rgba(167,187,133,.16);background:rgba(167,187,133,.07);color:#b9ca9f;font-size:8.5px;font-weight:700}
+.park-training-checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:7px 0 14px}
+.park-training-checks label{display:flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.07);background:#111419;border-radius:10px;padding:10px;font-size:11px}
+.park-training-checks input{width:auto}
+.park-qualified-modal{max-width:650px}
+@media(max-width:900px){.park-training-toolbar{grid-template-columns:1fr}.park-qualified-head{display:none}.park-qualified-row{grid-template-columns:1fr auto}.park-qualified-row>div:nth-child(3),.park-qualified-row>div:nth-child(4),.park-qualified-row>div:nth-child(5){grid-column:1/-1}.park-training-checks{grid-template-columns:1fr}}
+
+.park-qualified-head-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.park-firebase-badge{display:inline-flex;align-items:center;border-radius:999px;padding:6px 9px;border:1px solid rgba(88,183,133,.2);background:rgba(88,183,133,.07);color:#8dd9aa;font-size:9.5px;font-weight:800}
+.park-firebase-badge.error{border-color:rgba(215,92,100,.25);background:rgba(215,92,100,.08);color:#efa0a6}

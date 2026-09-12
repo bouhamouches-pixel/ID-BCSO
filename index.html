@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=v52-1789251994" />
+  <link rel="stylesheet" href="style.css?v=v56-1789253512" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
@@ -104,11 +104,18 @@
         <button class="nav-item" data-view="warrantManagement">
           <span>🚨</span><span>Gestion des mandats</span>
         </button>
-        <button class="nav-item" data-view="siteManagement">
-          <span>⚙️</span><span>Gestion du site</span>
-        </button>
       </nav>
 
+
+
+      <button class="nav-label park-ranger-label nav-section-toggle" type="button" data-nav-section="parkRanger" aria-expanded="true">
+        <span>PARK RANGER</span><span class="nav-section-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <nav class="nav park-ranger-nav nav-section" data-nav-content="parkRanger">
+        <button class="nav-item" data-view="parkFishing"><span>🎣</span><span>Permis pêche</span></button>
+        <button class="nav-item" data-view="parkHunting"><span>🦌</span><span>Permis de chasse</span></button>
+        <button class="nav-item" data-view="parkTraining"><span>🌲</span><span>Formations</span></button>
+      </nav>
 
       <button class="nav-label bcsa-label nav-section-toggle" type="button" data-nav-section="bcsa" aria-expanded="true">
         <span>BCSA</span><span class="nav-section-chevron" aria-hidden="true">⌄</span>
@@ -539,6 +546,143 @@
         </div>
         <div class="toolbar panel-lite"><input id="supWarrantSearch" type="search" placeholder="N° de mandat, individu..."/><select id="supWarrantStatus"><option value="">Tous les statuts</option><option>Actif</option><option>Levée</option></select></div>
         <div id="supWarrantsTable" class="agents-table-wrap"></div>
+      </section>
+
+
+      
+      <section class="view park-ranger-view" id="view-parkFishing">
+        <div class="section-head park-fishing-head">
+          <div>
+            <p class="eyebrow">PARK RANGER · REGISTRE PUBLIC BCSO</p>
+            <h2>Permis de pêche</h2>
+            <p class="muted">Registre consultable par tous les agents. Recherche rapide des titulaires, types de permis et échéances.</p>
+          </div>
+          <div class="park-rules-mini">
+            <span><b>Personnel</b> 6 000 $</span>
+            <span><b>Professionnel</b> 3 000 $</span>
+            <span><b>Renouvellement</b> tous les 2 mois · 50 % du prix</span>
+          </div>
+        </div>
+
+        <div class="stats-grid four park-fishing-stats">
+          <article class="stat-card"><span>Total registre</span><strong id="parkFishingTotal">0</strong><small>permis enregistrés</small></article>
+          <article class="stat-card"><span>Personnels</span><strong id="parkFishingPersonal">0</strong><small>6 000 $ · refresh 3 000 $</small></article>
+          <article class="stat-card"><span>Professionnels</span><strong id="parkFishingPro">0</strong><small>3 000 $ · refresh 1 500 $</small></article>
+          <article class="stat-card"><span>À surveiller</span><strong id="parkFishingRenew">0</strong><small>renouvellement proche / dépassé</small></article>
+        </div>
+
+        <div class="toolbar panel-lite park-toolbar park-fishing-toolbar">
+          <div class="park-search-wrap">
+            <span>⌕</span>
+            <input type="search" id="parkFishingSearch" placeholder="Rechercher un nom, un type ou une date...">
+          </div>
+          <select id="parkFishingFilter">
+            <option value="">Tous les permis</option>
+            <option>Personnel</option>
+            <option>Professionnel</option>
+          </select>
+          <select id="parkFishingStatusFilter">
+            <option value="">Tous les statuts</option>
+            <option value="Valide">Valide</option>
+            <option value="Bientôt">Bientôt</option>
+            <option value="Expiré">Expiré</option>
+          </select>
+        </div>
+
+        <div class="park-fishing-legend">
+          <span><i class="permit-dot valid"></i> Valide</span>
+          <span><i class="permit-dot soon"></i> Renouvellement dans ≤ 7 jours</span>
+          <span><i class="permit-dot expired"></i> Renouvellement dépassé</span>
+          <span class="park-fishing-count" id="parkFishingResultCount">0 résultat</span>
+        </div>
+
+        <section class="panel-card park-register-card">
+          <div class="park-register-head park-fishing-table-head">
+            <span>Titulaire</span>
+            <span>Type</span>
+            <span>Délivré le</span>
+            <span>Prochain renouvellement</span>
+            <span>Coût refresh</span>
+            <span>Statut</span>
+          </div>
+          <div id="parkFishingRegister" class="park-fishing-register"></div>
+          <div id="parkFishingEmpty" class="empty-state park-empty" hidden>Aucun permis ne correspond à cette recherche.</div>
+        </section>
+      </section>
+
+      <section class="view park-ranger-view" id="view-parkHunting">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">PARK RANGER · LICENCES</p>
+            <h2>Permis de chasse</h2>
+            <p class="muted">Registre des autorisations de chasse et contrôle de leur validité.</p>
+          </div>
+        </div>
+        <div class="stats-grid four">
+          <article class="stat-card"><span>Permis actifs</span><strong>0</strong><small>en cours de validité</small></article>
+          <article class="stat-card"><span>Expirent bientôt</span><strong>0</strong><small>à surveiller</small></article>
+          <article class="stat-card"><span>Expirés</span><strong>0</strong><small>à renouveler</small></article>
+          <article class="stat-card"><span>Total délivré</span><strong>0</strong><small>registre actuel</small></article>
+        </div>
+        <div class="toolbar panel-lite park-toolbar">
+          <input type="search" placeholder="Rechercher un titulaire...">
+          <select><option>Tous les statuts</option><option>Actif</option><option>À renouveler</option><option>Expiré</option></select>
+        </div>
+        <section class="panel-card park-register-card">
+          <div class="panel-card-head">
+            <div><p class="eyebrow">REGISTRE</p><h3>Permis de chasse</h3></div>
+          </div>
+          <div class="park-register-head park-hunting-head">
+            <span>Titulaire</span><span>Délivré le</span><span>Expiration</span><span>Statut</span>
+          </div>
+          <div class="empty-state park-empty">Aucun permis de chasse enregistré pour le moment.</div>
+        </section>
+      </section>
+
+      
+      <section class="view park-ranger-view" id="view-parkTraining">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">PARK RANGER · FORMATION</p>
+            <h2>Formations</h2>
+            <p class="muted">Répertoire des agents ayant validé les formations Park Ranger.</p>
+          </div>
+          <div class="head-actions">
+            <button class="primary-btn" id="parkAddQualifiedBtn">+ Ajouter un agent formé</button>
+          </div>
+        </div>
+
+        <div class="stats-grid four">
+          <article class="stat-card"><span>Agents formés</span><strong id="parkQualifiedCount">0</strong><small>agents répertoriés</small></article>
+          <article class="stat-card"><span>Patrouille forestière</span><strong id="parkForestCount">0</strong><small>qualifiés</small></article>
+          <article class="stat-card"><span>Contrôle pêche / chasse</span><strong id="parkControlCount">0</strong><small>qualifiés</small></article>
+          <article class="stat-card"><span>Recherche & sauvetage</span><strong id="parkRescueCount">0</strong><small>qualifiés</small></article>
+        </div>
+
+        <div class="park-training-grid">
+          <article class="park-training-card"><div class="park-training-icon">🌲</div><div><span class="eyebrow">ENVIRONNEMENT</span><h3>Patrouille forestière</h3><p>Surveillance des zones naturelles et intervention sur terrains difficiles.</p></div></article>
+          <article class="park-training-card"><div class="park-training-icon">🎣</div><div><span class="eyebrow">RÉGLEMENTATION</span><h3>Contrôle pêche</h3><p>Vérification des permis et réglementation des zones de pêche.</p></div></article>
+          <article class="park-training-card"><div class="park-training-icon">🦌</div><div><span class="eyebrow">RÉGLEMENTATION</span><h3>Contrôle chasse</h3><p>Contrôle des chasseurs, permis et sécurisation des zones de chasse.</p></div></article>
+          <article class="park-training-card"><div class="park-training-icon">⛑️</div><div><span class="eyebrow">SECOURS</span><h3>Recherche & sauvetage</h3><p>Premiers secours, recherche de personnes et coordination en zone isolée.</p></div></article>
+        </div>
+
+        <div class="toolbar panel-lite park-training-toolbar">
+          <input id="parkQualifiedSearch" type="search" placeholder="Rechercher un agent, matricule ou formation...">
+          <select id="parkQualifiedFilter">
+            <option value="">Toutes les formations</option>
+            <option>Patrouille forestière</option>
+            <option>Contrôle pêche</option>
+            <option>Contrôle chasse</option>
+            <option>Recherche & sauvetage</option>
+          </select>
+        </div>
+
+        <section class="panel-card park-register-card">
+          <div class="panel-card-head"><div><p class="eyebrow">AGENTS QUALIFIÉS</p><h3>Registre des formations réussies</h3></div><div class="park-qualified-head-meta"><span class="park-info-badge" id="parkQualifiedResults">0 agent</span><span class="park-firebase-badge" id="parkTrainingFirebaseState">Firebase</span></div></div>
+          <div class="park-qualified-head"><span>Agent</span><span>Matricule</span><span>Formations validées</span><span>Date</span><span>Formateur</span><span></span></div>
+          <div id="parkQualifiedList"></div>
+          <div id="parkQualifiedEmpty" class="empty-state park-empty">Aucun agent formé n'est encore répertorié.</div>
+        </section>
       </section>
 
       <section class="view" id="view-siteManagement">
@@ -1536,8 +1680,39 @@
   </div>
 
 
-  <script src="app.js?v=v52-1789251994"></script>
-  <script type="module" src="firebase-auth.js?v=v52-1789251994"></script>
-  <script type="module" src="auth-ui.js?v=v52-1789251994"></script>
+  <script src="app.js?v=v56-1789253512"></script>
+  <script type="module" src="firebase-auth.js?v=v56-1789253512"></script>
+  <script type="module" src="auth-ui.js?v=v56-1789253512"></script>
+
+  <div class="modal-backdrop" id="parkQualifiedModal" hidden>
+    <div class="modal park-qualified-modal">
+      <div class="modal-head"><div><p class="eyebrow">PARK RANGER</p><h3>Ajouter un agent formé</h3></div><button class="icon-btn" type="button" id="parkQualifiedClose">✕</button></div>
+      <form id="parkQualifiedForm">
+        <div class="form-grid two">
+          <label>Agent
+            <select id="parkQualifiedAgent" required><option value="">Sélectionner un agent...</option></select>
+          </label>
+          <label>Date de validation
+            <input id="parkQualifiedDate" type="date" required>
+          </label>
+        </div>
+        <label>Formations réussies</label>
+        <div class="park-training-checks">
+          <label><input type="checkbox" name="parkTraining" value="Patrouille forestière"> 🌲 Patrouille forestière</label>
+          <label><input type="checkbox" name="parkTraining" value="Contrôle pêche"> 🎣 Contrôle pêche</label>
+          <label><input type="checkbox" name="parkTraining" value="Contrôle chasse"> 🦌 Contrôle chasse</label>
+          <label><input type="checkbox" name="parkTraining" value="Recherche & sauvetage"> ⛑️ Recherche & sauvetage</label>
+        </div>
+        <label>Formateur / Instructeur
+          <input id="parkQualifiedInstructor" type="text" placeholder="Nom ou matricule du formateur">
+        </label>
+        <label>Observation
+          <textarea id="parkQualifiedNote" rows="3" placeholder="Optionnel"></textarea>
+        </label>
+        <div class="modal-actions"><button type="button" class="secondary-btn" id="parkQualifiedCancel">Annuler</button><button type="submit" class="primary-btn">Enregistrer la qualification</button></div>
+      </form>
+    </div>
+  </div>
+
 </body>
 </html>

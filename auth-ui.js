@@ -1,5 +1,5 @@
 import {startDiscordLogin,finishDiscordLoginIfNeeded,observeBcsoAuth,logoutBcso,db} from "./firebase-auth.js";
-import {collection,onSnapshot,doc,updateDoc,setDoc,deleteDoc,query,where,getDocs} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import {collection,onSnapshot,doc,updateDoc,setDoc,deleteDoc,query,where,getDocs,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const gate=document.querySelector("#authGate"), login=document.querySelector("#discordLoginBtn"), logout=document.querySelector("#logoutBtn"), status=document.querySelector("#authStatus");
 function avatar(p){if(!p?.avatar||!p?.discordId)return null;const e=p.avatar.startsWith("a_")?"gif":"webp";return `https://cdn.discordapp.com/avatars/${p.discordId}/${p.avatar}.${e}?size=256`;}
 function syncProfile(p){
@@ -128,6 +128,8 @@ window.addEventListener("bcso:migrate-legacy-services",async e=>{
 });
 
 let stopReportsSync=null,stopDisciplinarySync=null;
+let parkQualificationUnsub=null;
+let parkQualificationsCache=[];
 let publicReportsCache=[],disciplinaryReportsCache=[];
 
 function cleanFirestoreValue(value){
@@ -272,4 +274,68 @@ async function forceReportsHydration(session){
     window.BCSO_CRITICAL_SYNC_STATUS?.(`Erreur rapports : ${err.code||err.message}`,false);
   }
 }
-observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}currentSession=s;permissions(s.claims);await forceCriticalHydration(s);await forceReportsHydration(s);startAgentsSync(s.claims);startServicesSync(s);startReportsSync(s);hide();});
+
+function emitParkQualifications(){
+  const rows=Array.isArray(parkQualificationsCache)?parkQualificationsCache:[];
+  window.BCSO_HYDRATE_PARK_QUALIFICATIONS?.(rows);
+  window.dispatchEvent(new CustomEvent("bcso:firebase-park-qualifications",{detail:rows}));
+  const badge=document.querySelector("#parkTrainingFirebaseState");
+  if(badge){badge.textContent=`Firebase · ${rows.length}`;badge.classList.remove("error")}
+}
+async function forceParkQualificationsHydration(session){
+  if(!session?.claims?.bcso)return;
+  try{
+    const snap=await getDocs(collection(db,"parkRangerQualifications"));
+    parkQualificationsCache=snap.docs.map(d=>({id:d.id,...d.data()}));
+    emitParkQualifications();
+  }catch(err){
+    console.error("Park Ranger qualifications hydration:",err);
+    const badge=document.querySelector("#parkTrainingFirebaseState");
+    if(badge){badge.textContent="Erreur Firebase";badge.classList.add("error")}
+  }
+}
+function startParkQualificationsSync(session){
+  parkQualificationUnsub?.();
+  parkQualificationUnsub=null;
+  parkQualificationsCache=[];
+  if(!session?.claims?.bcso)return;
+  parkQualificationUnsub=onSnapshot(collection(db,"parkRangerQualifications"),snap=>{
+    parkQualificationsCache=snap.docs.map(d=>({id:d.id,...d.data()}));
+    emitParkQualifications();
+  },err=>{
+    console.error("Park Ranger qualifications sync:",err);
+    const badge=document.querySelector("#parkTrainingFirebaseState");
+    if(badge){badge.textContent="Erreur Firebase";badge.classList.add("error")}
+  });
+}
+window.addEventListener("bcso:park-qualification-save",async e=>{
+  const row=e.detail;
+  if(!row?.id||!currentSession?.claims?.bcso)return;
+  try{
+    await setDoc(doc(db,"parkRangerQualifications",row.id),{
+      agentId:row.agentId||"",
+      name:row.name||"Agent",
+      badge:row.badge||"",
+      date:row.date||"",
+      trainings:Array.isArray(row.trainings)?row.trainings:[],
+      instructor:row.instructor||"",
+      note:row.note||"",
+      updatedBy:currentSession.user.uid,
+      updatedAt:serverTimestamp()
+    },{merge:true});
+  }catch(err){
+    console.error("Save Park Ranger qualification:",err);
+    alert(`Impossible d'enregistrer la qualification : ${err.code||err.message}`);
+  }
+});
+window.addEventListener("bcso:park-qualification-delete",async e=>{
+  const id=e.detail?.id;
+  if(!id||!currentSession?.claims?.bcso)return;
+  try{
+    await deleteDoc(doc(db,"parkRangerQualifications",id));
+  }catch(err){
+    console.error("Delete Park Ranger qualification:",err);
+    alert(`Impossible de retirer la qualification : ${err.code||err.message}`);
+  }
+});
+observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}currentSession=s;permissions(s.claims);await forceCriticalHydration(s);await forceReportsHydration(s);await forceParkQualificationsHydration(s);startAgentsSync(s.claims);startServicesSync(s);startReportsSync(s);startParkQualificationsSync(s);hide();});
