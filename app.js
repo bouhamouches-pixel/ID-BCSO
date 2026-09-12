@@ -1980,17 +1980,34 @@ function renderRadioCodes(){
   const q=($("#radioQuickSearch")?.value||"").trim().toLowerCase();
   const priorityCodes=new Set(["10-61","10-62","10-63","10-64","Code 99","Banane"]);
   const commonCodes=new Set(["10-3","10-4","10-20","Code 2","Code 3","Code 4","Code 6"]);
-  const rows=RADIO_GROUPS.flatMap(g=>g.rows.map(r=>({group:g.title,code:r[0],label:r[1]})))
-    .filter(x=>!q||`${x.code} ${x.label} ${x.group}`.toLowerCase().includes(q));
-  grid.innerHTML=rows.map(x=>{
-    const p=priorityCodes.has(x.code)?"high":commonCodes.has(x.code)?"common":"normal";
-    return `<div class="radio-code-card" data-priority="${p}">
-      <div class="radio-code-num">${escapeHtml(x.code)}</div>
-      <div class="radio-code-label">${escapeHtml(x.label)}<span class="radio-code-meta">${escapeHtml(x.group)}</span></div>
-    </div>`;
-  }).join("");
+
+  const groups=RADIO_GROUPS.map(g=>({
+    title:g.title,
+    rows:g.rows.filter(r=>!q||`${r[0]} ${r[1]} ${g.title}`.toLowerCase().includes(q))
+  })).filter(g=>g.rows.length);
+
+  grid.innerHTML=groups.map(g=>`
+    <section class="radio-category-block">
+      <div class="radio-category-header">
+        <span class="radio-category-line"></span>
+        <h3>${escapeHtml(g.title)}</h3>
+        <span class="radio-category-count">${g.rows.length}</span>
+        <span class="radio-category-line"></span>
+      </div>
+      <div class="radio-category-grid">
+        ${g.rows.map(r=>{
+          const p=priorityCodes.has(r[0])?"high":commonCodes.has(r[0])?"common":"normal";
+          return `<div class="radio-code-card" data-priority="${p}">
+            <div class="radio-code-num">${escapeHtml(r[0])}</div>
+            <div class="radio-code-label">${escapeHtml(r[1])}</div>
+          </div>`;
+        }).join("")}
+      </div>
+    </section>
+  `).join("");
+
   const empty=$("#radioEmptyState");
-  if(empty)empty.hidden=rows.length!==0;
+  if(empty)empty.hidden=groups.length!==0;
 }
 if($("#radioQuickSearch"))$("#radioQuickSearch").oninput=renderRadioCodes;
 renderRadioCodes();
