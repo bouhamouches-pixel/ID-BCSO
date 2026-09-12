@@ -1,5 +1,5 @@
 import {startDiscordLogin,finishDiscordLoginIfNeeded,observeBcsoAuth,logoutBcso,db} from "./firebase-auth.js";
-import {collection,onSnapshot,doc,updateDoc} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import {collection,onSnapshot,doc,updateDoc,setDoc,query,where} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const gate=document.querySelector("#authGate"), login=document.querySelector("#discordLoginBtn"), logout=document.querySelector("#logoutBtn"), status=document.querySelector("#authStatus");
 function avatar(p){if(!p?.avatar||!p?.discordId)return null;const e=p.avatar.startsWith("a_")?"gif":"webp";return `https://cdn.discordapp.com/avatars/${p.discordId}/${p.avatar}.${e}?size=256`;}
 function syncProfile(p){
@@ -85,4 +85,45 @@ window.addEventListener("bcso:ack-agent",async e=>{
   catch(err){console.error(err);alert("Impossible de valider cette nouvelle connexion.")}
 });
 
-observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}permissions(s.claims);startAgentsSync(s.claims);hide();});
+
+let currentSession=null,stopServicesSync=null;
+const serviceIso=v=>v?.toDate?v.toDate().toISOString():(typeof v==="string"?v:null);
+function serviceDocId(uid,start){const t=Date.parse(start);return `${uid.replace(/[^a-zA-Z0-9_-]/g,"_")}_${Number.isFinite(t)?t:Date.now()}`;}
+function startServicesSync(session){
+  if(stopServicesSync){stopServicesSync();stopServicesSync=null}
+  currentSession=session;if(!session?.claims?.bcso)return;
+  const uid=session.user.uid;
+  const source=session.claims?.supervision?collection(db,"services"):query(collection(db,"services"),where("agentId","==",uid));
+  stopServicesSync=onSnapshot(source,snap=>{
+    const services=snap.docs.map(d=>{const x=d.data();return{id:d.id,...x,start:serviceIso(x.start),end:serviceIso(x.end)};}).filter(s=>s.start);
+    window.dispatchEvent(new CustomEvent("bcso:firebase-services",{detail:services}));
+  },err=>console.error("Services sync Firestore:",err));
+}
+window.addEventListener("bcso:start-duty",async e=>{
+  const s=currentSession;if(!s?.claims?.bcso)return;
+  const start=e.detail?.start||new Date().toISOString(),uid=s.user.uid,id=serviceDocId(uid,start);
+  try{await setDoc(doc(db,"services",id),{agentId:uid,discordId:s.claims.discordId||null,badge:s.claims.badge||null,grade:s.claims.gradeLabel||null,start,end:null,status:"active",source:"portal",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},{merge:true})}
+  catch(err){console.error(err);alert("La prise de service n'a pas pu être synchronisée avec Firebase.")}
+});
+window.addEventListener("bcso:end-duty",async e=>{
+  const s=currentSession;if(!s?.claims?.bcso)return;
+  const start=e.detail?.start,end=e.detail?.end||new Date().toISOString();if(!start)return;
+  const id=e.detail?.id||serviceDocId(s.user.uid,start);
+  try{await updateDoc(doc(db,"services",id),{end,status:"completed",updatedAt:new Date().toISOString()})}
+  catch(err){console.error(err);alert("La fin de service n'a pas pu être synchronisée avec Firebase.")}
+});
+window.addEventListener("bcso:migrate-legacy-services",async e=>{
+  const s=currentSession;if(!s?.claims?.bcso)return;
+  const uid=s.user.uid,data=e.detail||{},legacy=Array.isArray(data.sessions)?data.sessions:[];
+  try{
+    for(const x of legacy){
+      if(!x?.start||!x?.end)continue;
+      await setDoc(doc(db,"services",serviceDocId(uid,x.start)),{agentId:uid,discordId:s.claims.discordId||null,badge:s.claims.badge||null,grade:s.claims.gradeLabel||null,start:x.start,end:x.end,status:"completed",source:"legacy-local-migration",createdAt:x.start,updatedAt:new Date().toISOString()},{merge:true});
+    }
+    if(data.activeService?.start){
+      const x=data.activeService;
+      await setDoc(doc(db,"services",serviceDocId(uid,x.start)),{agentId:uid,discordId:s.claims.discordId||null,badge:s.claims.badge||null,grade:s.claims.gradeLabel||null,start:x.start,end:null,status:"active",source:"legacy-local-migration",createdAt:x.start,updatedAt:new Date().toISOString()},{merge:true});
+    }
+  }catch(err){console.error("Migration services:",err)}
+});
+observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}permissions(s.claims);startAgentsSync(s.claims);startServicesSync(s);hide();});

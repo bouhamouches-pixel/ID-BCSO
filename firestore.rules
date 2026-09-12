@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn(){ return request.auth != null; }
+    function isBcso(){ return signedIn() && request.auth.token.bcso == true; }
+    function isSupervision(){ return signedIn() && (request.auth.token.supervision == true || request.auth.token.siteManager == true || request.auth.token.admin == true); }
+
+    match /agents/{agentId} {
+      allow read: if isBcso();
+      allow create: if false;
+      allow update: if isSupervision();
+      allow delete: if false;
+    }
+
+    match /services/{serviceId} {
+      allow read: if isSupervision() || (isBcso() && resource.data.agentId == request.auth.uid);
+      allow create: if isBcso() && request.resource.data.agentId == request.auth.uid;
+      allow update: if isSupervision() || (isBcso() && resource.data.agentId == request.auth.uid && request.resource.data.agentId == resource.data.agentId);
+      allow delete: if isSupervision();
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

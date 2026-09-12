@@ -84,6 +84,7 @@ function save(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
 let profile = load(STORAGE.profile, defaultProfile);
 let sessions = load(STORAGE.serviceSessions, []);
 let activeService = load(STORAGE.activeService, null);
+let firebaseServicesReady = false;
 let reports = load(STORAGE.reports, seedReports);
 let events = load(STORAGE.events, seedEvents);
 let complaints = load(STORAGE.complaints, seedComplaints);
@@ -283,7 +284,9 @@ $("#dutyToggle").addEventListener("click", () => {
   if (!activeService) {
     openEquipmentCheck();
   } else {
-    sessions.unshift({ start: activeService.start, end: new Date().toISOString() });
+    const ending={...activeService,end:new Date().toISOString()};
+    window.dispatchEvent(new CustomEvent("bcso:end-duty",{detail:ending}));
+    sessions.unshift({ start: ending.start, end: ending.end });
     activeService = null;
     save(STORAGE.activeService, activeService);
     save(STORAGE.serviceSessions, sessions);
@@ -707,6 +710,11 @@ $("#reportChargeCategory").onchange=refreshReportChargeSelect;$("#reportChargeSe
 $("#reportMirandaRead").onchange=()=>{if($("#reportMirandaRead").value==="Oui"&&!$("#reportMirandaTime").value){const d=new Date(),z=n=>String(n).padStart(2,"0");$("#reportMirandaTime").value=`${z(d.getHours())}:${z(d.getMinutes())}`;}};
 $("#reportType").onchange=reportTypeMode;
 $("#myReportSearch").addEventListener("input",renderMyReports);$("#myReportFilter").addEventListener("change",renderMyReports);$("#dbSearch").addEventListener("input",renderReportsDb);$("#dbTypeFilter").addEventListener("change",renderReportsDb);
+window.addEventListener("bcso:auth-ready",()=>{
+  window.dispatchEvent(new CustomEvent("bcso:migrate-legacy-services",{
+    detail:{sessions:[...sessions],activeService:activeService?{...activeService}:null}
+  }));
+});
 window.addEventListener("bcso:auth-ready",()=>{renderMyReports();renderReportsDb();renderReportSupervision?.();populateDisciplinaryAgentSelect();});
 initReportChargeSelectors();renderReportSelectedCharges();reportTypeMode();
 
@@ -831,6 +839,7 @@ function getPersonalAgent(){
   return supAgents.find(a=>a.discordId===profile.discordId) || supAgents.find(a=>a.name===profile.name) || null;
 }
 function currentActiveServices(){
+  if(firebaseServicesReady) return supActiveServices.filter(s=>agentById(s.agentId)?.active!==false);
   const list = supActiveServices.filter(s=>agentById(s.agentId)?.active);
   if(activeService){
     const me=getPersonalAgent();
@@ -839,6 +848,7 @@ function currentActiveServices(){
   return list;
 }
 function allCompletedServices(){
+  if(firebaseServicesReady) return [...supServices];
   const list=[...supServices];
   const me=getPersonalAgent();
   if(me){
@@ -960,6 +970,22 @@ window.addEventListener("bcso:firebase-agents",e=>{
   save(SUP_STORAGE.agents,supAgents);renderSupervision();renderNewAgentAlerts();
   if(typeof renderBcsaBadges==="function")renderBcsaBadges();
   if(typeof populateDisciplinaryAgentSelect==="function")populateDisciplinaryAgentSelect($("#reportDisciplinaryAgent")?.value||"");
+});
+window.addEventListener("bcso:firebase-services",e=>{
+  const incoming=Array.isArray(e.detail)?e.detail:[];
+  firebaseServicesReady=true;
+  supServices=incoming.filter(s=>s.end);
+  supActiveServices=incoming.filter(s=>!s.end&&s.status==="active");
+  save(SUP_STORAGE.services,supServices);save(SUP_STORAGE.active,supActiveServices);
+  const me=getPersonalAgent();
+  if(me){
+    const mine=incoming.filter(s=>s.agentId===me.id);
+    sessions=mine.filter(s=>s.end).sort((a,b)=>new Date(b.start)-new Date(a.start)).map(s=>({id:s.id,start:s.start,end:s.end}));
+    const live=mine.find(s=>!s.end&&s.status==="active");
+    activeService=live?{id:live.id,start:live.start}:null;
+    save(STORAGE.serviceSessions,sessions);save(STORAGE.activeService,activeService);
+  }
+  renderServices();renderSupervision();
 });
 window.addEventListener("bcso:agent-acknowledged",e=>{
   const a=agentById(e.detail?.id);if(a)a.onboardingState="active";
@@ -1937,7 +1963,12 @@ let materialRequests=load(STORAGE.materialRequests,[]),materialDraft=[];save(STO
 function openEquipmentCheck(){materialDraft=[];$("#equipmentRequiredList").innerHTML=REQUIRED_EQUIPMENT.map(x=>`<div class="equipment-chip">✓ ${escapeHtml(x)}</div>`).join("");$("#materialRequestItem").innerHTML=MATERIAL_CATALOG.map(x=>`<option>${escapeHtml(x)}</option>`).join("");renderMaterialDraft();openModal("equipmentCheckModal")}
 function renderMaterialDraft(){$("#materialRequestDraft").innerHTML=materialDraft.length?materialDraft.map((x,i)=>`<div class="material-draft-item"><span><strong>${x.qty} ×</strong> ${escapeHtml(x.item)}</span><button type="button" data-remove-material="${i}">Retirer</button></div>`).join(""):'<span class="muted">Aucun matériel manquant sélectionné.</span>';$$('[data-remove-material]').forEach(b=>b.onclick=()=>{materialDraft.splice(+b.dataset.removeMaterial,1);renderMaterialDraft()})}
 $("#addMaterialRequestItem").onclick=()=>{const item=$("#materialRequestItem").value,qty=Math.max(1,parseInt($("#materialRequestQty").value,10)||1);const existing=materialDraft.find(x=>x.item===item);if(existing)existing.qty+=qty;else materialDraft.push({item,qty});$("#materialRequestQty").value=1;renderMaterialDraft()};
-function beginDuty(){activeService={start:new Date().toISOString()};save(STORAGE.activeService,activeService);closeModal("equipmentCheckModal");renderServices()}
+function beginDuty(){
+  activeService={start:new Date().toISOString()};
+  save(STORAGE.activeService,activeService);
+  window.dispatchEvent(new CustomEvent("bcso:start-duty",{detail:{start:activeService.start}}));
+  closeModal("equipmentCheckModal");renderServices()
+}
 $("#startDutyAllGood").onclick=beginDuty;
 $("#startDutyWithRequest").onclick=()=>{if(!materialDraft.length){alert("Sélectionnez au moins un équipement manquant ou utilisez « J'ai tout mon équipement ».");return}materialRequests.unshift({id:`MAT-${Date.now()}`,agent:profile.name,rank:profile.rank,date:new Date().toISOString(),items:materialDraft.map(x=>({...x})),status:"En attente"});save(STORAGE.materialRequests,materialRequests);renderMaterialNotifications();beginDuty()};
 function renderMaterialNotifications(){const pending=materialRequests.filter(r=>r.status!=="Délivrée").length;$("#materialNotificationCount").textContent=pending;$("#materialNotificationsBtn").classList.toggle("has-alert",pending>0);$("#materialNotificationsList").innerHTML=materialRequests.length?materialRequests.map(r=>`<article class="material-request-card"><div class="request-head"><div><strong>${escapeHtml(r.agent)}</strong><div class="muted">${escapeHtml(r.rank)} • ${formatDate(r.date)}</div></div><span class="request-status">${escapeHtml(r.status)}</span></div><ul class="request-items">${r.items.map(x=>`<li>${x.qty} × ${escapeHtml(x.item)}</li>`).join("")}</ul><div class="request-actions">${r.status==="En attente"?`<button class="secondary-btn" data-material-status="${r.id}|Prise en charge">Prendre en charge</button>`:""}${r.status!=="Délivrée"?`<button class="primary-btn" data-material-status="${r.id}|Délivrée">Marquer comme délivrée</button>`:""}</div></article>`).join(""):'<div class="empty-state">Aucune demande de matériel.</div>';$$('[data-material-status]').forEach(b=>b.onclick=()=>{const [id,status]=b.dataset.materialStatus.split("|");const r=materialRequests.find(x=>x.id===id);if(r){r.status=status;r.updatedAt=new Date().toISOString();save(STORAGE.materialRequests,materialRequests);renderMaterialNotifications()}})}
