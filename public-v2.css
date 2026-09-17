@@ -32,3 +32,5 @@
 .v2-pro-overlay-panel{display:none}.pro-shell.pro-visible .v2-pro-overlay-panel{display:block;margin:20px;padding:20px;background:#15181d;border:1px solid #282d33}
 @media(max-width:1000px){.public-nav{gap:10px}.public-nav button{font-size:9px}.public-brand{min-width:220px}}
 @media(max-width:850px){.service-choice-grid,.license-grid{grid-template-columns:1fr}.public-nav button[data-public-route="profile"],.public-nav button[data-public-route="news"]{display:none}}
+
+.character-banner{display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(200,173,115,.25);background:linear-gradient(120deg,#151819,#101213);padding:24px}.character-banner small{color:var(--pub-gold);letter-spacing:.18em}.character-banner h2{font:500 30px Georgia,serif;margin:7px 0}.character-banner span{color:#8e9495;font-size:10px}.archive-character-btn{width:100%;margin-top:10px;border:1px solid rgba(215,92,100,.3);background:rgba(215,92,100,.05);color:#d75c64;padding:11px}

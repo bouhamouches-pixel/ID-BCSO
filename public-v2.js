@@ -25,6 +25,35 @@
    const note=$("#applicationNote"); if(note) note.textContent="Dossier prêt à être transmis. Connectez l'authentification candidat Firebase pour l'envoi réel.";
  });
 
+
+ // --- V2.3 Discord account -> RP character ---
+ const player=()=>load("bcso_v23_player",{discordId:null,discordName:null,avatar:null,authenticated:false});
+ const activeCharacter=()=>load("bcso_v23_active_character",null);
+ function characterId(){ return activeCharacter()?.id || null; }
+ function renderCharacter(){
+   const c=activeCharacter();
+   const n=$("#characterName"), r=$("#characterRef");
+   if(n)n.textContent=c?`${c.firstName} ${c.lastName}`:"Aucun personnage configuré";
+   if(r)r.textContent=c?`${c.id} · Personnage actif`:"Connectez-vous avec Discord puis créez votre identité RP.";
+ }
+ $("#characterSwitchBtn")?.addEventListener("click",()=>{$("#characterModal").hidden=false});
+ $("#closeCharacterModal")?.addEventListener("click",()=>$("#characterModal").hidden=true);
+ $("#characterForm")?.addEventListener("submit",e=>{
+   e.preventDefault();const f=new FormData(e.currentTarget);
+   const id="CHR-"+crypto.getRandomValues(new Uint32Array(1))[0].toString(16).toUpperCase().padStart(8,"0");
+   const c={id,firstName:f.get("firstName"),lastName:f.get("lastName"),birthDate:f.get("birthDate"),status:"active",createdAt:new Date().toISOString()};
+   const all=load("bcso_v23_characters",[]);all.push(c);store("bcso_v23_characters",all);store("bcso_v23_active_character",c);
+   $("#characterModal").hidden=true;renderCharacter();renderCitizenRequests();renderLicenses();
+ });
+ $("#archiveCharacterBtn")?.addEventListener("click",()=>{
+   const c=activeCharacter(); if(!c)return alert("Aucun personnage actif.");
+   if(!confirm("Archiver ce personnage ? Ses permis seront invalidés et son historique sera conservé."))return;
+   const chars=load("bcso_v23_characters",[]);const x=chars.find(v=>v.id===c.id);if(x){x.status="archived";x.archivedAt=new Date().toISOString()}store("bcso_v23_characters",chars);
+   const licenses=load("bcso_v2_licenses",[]);licenses.forEach(p=>{if(p.characterId===c.id){p.status="invalidated";p.invalidatedReason="character_wipe"}});store("bcso_v2_licenses",licenses);
+   localStorage.removeItem("bcso_v23_active_character");renderCharacter();renderLicenses();
+ });
+ renderCharacter();
+
  // Dynamic permit form.
  const permitForm=$("#permitAppointmentForm");
  function refreshPermitRequirements(){
@@ -40,10 +69,10 @@
  refreshPermitRequirements();
 
  permitForm?.addEventListener("submit",e=>{
-   e.preventDefault();
+   e.preventDefault(); if(!characterId()){ $("#characterModal").hidden=false; return; }
    const f=new FormData(permitForm), id="PR-"+new Date().getFullYear()+"-"+String(Date.now()).slice(-4);
    const req={
-     id, citizenUid:uid(), name:f.get("name"), discord:f.get("discord"),
+     id, citizenUid:uid(), characterId:characterId(), name:f.get("name"), 
      permitType:f.get("permitType"), usage:f.get("usage"), status:"Nouvelle demande",
      createdAt:new Date().toISOString(), appointment:null, unreadCitizen:0, unreadBcso:1
    };
@@ -54,14 +83,14 @@
  });
 
  $("#citizenContactForm")?.addEventListener("submit",e=>{
-   e.preventDefault(); const f=new FormData(e.currentTarget), id="CNT-"+new Date().getFullYear()+"-"+String(Date.now()).slice(-4);
-   const a=load("bcso_v2_contacts",[]); a.unshift({id,name:f.get("name"),discord:f.get("discord"),category:f.get("category"),subject:f.get("subject"),message:f.get("message"),status:"Ouvert",createdAt:new Date().toISOString()}); store("bcso_v2_contacts",a);
+   e.preventDefault(); if(!characterId()){ $("#characterModal").hidden=false; return; } const f=new FormData(e.currentTarget), id="CNT-"+new Date().getFullYear()+"-"+String(Date.now()).slice(-4);
+   const a=load("bcso_v2_contacts",[]); a.unshift({id,characterId:characterId(),name:f.get("name"),category:f.get("category"),subject:f.get("subject"),message:f.get("message"),status:"Ouvert",createdAt:new Date().toISOString()}); store("bcso_v2_contacts",a);
    $("#contactResult").textContent=`Votre demande ${id} a été enregistrée. Le BCSO pourra vous répondre depuis le portail.`;
  });
 
  function permitLabel(r){return `${r.permitType==="fishing"?"Pêche":"Chasse"} · ${r.usage==="professional"?"Professionnel":"Personnel"}`}
  function renderCitizenRequests(){
-   const box=$("#citizenRequests"); if(!box)return; const a=load("bcso_v2_permit_requests",[]);
+   const box=$("#citizenRequests"); if(!box)return; const a=load("bcso_v2_permit_requests",[]).filter(x=>!characterId()||x.characterId===characterId());
    box.innerHTML=a.length?a.map(r=>`<article class="request-row"><div><small>${r.id}</small><strong>${permitLabel(r)}</strong><span>${r.status}</span></div><button class="public-secondary open-chat" data-conv="${r.id}">Ouvrir la discussion</button></article>`).join(""):`<div class="public-empty">Aucune demande pour le moment.</div>`;
  }
  function renderParkRequests(){
@@ -97,7 +126,7 @@
 
  // Citizen permits, 3-month validity.
  function renderLicenses(){
-   const box=$("#citizenLicenses");if(!box)return;const a=load("bcso_v2_licenses",[]);
+   const box=$("#citizenLicenses");if(!box)return;const a=load("bcso_v2_licenses",[]).filter(x=>!characterId()||x.characterId===characterId());
    box.innerHTML=a.length?a.map(p=>{const exp=new Date(p.expiresAt),days=Math.ceil((exp-Date.now())/86400000),state=days<0?"Expiré":days<=14?"Expire prochainement":"Valide";return `<article class="license-card"><small>${p.id}</small><h3>${p.type}</h3><span class="${state==="Valide"?"ok":"warn"}">${state}</span><p>Délivré : ${new Date(p.issuedAt).toLocaleDateString()}<br>Expire : ${exp.toLocaleDateString()}<br>Carte physique : ${p.cardPhysical?"Délivrée":"Non délivrée"}</p><button class="public-secondary">Renouveler</button></article>`}).join(""):`<div class="public-empty">Aucun permis actif.</div>`;
  }
 

@@ -27,7 +27,7 @@
         <button data-public-route="services">Services citoyens</button>
         <button data-public-route="profile">Mon espace</button>
       </nav>
-      <button class="pro-login-btn" id="publicProLogin" type="button"><span>♙</span> Connexion BCSO</button>
+      <button class="pro-login-btn" id="publicProLogin" type="button"><span>♙</span> Se connecter avec Discord</button>
     </header>
 
     <main>
@@ -110,7 +110,7 @@
           <div class="public-section-head"><div><span>PARK RANGER</span><h2>Demande de rendez-vous</h2></div></div>
           <form id="permitAppointmentForm" class="application-card">
             <div class="form-grid-v2">
-              <label>Nom et prénom<input name="name" required></label><label>Identifiant Discord<input name="discord" required></label>
+              <label>Nom et prénom<input name="name" required></label>
               <label>Type de permis<select name="permitType"><option value="fishing">Permis de pêche</option><option value="hunting">Permis de chasse</option></select></label>
               <label>Usage<select name="usage"><option value="personal">Personnel</option><option value="professional">Professionnel</option></select></label>
             </div>
@@ -125,7 +125,7 @@
         <section class="public-section citizen-form-section" id="contactForm">
           <div class="public-section-head"><div><span>CONTACT</span><h2>Contacter le BCSO</h2></div></div>
           <form id="citizenContactForm" class="application-card">
-            <div class="form-grid-v2"><label>Nom et prénom<input name="name" required></label><label>Discord<input name="discord" required></label>
+            <div class="form-grid-v2"><label>Nom et prénom<input name="name" required></label>
               <label>Catégorie<select name="category"><option>Question générale</option><option>Recrutement</option><option>Park Ranger</option><option>Media Relation</option><option>Autre</option></select></label><label>Objet<input name="subject" required></label></div>
             <label>Message<textarea name="message" rows="6" required></textarea></label><button class="public-primary application-submit">Envoyer au BCSO</button><p id="contactResult" class="form-note"></p>
           </form>
@@ -133,7 +133,13 @@
       </section>
 
       <section class="public-view" id="public-profile">
-        <div class="public-page-hero"><span>ESPACE CITOYEN</span><h1>Mon espace</h1><p>Permis, rendez-vous, demandes et conversations.</p></div>
+        <div class="public-page-hero"><span>ESPACE CITOYEN</span><h1>Mon espace</h1><p>Votre compte Discord authentifie le joueur. Toutes les données RP sont rattachées à votre personnage actif.</p></div>
+        <section class="public-section">
+          <div class="character-banner">
+            <div><small>PERSONNAGE ACTIF</small><h2 id="characterName">Aucun personnage configuré</h2><span id="characterRef">Connectez-vous avec Discord pour accéder à votre profil.</span></div>
+            <button class="public-secondary" id="characterSwitchBtn">Gérer mon personnage</button>
+          </div>
+        </section>
         <section class="public-section"><div class="public-section-head"><div><span>PARK RANGER</span><h2>Mes permis</h2></div></div><div class="license-grid" id="citizenLicenses"></div></section>
         <section class="public-section"><div class="public-section-head"><div><span>SUIVI</span><h2>Mes demandes</h2></div></div><div id="citizenRequests"></div></section>
       </section>
@@ -1841,6 +1847,20 @@
   </section>
   <div class="v2-modal" id="v2ChatModal" hidden><div class="v2-modal-card chat-card"><button id="closeV2Chat" class="modal-x">×</button><h3 id="chatTitle">Conversation</h3><div id="v2ChatMessages" class="chat-messages"></div><form id="v2ChatForm" class="chat-form"><input id="v2ChatInput" placeholder="Écrire un message…" autocomplete="off"><button>Envoyer</button></form></div></div>
   <div class="v2-modal" id="appointmentDialog" hidden><form class="v2-modal-card" id="appointmentForm"><button type="button" id="closeAppointmentDialog" class="modal-x">×</button><small>PARK RANGER</small><h3>Fixer le rendez-vous</h3><p id="appointmentDialogId"></p><label>Date<input type="date" name="date" required></label><label>Heure<input type="time" name="time" required></label><div class="fixed-place">📍 Poste de Bolingbroke</div><button class="public-primary">Confirmer le rendez-vous</button></form></div>
-  <script src="public-v2.js?v=2.2"></script>
+
+  <div class="v2-modal" id="characterModal" hidden>
+    <form class="v2-modal-card" id="characterForm">
+      <button type="button" id="closeCharacterModal" class="modal-x">×</button>
+      <small>IDENTITÉ RP</small><h3>Mon personnage</h3>
+      <p class="muted">Discord sert uniquement à authentifier votre compte. Vos permis, demandes et conversations appartiennent à votre personnage.</p>
+      <label>Nom RP<input name="lastName" required></label>
+      <label>Prénom RP<input name="firstName" required></label>
+      <label>Date de naissance RP<input name="birthDate" type="date" required></label>
+      <button class="public-primary">Créer mon personnage</button>
+      <button class="archive-character-btn" type="button" id="archiveCharacterBtn">Wipe / Nouveau personnage</button>
+      <p class="form-note">Un wipe archive l'ancien personnage et invalide ses permis. Son historique n'est pas supprimé.</p>
+    </form>
+  </div>
+  <script src="public-v2.js?v=2.3"></script>
 </body>
 </html>
