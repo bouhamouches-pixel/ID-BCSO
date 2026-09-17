@@ -1143,3 +1143,6 @@ body.sidebar-collapsed .brand-mark{display:none!important}
   .park-permit-row.full-excel{grid-template-columns:1.4fr .8fr .7fr}
   .park-permit-row.full-excel>div:nth-child(1){display:none}
 }
+
+.agent-sync-note.sync-ok{color:#8dd9aa}
+.agent-sync-note.sync-error{color:#efa0a6}

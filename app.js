@@ -889,8 +889,27 @@ function updateLiveServiceCount(){
 }
 
 function currentActiveServices(){
-  if(firebaseServicesReady) return supActiveServices.filter(s=>agentById(s.agentId)?.active!==false);
-  const list = supActiveServices.filter(s=>agentById(s.agentId)?.active);
+  const now=new Date();
+  const dayStart=new Date(now);
+  dayStart.setHours(4,0,0,0);
+  if(now<dayStart)dayStart.setDate(dayStart.getDate()-1);
+  const dayEnd=new Date(dayStart);dayEnd.setDate(dayEnd.getDate()+1);
+
+  // Firestore is the source of truth. Ignore stale legacy "active" sessions
+  // from previous BCSO operational days and keep only the newest open service per agent.
+  if(firebaseServicesReady){
+    const latest=new Map();
+    for(const s of (supActiveServices||[])){
+      const t=Date.parse(s.start||"");
+      if(!Number.isFinite(t)||t<dayStart.getTime()||t>=dayEnd.getTime())continue;
+      if(s.status!=="active"||s.end)continue;
+      const prev=latest.get(s.agentId);
+      if(!prev||Date.parse(prev.start)<t)latest.set(s.agentId,s);
+    }
+    return [...latest.values()].filter(s=>agentById(s.agentId)?.active!==false);
+  }
+
+  const list=(supActiveServices||[]).filter(s=>agentById(s.agentId)?.active);
   if(activeService){
     const me=getPersonalAgent();
     if(me && !list.some(s=>s.agentId===me.id)) list.push({id:"personal-live",agentId:me.id,start:activeService.start,personal:true});
@@ -2320,6 +2339,12 @@ window.addEventListener("bcso:firebase-services",()=>updateLiveServiceCount());
 setInterval(updateLiveServiceCount,5000);
 
 function showCriticalSyncStatus(text,ok=true){
+  const inline=document.querySelector(".agent-sync-note");
+  if(inline){
+    inline.textContent=text;
+    inline.classList.toggle("sync-error",!ok);
+    inline.classList.toggle("sync-ok",!!ok);
+  }
   let el=document.getElementById("criticalSyncStatus");
   if(!el){
     el=document.createElement("div");

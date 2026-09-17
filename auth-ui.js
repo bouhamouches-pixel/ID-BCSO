@@ -51,7 +51,9 @@ function startAgentsSync(claims){
       }
     }
 
-    window.BCSO_HYDRATE_AGENTS?.(agents); window.dispatchEvent(new CustomEvent("bcso:firebase-agents",{detail:agents})); window.BCSO_CRITICAL_SYNC_STATUS?.(`Firebase : ${agents.length} agent(s)`,true);
+    if(window.BCSO_HYDRATE_AGENTS)window.BCSO_HYDRATE_AGENTS(agents);
+    else window.dispatchEvent(new CustomEvent("bcso:firebase-agents",{detail:agents}));
+    window.BCSO_CRITICAL_SYNC_STATUS?.(`Firebase connecté · ${agents.length} agent(s)`,true);
   },err=>{console.error("Agent sync Firestore:",err);window.BCSO_CRITICAL_SYNC_STATUS?.(`Erreur agents : ${err.code||err.message}`,false)});
 }
 window.addEventListener("bcso:set-agent-badge",async e=>{
@@ -96,14 +98,23 @@ function startServicesSync(session){
   const source=session.claims?.supervision?collection(db,"services"):query(collection(db,"services"),where("agentId","==",uid));
   stopServicesSync=onSnapshot(source,snap=>{
     const services=snap.docs.map(d=>{const x=d.data();return{id:d.id,...x,start:serviceIso(x.start),end:serviceIso(x.end)};}).filter(s=>s.start);
-    window.BCSO_HYDRATE_SERVICES?.(services); window.dispatchEvent(new CustomEvent("bcso:firebase-services",{detail:services}));
+    if(window.BCSO_HYDRATE_SERVICES)window.BCSO_HYDRATE_SERVICES(services);
+    else window.dispatchEvent(new CustomEvent("bcso:firebase-services",{detail:services}));
   },err=>{console.error("Services sync Firestore:",err);window.BCSO_CRITICAL_SYNC_STATUS?.(`Erreur services : ${err.code||err.message}`,false)});
 }
 window.addEventListener("bcso:start-duty",async e=>{
   const s=currentSession;if(!s?.claims?.bcso)return;
   const start=e.detail?.start||new Date().toISOString(),uid=s.user.uid,id=serviceDocId(uid,start);
-  try{await setDoc(doc(db,"services",id),{agentId:uid,discordId:s.claims.discordId||null,badge:s.claims.badge||null,grade:s.claims.gradeLabel||null,start,end:null,status:"active",source:"portal",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},{merge:true})}
-  catch(err){console.error(err);alert("La prise de service n'a pas pu être synchronisée avec Firebase.")}
+  try{
+    const ownOpen=await getDocs(query(collection(db,"services"),where("agentId","==",uid)));
+    for(const d of ownOpen.docs){
+      const x=d.data();
+      if(!x.end&&x.status==="active"&&d.id!==id){
+        await updateDoc(doc(db,"services",d.id),{end:start,status:"completed",updatedAt:new Date().toISOString()}).catch(()=>{});
+      }
+    }
+    await setDoc(doc(db,"services",id),{agentId:uid,discordId:s.claims.discordId||null,badge:s.claims.badge||null,grade:s.claims.gradeLabel||null,start,end:null,status:"active",source:"portal",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},{merge:true});
+  } catch(err){console.error(err);alert("La prise de service n'a pas pu être synchronisée avec Firebase.")}
 });
 window.addEventListener("bcso:end-duty",async e=>{
   const s=currentSession;if(!s?.claims?.bcso)return;
@@ -120,10 +131,8 @@ window.addEventListener("bcso:migrate-legacy-services",async e=>{
       if(!x?.start||!x?.end)continue;
       await setDoc(doc(db,"services",serviceDocId(uid,x.start)),{agentId:uid,discordId:s.claims.discordId||null,badge:s.claims.badge||null,grade:s.claims.gradeLabel||null,start:x.start,end:x.end,status:"completed",source:"legacy-local-migration",createdAt:x.start,updatedAt:new Date().toISOString()},{merge:true});
     }
-    if(data.activeService?.start){
-      const x=data.activeService;
-      await setDoc(doc(db,"services",serviceDocId(uid,x.start)),{agentId:uid,discordId:s.claims.discordId||null,badge:s.claims.badge||null,grade:s.claims.gradeLabel||null,start:x.start,end:null,status:"active",source:"legacy-local-migration",createdAt:x.start,updatedAt:new Date().toISOString()},{merge:true});
-    }
+    // V5.9: ne jamais recréer un ancien service actif depuis le cache local.
+    // Les prises de service actives sont désormais créées uniquement par le bouton du portail.
   }catch(err){console.error("Migration services:",err)}
 });
 
@@ -229,8 +238,9 @@ async function forceCriticalHydration(session){
       const x=d.data(),ts=v=>v?.toDate?v.toDate().toISOString():(typeof v==="string"?v:"");
       return {id:d.id,...x,firstLoginAt:ts(x.firstLoginAt),lastLoginAt:ts(x.lastLoginAt),createdAt:ts(x.createdAt),updatedAt:ts(x.updatedAt)};
     });
-    window.BCSO_HYDRATE_AGENTS?.(agents);
-    window.BCSO_CRITICAL_SYNC_STATUS?.(`Firebase : ${agents.length} agent(s)`,true);
+    if(window.BCSO_HYDRATE_AGENTS)window.BCSO_HYDRATE_AGENTS(agents);
+    else window.dispatchEvent(new CustomEvent("bcso:firebase-agents",{detail:agents}));
+    window.BCSO_CRITICAL_SYNC_STATUS?.(`Firebase connecté · ${agents.length} agent(s)`,true);
   }catch(err){
     console.error("Force agents hydration:",err);
     window.BCSO_CRITICAL_SYNC_STATUS?.(`Erreur agents : ${err.code||err.message}`,false);
@@ -388,9 +398,33 @@ function startRestoreSharedReadOnly(session){
       window.dispatchEvent(new CustomEvent("bcso:shared-state-readonly",{
         detail:{key,value:snap.data()?.value}
       }));
+      window.dispatchEvent(new CustomEvent("bcso:module-synced",{detail:{id}}));
     },err=>console.error("Restore shared state",id,err));
     restoreSharedStops.push(stop);
   }
 }
 
-observeBcsoAuth(async s=>{if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}currentSession=s;permissions(s.claims);await forceCriticalHydration(s);await forceReportsHydration(s);await forceParkQualificationsHydration(s);startAgentsSync(s.claims);startServicesSync(s);startReportsSync(s);startParkQualificationsSync(s);startRestoreSharedReadOnly(s);hide();});
+observeBcsoAuth(async s=>{
+  if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}
+  if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}
+  currentSession=s;
+  permissions(s.claims);
+
+  // V5.9: listeners critiques lancés immédiatement et indépendamment.
+  // Un module secondaire en erreur ne peut plus empêcher Agents / Services / sharedState de charger.
+  startAgentsSync(s.claims);
+  startServicesSync(s);
+  startRestoreSharedReadOnly(s);
+  startReportsSync(s);
+  startParkQualificationsSync(s);
+  hide();
+
+  // Hydratations de secours en parallèle, jamais en chaîne bloquante.
+  Promise.allSettled([
+    forceCriticalHydration(s),
+    forceReportsHydration(s),
+    forceParkQualificationsHydration(s)
+  ]).then(results=>{
+    results.forEach((r,i)=>{if(r.status==="rejected")console.error("Hydratation secondaire",i,r.reason)});
+  });
+});
