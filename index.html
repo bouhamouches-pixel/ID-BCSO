@@ -10,21 +10,100 @@
   <link rel="stylesheet" href="style.css?v=v58-1789254845" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <link rel="stylesheet" href="public-v2.css?v=1">
 </head>
 <body>
+  <div id="publicSite" class="public-site">
+    <header class="public-header">
+      <a class="public-brand" href="#accueil" data-public-route="home">
+        <img src="bcso-logo.png" alt="BCSO">
+        <span><b>BLAINE COUNTY</b><small>SHERIFF'S OFFICE</small></span>
+      </a>
+      <nav class="public-nav" aria-label="Navigation principale">
+        <button data-public-route="home" class="active">Accueil</button>
+        <button data-public-route="news">Actualités</button>
+        <button data-public-route="roster">Effectif</button>
+        <button data-public-route="recruitment">Recrutement</button>
+      </nav>
+      <button class="pro-login-btn" id="publicProLogin" type="button"><span>♙</span> Connexion BCSO</button>
+    </header>
 
-  <div class="auth-gate" id="authGate">
-    <div class="auth-card">
-      <img class="auth-logo" src="bcso-logo.png" alt="Logo du Blaine County Sheriff&#39;s Office">
-      <p class="eyebrow">Blaine County Sheriff's Office</p>
-      <h1>Portail agents</h1>
-      <p class="auth-copy">Connectez-vous avec votre compte Discord. L'accès est réservé aux membres disposant du rôle BCSO.</p>
-      <button class="discord-login-btn" id="discordLoginBtn" type="button">◉ Se connecter avec Discord</button>
-      <div class="auth-status" id="authStatus">Vérification de la session…</div>
-    </div>
+    <main>
+      <section class="public-view active" id="public-home">
+        <div class="hero-v2">
+          <div class="hero-overlay"></div>
+          <div class="hero-content">
+            <img src="bcso-logo.png" class="hero-badge" alt="">
+            <p class="public-kicker">BLAINE COUNTY SHERIFF'S OFFICE</p>
+            <h1>Serving Blaine County.<br><em>Protecting its community.</em></h1>
+            <p>Informations officielles, actualités du département et recrutement du Blaine County Sheriff's Office.</p>
+            <div class="hero-actions">
+              <button class="public-primary" data-public-route="recruitment">Nous rejoindre</button>
+              <button class="public-secondary" data-public-route="roster">Découvrir l'effectif</button>
+            </div>
+          </div>
+        </div>
+
+        <section class="public-section recruitment-strip">
+          <div><span class="live-dot"></span><small>RECRUTEMENT</small><strong id="homeRecruitmentStatus">OUVERT</strong></div>
+          <div><small>PROCHAINE SHERIFF ACADEMY</small><strong id="homeAcademyDate">À définir par la BCSA</strong></div>
+          <button data-public-route="recruitment">Déposer ma candidature →</button>
+        </section>
+
+        <section class="public-section">
+          <div class="public-section-head"><div><span>COMMUNIQUÉS</span><h2>Dernières actualités</h2></div><button data-public-route="news">Toutes les actualités →</button></div>
+          <div class="news-grid" id="homeNews">
+            <article class="news-card featured"><div class="news-photo news-photo-one"></div><div class="news-copy"><span>BCSO · INFORMATION</span><h3>Bienvenue sur le nouveau portail du Sheriff's Office</h3><p>Retrouvez prochainement ici les communiqués et informations publiés par l'équipe Media Relation.</p><small>Publication officielle</small></div></article>
+            <article class="news-card"><div class="news-photo news-photo-two"></div><div class="news-copy"><span>RECRUTEMENT</span><h3>Sheriff Academy</h3><p>Consultez l'état des recrutements et préparez votre dossier directement en ligne.</p><small>BCSA</small></div></article>
+            <article class="news-card"><div class="news-photo news-photo-three"></div><div class="news-copy"><span>COMMUNAUTÉ</span><h3>Au service de Blaine County</h3><p>Le département assure ses missions de sécurité, de prévention et de proximité.</p><small>BCSO</small></div></article>
+          </div>
+        </section>
+      </section>
+
+      <section class="public-view" id="public-news">
+        <div class="public-page-hero"><span>MEDIA RELATION</span><h1>Actualités du BCSO</h1><p>Communiqués et informations officielles du département.</p></div>
+        <section class="public-section"><div class="news-grid" id="allNews"></div></section>
+      </section>
+
+      <section class="public-view" id="public-roster">
+        <div class="public-page-hero"><span>LE DÉPARTEMENT</span><h1>Effectif</h1><p>Les membres du Blaine County Sheriff's Office, classés selon la chaîne de commandement.</p></div>
+        <section class="public-section">
+          <div class="roster-group"><div class="roster-title"><span>COMMAND STAFF</span><h2>Commandement</h2></div><div class="roster-grid" id="publicRoster"><div class="public-empty">L'effectif public sera synchronisé avec les agents BCSO et leurs portraits.</div></div></div>
+        </section>
+      </section>
+
+      <section class="public-view" id="public-recruitment">
+        <div class="public-page-hero recruitment-hero"><span>REJOIGNEZ-NOUS</span><h1>Recrutement</h1><p>Déposez votre candidature pour intégrer la prochaine Sheriff Academy.</p></div>
+        <section class="public-section application-layout">
+          <aside class="recruitment-status-card">
+            <span class="status-pill open">● Recrutements ouverts</span>
+            <h3>Prochaine Sheriff Academy</h3><strong id="academyDate">À définir</strong>
+            <p>La date et l'état des recrutements seront administrés par la BCSA.</p>
+          </aside>
+          <form class="application-card" id="candidateApplication">
+            <div class="application-head"><span>CANDIDATURE BCSO</span><h2>Votre dossier</h2><p>Préparez les documents nécessaires avant l'envoi.</p></div>
+            <div class="form-grid-v2"><label>Nom<input name="lastName" required></label><label>Prénom<input name="firstName" required></label><label>Date de naissance<input name="birthDate" type="date" required></label><label>Téléphone<input name="phone" required></label></div>
+            <div class="upload-grid">
+              <label>Carte d'identité<input type="file" accept="image/*,.pdf" required></label>
+              <label>Permis de conduire<input type="file" accept="image/*,.pdf" multiple required></label>
+              <label>CV<input type="file" accept=".pdf,.doc,.docx,image/*" required></label>
+              <label>Lettre de motivation<input type="file" accept=".pdf,.doc,.docx,image/*" required></label>
+              <label>Test psychologique<input type="file" accept="image/*,.pdf" required></label>
+              <label>Aptitude au port d'arme<input type="file" accept="image/*,.pdf" required></label>
+            </div>
+            <label class="consent-v2"><input type="checkbox" required> Je confirme l'exactitude des informations et autorise la BCSA à consulter les documents transmis dans le cadre du recrutement.</label>
+            <button class="public-primary application-submit" type="submit">Continuer avec Discord et envoyer</button>
+            <p class="form-note" id="applicationNote">Le dépôt Firebase/Storage, la confirmation Discord et le chat candidat seront connectés à l'étape backend.</p>
+          </form>
+        </section>
+      </section>
+    </main>
+
+    <footer class="public-footer"><img src="bcso-logo.png" alt=""><div><strong>Blaine County Sheriff's Office</strong><span>Official Department Portal</span></div><small>BCSO · Blaine County</small></footer>
   </div>
 
-  <div class="app-shell">
+  <div class="auth-gate" id="authGate" hidden><button id="discordLoginBtn" type="button" hidden></button><div id="authStatus" hidden></div></div>
+<div class="app-shell pro-shell" id="proShell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <img class="brand-logo" src="bcso-logo.png" alt="Logo du Blaine County Sheriff's Office">
@@ -33,6 +112,7 @@
           <span>Blaine County Sheriff's Office</span>
         </div>
       </div>
+      <button class="back-public-btn" id="backPublicBtn" type="button">← Site public</button>
       <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" type="button" aria-label="Replier le menu" title="Replier le menu">‹</button>
 
       <button class="profile-card" id="openProfile">
@@ -121,6 +201,7 @@
         <span>BCSA</span><span class="nav-section-chevron" aria-hidden="true">⌄</span>
       </button>
       <nav class="nav bcsa-nav nav-section" data-nav-content="bcsa">
+        <button class="nav-item" data-view="bcsaApplications"><span>📨</span><span>Candidatures</span></button>
         <button class="nav-item" data-view="bcsaQuestionnaire"><span>📝</span><span>Questionnaire</span></button>
         <button class="nav-item" data-view="bcsaWorkshops"><span>🛠</span><span>Ateliers</span></button>
         <button class="nav-item" data-view="bcsaBadges"><span>🪪</span><span>Matricules</span></button>
@@ -176,7 +257,12 @@
         </div>
       </header>
 
-      <section class="view active" id="view-services">
+      
+      <section class="view" id="view-bcsaApplications">
+        <div class="section-head"><div><p class="eyebrow">BCSA · RECRUTEMENT</p><h2>Candidatures</h2><p class="muted">Les dossiers publics seront centralisés ici dans la prochaine étape Firebase.</p></div></div>
+        <div class="panel-card v2-empty-pro"><strong>Module prêt à être connecté</strong><p>Réception des candidatures, documents, statuts et chat candidat ↔ BCSA.</p></div>
+      </section>
+<section class="view active" id="view-services">
         <div class="hero-grid">
           <div class="panel service-status-card">
             <div>
@@ -1708,5 +1794,6 @@
     </div>
   </div>
 
+  <script src="public-v2.js?v=1"></script>
 </body>
 </html>
