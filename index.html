@@ -24,6 +24,8 @@
         <button data-public-route="news">Actualités</button>
         <button data-public-route="roster">Effectif</button>
         <button data-public-route="recruitment">Recrutement</button>
+        <button data-public-route="services">Services citoyens</button>
+        <button data-public-route="profile">Mon espace</button>
       </nav>
       <button class="pro-login-btn" id="publicProLogin" type="button"><span>♙</span> Connexion BCSO</button>
     </header>
@@ -96,6 +98,44 @@
             <p class="form-note" id="applicationNote">Le dépôt Firebase/Storage, la confirmation Discord et le chat candidat seront connectés à l'étape backend.</p>
           </form>
         </section>
+      </section>
+
+      <section class="public-view" id="public-services">
+        <div class="public-page-hero"><span>SERVICES AUX CITOYENS</span><h1>Vos démarches avec le BCSO</h1><p>Rendez-vous Park Ranger et contact avec le Sheriff's Office.</p></div>
+        <section class="public-section service-choice-grid">
+          <article class="service-choice"><span>🌲 PARK RANGER</span><h2>Permis de pêche & chasse</h2><p>Demandez un rendez-vous, transmettez vos justificatifs et échangez directement avec les Park Rangers.</p><a href="#permitForm" class="public-primary">Prendre rendez-vous</a></article>
+          <article class="service-choice"><span>✉️ CONTACT</span><h2>Contacter le BCSO</h2><p>Une question ? Envoyez votre demande au service concerné et suivez la réponse depuis votre espace.</p><a href="#contactForm" class="public-secondary">Nous contacter</a></article>
+        </section>
+        <section class="public-section citizen-form-section" id="permitForm">
+          <div class="public-section-head"><div><span>PARK RANGER</span><h2>Demande de rendez-vous</h2></div></div>
+          <form id="permitAppointmentForm" class="application-card">
+            <div class="form-grid-v2">
+              <label>Nom et prénom<input name="name" required></label><label>Identifiant Discord<input name="discord" required></label>
+              <label>Type de permis<select name="permitType"><option value="fishing">Permis de pêche</option><option value="hunting">Permis de chasse</option></select></label>
+              <label>Usage<select name="usage"><option value="personal">Personnel</option><option value="professional">Professionnel</option></select></label>
+            </div>
+            <div class="upload-grid"><label>Pièce d'identité<input name="identity" type="file" accept="image/*,.pdf" required></label>
+              <label id="physicalProofWrap">Attestation d'aptitude physique<input name="physicalProof" type="file" accept="image/*,.pdf"></label>
+              <label id="firearmProofWrap" hidden>Attestation d'aptitude au port d'arme<input name="firearmProof" type="file" accept="image/*,.pdf"></label>
+            </div>
+            <div class="permit-price"><small>À PRÉVOIR</small><strong id="permitPrice"></strong></div>
+            <button class="public-primary application-submit">Envoyer ma demande</button><p id="permitRequestResult" class="form-note"></p>
+          </form>
+        </section>
+        <section class="public-section citizen-form-section" id="contactForm">
+          <div class="public-section-head"><div><span>CONTACT</span><h2>Contacter le BCSO</h2></div></div>
+          <form id="citizenContactForm" class="application-card">
+            <div class="form-grid-v2"><label>Nom et prénom<input name="name" required></label><label>Discord<input name="discord" required></label>
+              <label>Catégorie<select name="category"><option>Question générale</option><option>Recrutement</option><option>Park Ranger</option><option>Media Relation</option><option>Autre</option></select></label><label>Objet<input name="subject" required></label></div>
+            <label>Message<textarea name="message" rows="6" required></textarea></label><button class="public-primary application-submit">Envoyer au BCSO</button><p id="contactResult" class="form-note"></p>
+          </form>
+        </section>
+      </section>
+
+      <section class="public-view" id="public-profile">
+        <div class="public-page-hero"><span>ESPACE CITOYEN</span><h1>Mon espace</h1><p>Permis, rendez-vous, demandes et conversations.</p></div>
+        <section class="public-section"><div class="public-section-head"><div><span>PARK RANGER</span><h2>Mes permis</h2></div></div><div class="license-grid" id="citizenLicenses"></div></section>
+        <section class="public-section"><div class="public-section-head"><div><span>SUIVI</span><h2>Mes demandes</h2></div></div><div id="citizenRequests"></div></section>
       </section>
     </main>
 
@@ -1794,6 +1834,13 @@
     </div>
   </div>
 
-  <script src="public-v2.js?v=1"></script>
+
+  <section class="v2-pro-overlay-panel" id="v2ParkPanel">
+    <div class="section-head"><div><p class="eyebrow">PARK RANGER</p><h2>Rendez-vous citoyens</h2><p class="muted">Demandes de permis de pêche et de chasse.</p></div></div>
+    <div id="parkRequests"></div>
+  </section>
+  <div class="v2-modal" id="v2ChatModal" hidden><div class="v2-modal-card chat-card"><button id="closeV2Chat" class="modal-x">×</button><h3 id="chatTitle">Conversation</h3><div id="v2ChatMessages" class="chat-messages"></div><form id="v2ChatForm" class="chat-form"><input id="v2ChatInput" placeholder="Écrire un message…" autocomplete="off"><button>Envoyer</button></form></div></div>
+  <div class="v2-modal" id="appointmentDialog" hidden><form class="v2-modal-card" id="appointmentForm"><button type="button" id="closeAppointmentDialog" class="modal-x">×</button><small>PARK RANGER</small><h3>Fixer le rendez-vous</h3><p id="appointmentDialogId"></p><label>Date<input type="date" name="date" required></label><label>Heure<input type="time" name="time" required></label><div class="fixed-place">📍 Poste de Bolingbroke</div><button class="public-primary">Confirmer le rendez-vous</button></form></div>
+  <script src="public-v2.js?v=2.2"></script>
 </body>
 </html>
