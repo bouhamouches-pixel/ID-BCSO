@@ -21,8 +21,21 @@ function show(m){if(gate)gate.hidden=false;if(status)status.textContent=m;if(log
 function hide(){if(gate)gate.hidden=true;if(logout)logout.hidden=false;}
 login?.addEventListener("click",()=>{if(status)status.textContent="Redirection vers Discord…";startDiscordLogin();});
 logout?.addEventListener("click",async()=>{await logoutBcso();location.replace("https://bouhamouches-pixel.github.io/ID-BCSO/");});
-show("Vérification de la session…");
-try{const p=await finishDiscordLoginIfNeeded();if(p)syncProfile(p);}catch(e){console.error(e);show(e.message);}
+// V2.7: le site public ne doit jamais être masqué par le portail professionnel.
+// Le callback OAuth est traité ici, mais une erreur citoyenne reste visible sans bloquer la page.
+try{
+  const p=await finishDiscordLoginIfNeeded();
+  if(p) syncProfile(p);
+}catch(e){
+  console.error(e);
+  const citizenFlow = sessionStorage.getItem("bcso_citizen_pending_action") || localStorage.getItem("bcso_auth_mode") === "citizen";
+  if(citizenFlow){
+    window.dispatchEvent(new CustomEvent("bcso:citizen-auth-error",{detail:{message:e.message||"Connexion Discord impossible."}}));
+    if(gate) gate.hidden=true;
+  }else{
+    show(e.message);
+  }
+}
 
 let stopAgentsSync=null;
 function startAgentsSync(claims){
@@ -405,7 +418,10 @@ function startRestoreSharedReadOnly(session){
 }
 
 observeBcsoAuth(async s=>{
-  if(!s){show("Connexion requise. Votre compte doit posséder le rôle BCSO.");return;}
+  // V2.7: une session citoyenne est valide pour le site public et ne doit JAMAIS
+  // être déconnectée par le garde d'accès du portail BCSO Pro.
+  if(!s){ if(gate) gate.hidden=true; return; }
+  if(s.mode === "citizen" || s.claims?.citizen === true){ if(gate) gate.hidden=true; return; }
   if(!s.claims?.bcso){await logoutBcso();show("Accès refusé : rôle BCSO requis.");return;}
   currentSession=s;
   permissions(s.claims);

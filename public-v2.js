@@ -70,6 +70,13 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
    }
  });
 
+ window.addEventListener("bcso:citizen-auth-error",e=>{
+   const message=e.detail?.message||"Connexion Discord impossible.";
+   const banner=$("#citizenAuthBanner");
+   if(banner){banner.classList.remove("citizen-authenticated");banner.dataset.authError="1";const p=banner.querySelector("p");if(p)p.textContent=message;}
+   route("services");
+ });
+
  syncCitizenGate();
  // Public recruitment form remains visual until citizen auth/backend deployment.
  $("#candidateApplication")?.addEventListener("submit",e=>{
