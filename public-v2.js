@@ -12,7 +12,7 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  const verifiedUid=()=>{const u=auth.currentUser;if(!u?.uid)throw new Error("Session Firebase absente. Reconnectez-vous avec Discord.");return u.uid;};
  let currentAuth=null, chatUnsub=null;
  const authMode=()=>localStorage.getItem("bcso_auth_mode")||"";
- const isCitizenSession=()=>!!auth.currentUser && authMode()==="citizen";
+ const isCitizenSession=()=>!!auth.currentUser; // Toute session Firebase valide peut utiliser les services citoyens, y compris un agent BCSO connecté.
  const discordProfile=()=>load("bcso_discord_profile",{});
 
  function route(name){
@@ -174,6 +174,7 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
    e.preventDefault();
    const result=$("#permitRequestResult");
    if(result) result.textContent="Vérification de votre session…";
+   let stage="auth";
    try{
     const user=await requireCitizen("permit",result); if(!user)return;
     if(!characterId()){
@@ -186,19 +187,23 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
     const base=`citizens/${ownerUid}/park-ranger/${id}`;
     const identity=f.get("identity");
     if(!identity?.size) throw new Error("La pièce d’identité est obligatoire.");
+    stage="storage-identity";
     const identityUrl=await uploadFile(identity,`${base}/identity-${identity.name||"document"}`);
     const physicalUrl=f.get("physicalProof")?.size?await uploadFile(f.get("physicalProof"),`${base}/physical-${f.get("physicalProof").name}`):null;
     const firearmUrl=f.get("firearmProof")?.size?await uploadFile(f.get("firearmProof"),`${base}/firearm-${f.get("firearmProof").name}`):null;
     const req={id,ownerUid,citizenUid:ownerUid,citizenDiscordId:discordId(),characterId:characterId(),name:f.get("name"),permitType:f.get("permitType"),usage:f.get("usage"),status:"Nouvelle demande",documents:{identityUrl,physicalUrl,firearmUrl},createdAt:serverTimestamp(),appointment:null};
+    stage="parkRangerAppointments";
     await setDoc(doc(db,"parkRangerAppointments",id),req);
+    stage="conversation";
     await ensureConversation({conversationId:id,kind:"park_ranger",subject:`${f.get("permitType")} · ${f.get("usage")}`,citizenUid:ownerUid,citizenDiscordId:discordId(),targetService:"park_ranger",characterId:characterId()});
+    stage="message";
     await sendPortalMessage({conversationId:id,senderId:ownerUid,senderType:"citizen",senderLabel:f.get("name"),text:"Bonjour, je viens de déposer ma demande de permis et souhaite convenir d’un rendez-vous.",targetService:"park_ranger"});
     if(result) result.innerHTML=`<strong>Demande ${id} envoyée.</strong><br>La discussion avec les Park Rangers est maintenant ouverte depuis « Mon espace ».`;
     permitForm.reset(); refreshPermitRequirements();
     setTimeout(()=>route("profile"),700);
    }catch(err){
     console.error("BCSO permit submit failed",err);
-    if(result) result.textContent=err?.code==="permission-denied"?"Envoi refusé par Firebase (permission-denied). Vérifiez les règles Firestore/Storage et l’UID de la session.":"Impossible d’envoyer la demande : "+(err?.message||err?.code||String(err));
+    if(result) result.textContent=err?.code==="permission-denied"?`Firebase bloque l’étape « ${stage} » (permission-denied). UID connecté : ${auth.currentUser?.uid||"absent"}.`:`Impossible d’envoyer la demande à l’étape « ${stage} » : `+(err?.message||err?.code||String(err));
    }
  });
 
@@ -206,6 +211,7 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
    e.preventDefault();
    const form=e.currentTarget, out=$("#contactResult");
    if(out) out.textContent="Vérification de votre session…";
+   let stage="auth";
    try{
     const user=await requireCitizen("contact",out); if(!user)return;
     if(!characterId()){
@@ -213,17 +219,21 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
       $("#characterModal").hidden=false; return;
     }
     const f=new FormData(form), id="CNT-"+new Date().getFullYear()+"-"+String(Date.now()).slice(-6), ownerUid=user.uid;
+    stage="citizenContacts";
     if(out) out.textContent="Enregistrement du contact…";
     await setDoc(doc(db,"citizenContacts",id),{id,ownerUid,citizenUid:ownerUid,citizenDiscordId:discordId(),characterId:characterId(),name:f.get("name"),category:f.get("category"),subject:f.get("subject"),status:"Ouvert",createdAt:serverTimestamp()});
+    stage="conversation";
     if(out) out.textContent="Ouverture de la conversation…";
     await ensureConversation({conversationId:id,kind:"citizen_contact",subject:f.get("subject"),citizenUid:ownerUid,citizenDiscordId:discordId(),targetService:"citizen_contact",characterId:characterId()});
+    stage="message";
+    if(out) out.textContent="Envoi du message…";
     await sendPortalMessage({conversationId:id,senderId:ownerUid,senderType:"citizen",senderLabel:f.get("name"),text:f.get("message"),targetService:"citizen_contact"});
     if(out) out.innerHTML=`<strong>Demande ${id} envoyée.</strong> Vous pouvez suivre la réponse dans Mon espace.`;
     form.reset();
     setTimeout(()=>route("profile"),700);
    }catch(err){
     console.error("BCSO contact submit failed",err);
-    if(out) out.textContent=err?.code==="permission-denied"?"Envoi refusé par Firebase (permission-denied). La connexion fonctionne, mais une règle Firestore bloque l’écriture.":"Impossible d’envoyer : "+(err?.message||err?.code||String(err));
+    if(out) out.textContent=err?.code==="permission-denied"?`Firebase bloque l’étape « ${stage} » (permission-denied). UID connecté : ${auth.currentUser?.uid||"absent"}.`:`Impossible d’envoyer à l’étape « ${stage} » : `+(err?.message||err?.code||String(err));
    }
  });
 
