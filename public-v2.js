@@ -1,9 +1,16 @@
+import { auth, db, storage, startCitizenDiscordLogin, observeAuth } from "./firebase-auth.js";
+import { doc, setDoc, serverTimestamp, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
+import { ensureConversation, sendPortalMessage, watchMessages } from "./messaging-v2.js";
+
 
 (()=>{
  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
  const publicSite=$("#publicSite"), proShell=$("#proShell"), login=$("#publicProLogin"), back=$("#backPublicBtn");
  const store=(k,v)=>localStorage.setItem(k,JSON.stringify(v)), load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
- const uid=()=>load("bcso_v2_citizen",{uid:"demo-citizen",discordId:"",name:"Civil"}).uid;
+ const uid=()=>auth.currentUser?.uid||null;
+ let currentAuth=null, chatUnsub=null;
+ const discordProfile=()=>load("bcso_discord_profile",{});
 
  function route(name){
    $$(".public-view").forEach(x=>x.classList.remove("active"));
@@ -17,7 +24,8 @@
  function showPublic(){publicSite.style.display="";proShell?.classList.remove("pro-visible");history.replaceState(null,"","#accueil")}
  function showPro(){publicSite.style.display="none";proShell?.classList.add("pro-visible");history.replaceState(null,"","#pro")}
  back?.addEventListener("click",showPublic);
- login?.addEventListener("click",()=>{$("#discordLoginBtn")?.click()});
+ login?.addEventListener("click",()=>{ if(currentAuth){ route("profile"); } else startCitizenDiscordLogin(); });
+ observeAuth(state=>{ currentAuth=state; const p=discordProfile(); if(login) login.innerHTML=state?`<span>●</span> ${p.username||p.global_name||"Mon espace"}`:`<span>♙</span> Se connecter avec Discord`; if(state){const c=load("bcso_v2_citizen",{});store("bcso_v2_citizen",{...c,uid:state.user.uid,discordId:state.claims.discordId||p.id||"",name:p.global_name||p.username||"Civil"}); renderCitizenRequests();renderLicenses();} });
 
  // Public recruitment form remains visual until citizen auth/backend deployment.
  $("#candidateApplication")?.addEventListener("submit",e=>{
@@ -54,6 +62,9 @@
  });
  renderCharacter();
 
+ async function requireCitizen(){ if(auth.currentUser)return true; startCitizenDiscordLogin(); return false; }
+ async function uploadFile(file,path){ if(!file||!auth.currentUser)return null; const r=ref(storage,path);await uploadBytes(r,file);return getDownloadURL(r); }
+ function discordId(){const p=discordProfile();return p.id||load("bcso_v2_citizen",{}).discordId||"";}
  // Dynamic permit form.
  const permitForm=$("#permitAppointmentForm");
  function refreshPermitRequirements(){
@@ -68,24 +79,29 @@
  permitForm?.usage.addEventListener("change",refreshPermitRequirements);
  refreshPermitRequirements();
 
- permitForm?.addEventListener("submit",e=>{
-   e.preventDefault(); if(!characterId()){ $("#characterModal").hidden=false; return; }
-   const f=new FormData(permitForm), id="PR-"+new Date().getFullYear()+"-"+String(Date.now()).slice(-4);
-   const req={
-     id, citizenUid:uid(), characterId:characterId(), name:f.get("name"), 
-     permitType:f.get("permitType"), usage:f.get("usage"), status:"Nouvelle demande",
-     createdAt:new Date().toISOString(), appointment:null, unreadCitizen:0, unreadBcso:1
-   };
-   const a=load("bcso_v2_permit_requests",[]);a.unshift(req);store("bcso_v2_permit_requests",a);
-   store("bcso_v2_current_conversation",id);
-   $("#permitRequestResult").innerHTML=`<strong>Demande ${id} enregistrée.</strong><br>Une notification Discord de confirmation sera envoyée par le backend. Vous pouvez maintenant discuter avec les Park Rangers afin de fixer le rendez-vous.`;
-   renderCitizenRequests(); renderParkRequests();
+ permitForm?.addEventListener("submit",async e=>{
+   e.preventDefault(); if(!(await requireCitizen()))return; if(!characterId()){ $("#characterModal").hidden=false; return; }
+   const f=new FormData(permitForm), id="PR-"+new Date().getFullYear()+"-"+String(Date.now()).slice(-6);
+   const result=$("#permitRequestResult"); result.textContent="Envoi de la demande…";
+   try{
+    const base=`citizens/${uid()}/park-ranger/${id}`;
+    const identityUrl=await uploadFile(f.get("identity"),`${base}/identity-${f.get("identity")?.name||"document"}`);
+    const physicalUrl=f.get("physicalProof")?.size?await uploadFile(f.get("physicalProof"),`${base}/physical-${f.get("physicalProof").name}`):null;
+    const firearmUrl=f.get("firearmProof")?.size?await uploadFile(f.get("firearmProof"),`${base}/firearm-${f.get("firearmProof").name}`):null;
+    const req={id,citizenUid:uid(),citizenDiscordId:discordId(),characterId:characterId(),name:f.get("name"),permitType:f.get("permitType"),usage:f.get("usage"),status:"Nouvelle demande",documents:{identityUrl,physicalUrl,firearmUrl},createdAt:serverTimestamp(),appointment:null};
+    await setDoc(doc(db,"parkRangerAppointments",id),req);
+    await ensureConversation({conversationId:id,kind:"park_ranger",subject:`${f.get("permitType")} · ${f.get("usage")}`,citizenUid:uid(),citizenDiscordId:discordId(),targetService:"park_ranger",characterId:characterId()});
+    await sendPortalMessage({conversationId:id,senderId:uid(),senderType:"citizen",senderLabel:f.get("name"),text:"Bonjour, je viens de déposer ma demande de permis et souhaite convenir d’un rendez-vous.",targetService:"park_ranger"});
+    result.innerHTML=`<strong>Demande ${id} envoyée.</strong><br>La discussion avec les Park Rangers est maintenant ouverte depuis « Mon espace ».`; route("profile");
+   }catch(err){console.error(err);result.textContent="Impossible d’envoyer la demande : "+(err.message||err);}
  });
 
- $("#citizenContactForm")?.addEventListener("submit",e=>{
-   e.preventDefault(); if(!characterId()){ $("#characterModal").hidden=false; return; } const f=new FormData(e.currentTarget), id="CNT-"+new Date().getFullYear()+"-"+String(Date.now()).slice(-4);
-   const a=load("bcso_v2_contacts",[]); a.unshift({id,characterId:characterId(),name:f.get("name"),category:f.get("category"),subject:f.get("subject"),message:f.get("message"),status:"Ouvert",createdAt:new Date().toISOString()}); store("bcso_v2_contacts",a);
-   $("#contactResult").textContent=`Votre demande ${id} a été enregistrée. Le BCSO pourra vous répondre depuis le portail.`;
+ $("#citizenContactForm")?.addEventListener("submit",async e=>{
+   e.preventDefault();if(!(await requireCitizen()))return;if(!characterId()){ $("#characterModal").hidden=false;return;}
+   const f=new FormData(e.currentTarget),id="CNT-"+new Date().getFullYear()+"-"+String(Date.now()).slice(-6),out=$("#contactResult");out.textContent="Envoi…";
+   try{await setDoc(doc(db,"citizenContacts",id),{id,citizenUid:uid(),citizenDiscordId:discordId(),characterId:characterId(),name:f.get("name"),category:f.get("category"),subject:f.get("subject"),status:"Ouvert",createdAt:serverTimestamp()});
+   await ensureConversation({conversationId:id,kind:"citizen_contact",subject:f.get("subject"),citizenUid:uid(),citizenDiscordId:discordId(),targetService:"citizen_contact",characterId:characterId()});
+   await sendPortalMessage({conversationId:id,senderId:uid(),senderType:"citizen",senderLabel:f.get("name"),text:f.get("message"),targetService:"citizen_contact"});out.innerHTML=`<strong>Demande ${id} envoyée.</strong> Vous pouvez suivre la réponse dans Mon espace.`;route("profile");}catch(err){console.error(err);out.textContent="Impossible d’envoyer : "+(err.message||err);}
  });
 
  function permitLabel(r){return `${r.permitType==="fishing"?"Pêche":"Chasse"} · ${r.usage==="professional"?"Professionnel":"Personnel"}`}
@@ -101,14 +117,10 @@
    const c=e.target.closest(".open-chat"); if(c){store("bcso_v2_current_conversation",c.dataset.conv);openChat(c.dataset.conv)}
    const f=e.target.closest(".fix-appt"); if(f)openAppointmentDialog(f.dataset.id);
  });
- function openChat(id){
-   const modal=$("#v2ChatModal"); if(!modal)return; modal.hidden=false; $("#chatTitle").textContent=`Conversation · ${id}`; renderMessages(id);
- }
+ function openChat(id){ const modal=$("#v2ChatModal");if(!modal)return;modal.hidden=false;$("#chatTitle").textContent=`Conversation · ${id}`;if(chatUnsub)chatUnsub(); if(auth.currentUser){chatUnsub=watchMessages(id,msgs=>renderFirestoreMessages(msgs));}else renderMessages(id); }
+ function renderFirestoreMessages(msgs){const box=$("#v2ChatMessages");if(!box)return;box.innerHTML=msgs.map(m=>`<div class="chat-msg ${m.senderType}"><small>${m.senderLabel||m.senderType}</small><p>${String(m.text||"").replace(/[<>]/g,"")}</p></div>`).join("");box.scrollTop=box.scrollHeight;}
  $("#closeV2Chat")?.addEventListener("click",()=>$("#v2ChatModal").hidden=true);
- $("#v2ChatForm")?.addEventListener("submit",e=>{
-   e.preventDefault(); const id=load("bcso_v2_current_conversation",""); const input=$("#v2ChatInput"); if(!id||!input.value.trim())return;
-   const msgs=load("bcso_v2_messages",{}); msgs[id]=msgs[id]||[]; msgs[id].push({id:crypto.randomUUID?.()||Date.now(),text:input.value.trim(),sender:proShell?.classList.contains("pro-visible")?"bcso":"citizen",at:new Date().toISOString(),notificationState:"pending"});store("bcso_v2_messages",msgs);input.value="";renderMessages(id);
- });
+ $("#v2ChatForm")?.addEventListener("submit",async e=>{e.preventDefault();const id=load("bcso_v2_current_conversation",""),input=$("#v2ChatInput");if(!id||!input.value.trim())return;const text=input.value.trim();input.value="";try{if(auth.currentUser)await sendPortalMessage({conversationId:id,senderId:uid(),senderType:proShell?.classList.contains("pro-visible")?"bcso":"citizen",senderLabel:proShell?.classList.contains("pro-visible")?"BCSO":(activeCharacter()?`${activeCharacter().firstName} ${activeCharacter().lastName}`:"Civil"),text,targetService:id.startsWith("PR-")?"park_ranger":"citizen_contact"});else throw new Error("Connexion Discord requise");}catch(err){alert(err.message||err);}});
  function renderMessages(id){
    const box=$("#v2ChatMessages"), msgs=load("bcso_v2_messages",{})[id]||[]; if(!box)return;
    box.innerHTML=msgs.map(m=>`<div class="chat-msg ${m.sender}"><small>${m.sender==="bcso"?"BCSO":"Civil"} · ${new Date(m.at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</small><p>${String(m.text).replace(/[<>]/g,"")}</p></div>`).join("");box.scrollTop=box.scrollHeight;
