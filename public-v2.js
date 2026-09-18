@@ -192,13 +192,19 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
     const identityUrl=await uploadFile(identity,`${base}/identity-${identity.name||"document"}`);
     const physicalUrl=f.get("physicalProof")?.size?await uploadFile(f.get("physicalProof"),`${base}/physical-${f.get("physicalProof").name}`):null;
     const firearmUrl=f.get("firearmProof")?.size?await uploadFile(f.get("firearmProof"),`${base}/firearm-${f.get("firearmProof").name}`):null;
-    const req={id,ownerUid,citizenUid:ownerUid,citizenDiscordId:discordId(),characterId:characterId(),name:f.get("name"),permitType:f.get("permitType"),usage:f.get("usage"),status:"Nouvelle demande",documents:{identityUrl,physicalUrl,firearmUrl},createdAt:serverTimestamp(),appointment:null};
+    const character=activeCharacter();
+    const citizenFirstName=character?.firstName||"";
+    const citizenLastName=character?.lastName||"";
+    const citizenName=[citizenFirstName,citizenLastName].filter(Boolean).join(" ")||String(f.get("name")||"").trim();
+    const permitLabel=f.get("permitType")==="fishing"?"Permis de pêche":"Permis de chasse";
+    const usageLabel=f.get("usage")==="professional"?"Professionnel":"Personnel";
+    const req={id,ownerUid,citizenUid:ownerUid,citizenDiscordId:discordId(),characterId:characterId(),name:citizenName,citizenFirstName,citizenLastName,permitType:f.get("permitType"),usage:f.get("usage"),targetService:"park-ranger",status:"Nouvelle demande",documents:{identityUrl,physicalUrl,firearmUrl},createdAt:serverTimestamp(),appointment:null};
     stage="parkRangerAppointments";
     await setDoc(doc(db,"parkRangerAppointments",id),req);
     stage="conversation";
-    await ensureConversation({conversationId:id,kind:"park_ranger",subject:`${f.get("permitType")} · ${f.get("usage")}`,citizenUid:ownerUid,citizenDiscordId:discordId(),targetService:"park_ranger",characterId:characterId()});
+    await ensureConversation({conversationId:id,kind:"park_ranger",subject:`${permitLabel} · ${usageLabel}`,citizenUid:ownerUid,citizenDiscordId:discordId(),targetService:"park-ranger",characterId:characterId(),citizenName,citizenFirstName,citizenLastName});
     stage="message";
-    await sendPortalMessage({conversationId:id,senderId:ownerUid,senderType:"citizen",senderLabel:f.get("name"),text:"Bonjour, je viens de déposer ma demande de permis et souhaite convenir d’un rendez-vous.",targetService:"park_ranger"});
+    await sendPortalMessage({conversationId:id,senderId:ownerUid,senderType:"citizen",senderLabel:citizenName,text:"Bonjour, je viens de déposer ma demande de permis et souhaite convenir d’un rendez-vous.",targetService:"park-ranger"});
     if(result) result.innerHTML=`<strong>Demande ${id} envoyée.</strong><br>La discussion avec les Park Rangers est maintenant ouverte depuis « Mon espace ».`;
     permitForm.reset(); refreshPermitRequirements();
     setTimeout(()=>route("profile"),700);
@@ -286,7 +292,7 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  function openChat(id){ const modal=$("#v2ChatModal");if(!modal)return;modal.hidden=false;$("#chatTitle").textContent=`Conversation · ${id}`;if(chatUnsub)chatUnsub(); if(auth.currentUser){chatUnsub=watchMessages(id,msgs=>renderFirestoreMessages(msgs));}else renderMessages(id); }
  function renderFirestoreMessages(msgs){const box=$("#v2ChatMessages");if(!box)return;box.innerHTML=msgs.map(m=>`<div class="chat-msg ${m.senderType}"><small>${m.senderLabel||m.senderType}</small><p>${String(m.text||"").replace(/[<>]/g,"")}</p></div>`).join("");box.scrollTop=box.scrollHeight;}
  $("#closeV2Chat")?.addEventListener("click",()=>$("#v2ChatModal").hidden=true);
- $("#v2ChatForm")?.addEventListener("submit",async e=>{e.preventDefault();const id=load("bcso_v2_current_conversation",""),input=$("#v2ChatInput");if(!id||!input.value.trim())return;const text=input.value.trim();input.value="";try{if(auth.currentUser)await sendPortalMessage({conversationId:id,senderId:uid(),senderType:proShell?.classList.contains("pro-visible")?"bcso":"citizen",senderLabel:proShell?.classList.contains("pro-visible")?"BCSO":(activeCharacter()?`${activeCharacter().firstName} ${activeCharacter().lastName}`:"Civil"),text,targetService:id.startsWith("PR-")?"park_ranger":"citizen_contact"});else throw new Error("Connexion Discord requise");}catch(err){alert(err.message||err);}});
+ $("#v2ChatForm")?.addEventListener("submit",async e=>{e.preventDefault();const id=load("bcso_v2_current_conversation",""),input=$("#v2ChatInput");if(!id||!input.value.trim())return;const text=input.value.trim();input.value="";try{if(auth.currentUser)await sendPortalMessage({conversationId:id,senderId:uid(),senderType:proShell?.classList.contains("pro-visible")?"bcso":"citizen",senderLabel:proShell?.classList.contains("pro-visible")?"BCSO":(activeCharacter()?`${activeCharacter().firstName} ${activeCharacter().lastName}`:"Civil"),text,targetService:id.startsWith("PR-")?"park-ranger":"citizen_contact"});else throw new Error("Connexion Discord requise");}catch(err){alert(err.message||err);}});
  function renderMessages(id){
    const box=$("#v2ChatMessages"), msgs=load("bcso_v2_messages",{})[id]||[]; if(!box)return;
    box.innerHTML=msgs.map(m=>`<div class="chat-msg ${m.sender}"><small>${m.sender==="bcso"?"BCSO":"Civil"} · ${new Date(m.at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</small><p>${String(m.text).replace(/[<>]/g,"")}</p></div>`).join("");box.scrollTop=box.scrollHeight;
