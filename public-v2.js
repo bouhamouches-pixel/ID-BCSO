@@ -257,11 +257,13 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  }
  function renderCitizenRequests(loadError=null){
    const box=$("#citizenRequests"); if(!box)return;
-   const cid=characterId();
-   const contacts=firestoreCitizenContacts.filter(x=>!cid||!x.characterId||x.characterId===cid).map(r=>({
+   // Les requêtes Firestore sont déjà sécurisées et filtrées par ownerUid.
+   // Ne pas filtrer à nouveau par characterId : un changement de personnage actif
+   // masquait des demandes pourtant bien enregistrées pour le même compte Discord.
+   const contacts=firestoreCitizenContacts.map(r=>({
      ...r, requestKind:"contact", title:r.subject||r.category||"Contact BCSO", status:r.status||"Ouvert"
    }));
-   const permits=firestorePermitRequests.filter(x=>!cid||!x.characterId||x.characterId===cid).map(r=>({
+   const permits=firestorePermitRequests.map(r=>({
      ...r, requestKind:"permit", title:permitLabel(r), status:r.status||"Nouvelle demande"
    }));
    const a=[...contacts,...permits].sort((x,y)=>{
