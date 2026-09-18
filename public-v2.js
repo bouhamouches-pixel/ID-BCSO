@@ -10,6 +10,8 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  const store=(k,v)=>localStorage.setItem(k,JSON.stringify(v)), load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
  const uid=()=>auth.currentUser?.uid||null;
  let currentAuth=null, chatUnsub=null;
+ const authMode=()=>localStorage.getItem("bcso_auth_mode")||"";
+ const isCitizenSession=()=>!!auth.currentUser && authMode()==="citizen";
  const discordProfile=()=>load("bcso_discord_profile",{});
 
  function route(name){
@@ -20,7 +22,7 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  }
  document.addEventListener("click",e=>{
    const protectedRoute=e.target.closest("[data-citizen-protected]");
-   if(protectedRoute && !auth.currentUser){
+   if(protectedRoute && !isCitizenSession()){
      e.preventDefault();
      sessionStorage.setItem("bcso_citizen_pending_action", protectedRoute.dataset.citizenProtected || "profile");
      startCitizenDiscordLogin();
@@ -30,7 +32,7 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
    if(action){
      e.preventDefault();
      const target=action.dataset.citizenAction;
-     if(!auth.currentUser){
+     if(!isCitizenSession()){
        sessionStorage.setItem("bcso_citizen_pending_action",target);
        startCitizenDiscordLogin();
        return;
@@ -44,13 +46,18 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  function showPublic(){publicSite.style.display="";proShell?.classList.remove("pro-visible");history.replaceState(null,"","#accueil")}
  function showPro(){publicSite.style.display="none";proShell?.classList.add("pro-visible");history.replaceState(null,"","#pro")}
  back?.addEventListener("click",showPublic);
- login?.addEventListener("click",()=>{ if(currentAuth){ route("profile"); } else { sessionStorage.setItem("bcso_citizen_pending_action","profile"); startCitizenDiscordLogin(); } });
+ login?.addEventListener("click",()=>{ if(currentAuth && isCitizenSession()){ route("profile"); } else { sessionStorage.setItem("bcso_citizen_pending_action","profile"); startCitizenDiscordLogin(); } });
  $("#citizenLoginBtn")?.addEventListener("click",()=>{ sessionStorage.setItem("bcso_citizen_pending_action","services"); startCitizenDiscordLogin(); });
+ function syncCitizenGate(){
+   const ok=isCitizenSession();
+   [$("#permitAppointmentForm"),$("#citizenContactForm")].forEach(form=>{ if(!form)return; form.querySelectorAll("input,select,textarea,button").forEach(el=>el.disabled=!ok); });
+   const banner=$("#citizenAuthBanner"); if(banner) banner.classList.toggle("citizen-authenticated",ok);
+ }
  observeAuth(state=>{
-   currentAuth=state; const p=discordProfile();
+   currentAuth=state; const p=discordProfile(); syncCitizenGate();
    if(login) login.innerHTML=state?`<span>●</span> ${p.username||p.global_name||"Mon espace"}`:`<span>♙</span> Se connecter avec Discord`;
    const citizenBtn=$("#citizenLoginBtn"); if(citizenBtn) citizenBtn.textContent=state?"Accéder à mon espace":"Se connecter avec Discord";
-   if(state){
+   if(state && isCitizenSession()){
      const c=load("bcso_v2_citizen",{});store("bcso_v2_citizen",{...c,uid:state.user.uid,discordId:state.claims.discordId||p.id||"",name:p.global_name||p.username||"Civil"});
      renderCitizenRequests();renderLicenses();
      const pending=sessionStorage.getItem("bcso_citizen_pending_action");
@@ -63,11 +70,12 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
    }
  });
 
+ syncCitizenGate();
  // Public recruitment form remains visual until citizen auth/backend deployment.
  $("#candidateApplication")?.addEventListener("submit",e=>{
    e.preventDefault();
    const note=$("#applicationNote");
-   if(!auth.currentUser){
+   if(!isCitizenSession()){
      if(note) note.textContent="Connexion Discord requise avant le dépôt. Après connexion, vous reviendrez sur le recrutement.";
      sessionStorage.setItem("bcso_citizen_pending_action","recruitment");
      startCitizenDiscordLogin();
@@ -105,7 +113,7 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  });
  renderCharacter();
 
- async function requireCitizen(){ if(auth.currentUser)return true; startCitizenDiscordLogin(); return false; }
+ async function requireCitizen(){ if(isCitizenSession())return true; sessionStorage.setItem("bcso_citizen_pending_action","services"); startCitizenDiscordLogin(); return false; }
  async function uploadFile(file,path){ if(!file||!auth.currentUser)return null; const r=ref(storage,path);await uploadBytes(r,file);return getDownloadURL(r); }
  function discordId(){const p=discordProfile();return p.id||load("bcso_v2_citizen",{}).discordId||"";}
  // Dynamic permit form.
