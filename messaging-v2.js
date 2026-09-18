@@ -1,8 +1,12 @@
 import { db } from "./firebase-auth.js";
-import {collection,addDoc,doc,getDoc,onSnapshot,orderBy,query,serverTimestamp,setDoc,updateDoc} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import {collection,addDoc,doc,onSnapshot,orderBy,query,serverTimestamp,setDoc,updateDoc} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 export async function ensureConversation({conversationId,kind,subject,citizenUid,citizenDiscordId,targetService,characterId=null}){
- const ref=doc(db,"conversations",conversationId),snap=await getDoc(ref);
- if(!snap.exists())await setDoc(ref,{kind,subject,ownerUid:citizenUid,citizenUid,citizenDiscordId,characterId,targetService,status:"open",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});return ref;
+ // Ne pas faire getDoc() avant la création : les règles Firestore protègent la lecture
+ // d'une conversation par resource.data.ownerUid. Sur un document inexistant, cette
+ // lecture peut être refusée avant même que la création autorisée soit tentée.
+ const ref=doc(db,"conversations",conversationId);
+ await setDoc(ref,{kind,subject,ownerUid:citizenUid,citizenUid,citizenDiscordId,characterId,targetService,status:"open",createdAt:serverTimestamp(),updatedAt:serverTimestamp()},{merge:true});
+ return ref;
 }
 export async function sendPortalMessage({conversationId,senderId,senderType,senderLabel,text,targetDiscordId=null,targetService=null}){
  const clean=String(text||"").trim();if(!clean)return;
