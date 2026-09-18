@@ -51,7 +51,21 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  function syncCitizenGate(){
    const ok=isCitizenSession();
    [$("#permitAppointmentForm"),$("#citizenContactForm")].forEach(form=>{ if(!form)return; form.querySelectorAll("input,select,textarea,button").forEach(el=>el.disabled=!ok); });
-   const banner=$("#citizenAuthBanner"); if(banner) banner.classList.toggle("citizen-authenticated",ok);
+   const banner=$("#citizenAuthBanner");
+   if(banner){
+     banner.classList.toggle("citizen-authenticated",ok);
+     const title=banner.querySelector("h2"), desc=banner.querySelector("p"), btn=$("#citizenLoginBtn");
+     const p=discordProfile();
+     if(ok){
+       if(title) title.textContent="Vous êtes déjà connecté avec Discord";
+       if(desc) desc.textContent=`Session sécurisée active${p.username||p.global_name ? ` · ${p.global_name||p.username}` : ""}. Vous pouvez envoyer vos demandes et consulter votre suivi.`;
+       if(btn) btn.textContent="Accéder à mon espace";
+     }else{
+       if(title) title.textContent="Connectez-vous avec Discord pour effectuer une démarche";
+       if(desc) desc.textContent="La consultation du site reste publique. Discord est demandé uniquement pour déposer une demande, contacter le BCSO ou accéder à votre suivi.";
+       if(btn) btn.textContent="Se connecter avec Discord";
+     }
+   }
  }
  observeAuth(state=>{
    currentAuth=state; const p=discordProfile(); syncCitizenGate();
@@ -146,7 +160,7 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
     const identityUrl=await uploadFile(f.get("identity"),`${base}/identity-${f.get("identity")?.name||"document"}`);
     const physicalUrl=f.get("physicalProof")?.size?await uploadFile(f.get("physicalProof"),`${base}/physical-${f.get("physicalProof").name}`):null;
     const firearmUrl=f.get("firearmProof")?.size?await uploadFile(f.get("firearmProof"),`${base}/firearm-${f.get("firearmProof").name}`):null;
-    const req={id,citizenUid:uid(),citizenDiscordId:discordId(),characterId:characterId(),name:f.get("name"),permitType:f.get("permitType"),usage:f.get("usage"),status:"Nouvelle demande",documents:{identityUrl,physicalUrl,firearmUrl},createdAt:serverTimestamp(),appointment:null};
+    const req={id,ownerUid:uid(),citizenUid:uid(),citizenDiscordId:discordId(),characterId:characterId(),name:f.get("name"),permitType:f.get("permitType"),usage:f.get("usage"),status:"Nouvelle demande",documents:{identityUrl,physicalUrl,firearmUrl},createdAt:serverTimestamp(),appointment:null};
     await setDoc(doc(db,"parkRangerAppointments",id),req);
     await ensureConversation({conversationId:id,kind:"park_ranger",subject:`${f.get("permitType")} · ${f.get("usage")}`,citizenUid:uid(),citizenDiscordId:discordId(),targetService:"park_ranger",characterId:characterId()});
     await sendPortalMessage({conversationId:id,senderId:uid(),senderType:"citizen",senderLabel:f.get("name"),text:"Bonjour, je viens de déposer ma demande de permis et souhaite convenir d’un rendez-vous.",targetService:"park_ranger"});
@@ -157,7 +171,7 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  $("#citizenContactForm")?.addEventListener("submit",async e=>{
    e.preventDefault();if(!(await requireCitizen()))return;if(!characterId()){ $("#characterModal").hidden=false;return;}
    const f=new FormData(e.currentTarget),id="CNT-"+new Date().getFullYear()+"-"+String(Date.now()).slice(-6),out=$("#contactResult");out.textContent="Envoi…";
-   try{await setDoc(doc(db,"citizenContacts",id),{id,citizenUid:uid(),citizenDiscordId:discordId(),characterId:characterId(),name:f.get("name"),category:f.get("category"),subject:f.get("subject"),status:"Ouvert",createdAt:serverTimestamp()});
+   try{await setDoc(doc(db,"citizenContacts",id),{id,ownerUid:uid(),citizenUid:uid(),citizenDiscordId:discordId(),characterId:characterId(),name:f.get("name"),category:f.get("category"),subject:f.get("subject"),status:"Ouvert",createdAt:serverTimestamp()});
    await ensureConversation({conversationId:id,kind:"citizen_contact",subject:f.get("subject"),citizenUid:uid(),citizenDiscordId:discordId(),targetService:"citizen_contact",characterId:characterId()});
    await sendPortalMessage({conversationId:id,senderId:uid(),senderType:"citizen",senderLabel:f.get("name"),text:f.get("message"),targetService:"citizen_contact"});out.innerHTML=`<strong>Demande ${id} envoyée.</strong> Vous pouvez suivre la réponse dans Mon espace.`;route("profile");}catch(err){console.error(err);out.textContent="Impossible d’envoyer : "+(err.message||err);}
  });

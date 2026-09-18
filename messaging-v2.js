@@ -2,7 +2,7 @@ import { db } from "./firebase-auth.js";
 import {collection,addDoc,doc,getDoc,onSnapshot,orderBy,query,serverTimestamp,setDoc,updateDoc} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 export async function ensureConversation({conversationId,kind,subject,citizenUid,citizenDiscordId,targetService,characterId=null}){
  const ref=doc(db,"conversations",conversationId),snap=await getDoc(ref);
- if(!snap.exists())await setDoc(ref,{kind,subject,citizenUid,citizenDiscordId,characterId,targetService,status:"open",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});return ref;
+ if(!snap.exists())await setDoc(ref,{kind,subject,ownerUid:citizenUid,citizenUid,citizenDiscordId,characterId,targetService,status:"open",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});return ref;
 }
 export async function sendPortalMessage({conversationId,senderId,senderType,senderLabel,text,targetDiscordId=null,targetService=null}){
  const clean=String(text||"").trim();if(!clean)return;
