@@ -10,7 +10,8 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  const store=(k,v)=>localStorage.setItem(k,JSON.stringify(v)), load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
  const uid=()=>auth.currentUser?.uid||null;
  const verifiedUid=()=>{const u=auth.currentUser;if(!u?.uid)throw new Error("Session Firebase absente. Reconnectez-vous avec Discord.");return u.uid;};
- let currentAuth=null, chatUnsub=null;
+ let currentAuth=null, chatUnsub=null, citizenRequestsUnsubs=[];
+ let firestoreCitizenContacts=[], firestorePermitRequests=[];
  const authMode=()=>localStorage.getItem("bcso_auth_mode")||"";
  const isCitizenSession=()=>!!auth.currentUser; // Toute session Firebase valide peut utiliser les services citoyens, y compris un agent BCSO connecté.
  const discordProfile=()=>load("bcso_discord_profile",{});
@@ -74,7 +75,7 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
    const citizenBtn=$("#citizenLoginBtn"); if(citizenBtn) citizenBtn.textContent=state?"Accéder à mon espace":"Se connecter avec Discord";
    if(state && isCitizenSession()){
      const c=load("bcso_v2_citizen",{});store("bcso_v2_citizen",{...c,uid:state.user.uid,discordId:state.claims.discordId||p.id||"",name:p.global_name||p.username||"Civil"});
-     renderCitizenRequests();renderLicenses();
+     startCitizenRequestsWatch();renderLicenses();
      const pending=sessionStorage.getItem("bcso_citizen_pending_action");
      if(pending){
        sessionStorage.removeItem("bcso_citizen_pending_action");
@@ -238,9 +239,39 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  });
 
  function permitLabel(r){return `${r.permitType==="fishing"?"Pêche":"Chasse"} · ${r.usage==="professional"?"Professionnel":"Personnel"}`}
- function renderCitizenRequests(){
-   const box=$("#citizenRequests"); if(!box)return; const a=load("bcso_v2_permit_requests",[]).filter(x=>!characterId()||x.characterId===characterId());
-   box.innerHTML=a.length?a.map(r=>`<article class="request-row"><div><small>${r.id}</small><strong>${permitLabel(r)}</strong><span>${r.status}</span></div><button class="public-secondary open-chat" data-conv="${r.id}">Ouvrir la discussion</button></article>`).join(""):`<div class="public-empty">Aucune demande pour le moment.</div>`;
+ function startCitizenRequestsWatch(){
+   citizenRequestsUnsubs.forEach(fn=>{try{fn()}catch{}});
+   citizenRequestsUnsubs=[];
+   const ownerUid=auth.currentUser?.uid;
+   if(!ownerUid){firestoreCitizenContacts=[];firestorePermitRequests=[];renderCitizenRequests();return;}
+   const contactsQ=query(collection(db,"citizenContacts"),where("ownerUid","==",ownerUid));
+   const permitsQ=query(collection(db,"parkRangerAppointments"),where("ownerUid","==",ownerUid));
+   citizenRequestsUnsubs.push(onSnapshot(contactsQ,snap=>{
+     firestoreCitizenContacts=snap.docs.map(d=>({id:d.id,...d.data()}));
+     renderCitizenRequests();
+   },err=>{console.error("Citizen contacts watch failed",err);renderCitizenRequests(err); }));
+   citizenRequestsUnsubs.push(onSnapshot(permitsQ,snap=>{
+     firestorePermitRequests=snap.docs.map(d=>({id:d.id,...d.data()}));
+     renderCitizenRequests();
+   },err=>{console.error("Park Ranger requests watch failed",err);renderCitizenRequests(err); }));
+ }
+ function renderCitizenRequests(loadError=null){
+   const box=$("#citizenRequests"); if(!box)return;
+   const cid=characterId();
+   const contacts=firestoreCitizenContacts.filter(x=>!cid||!x.characterId||x.characterId===cid).map(r=>({
+     ...r, requestKind:"contact", title:r.subject||r.category||"Contact BCSO", status:r.status||"Ouvert"
+   }));
+   const permits=firestorePermitRequests.filter(x=>!cid||!x.characterId||x.characterId===cid).map(r=>({
+     ...r, requestKind:"permit", title:permitLabel(r), status:r.status||"Nouvelle demande"
+   }));
+   const a=[...contacts,...permits].sort((x,y)=>{
+     const tx=x.createdAt?.toMillis?.()||0, ty=y.createdAt?.toMillis?.()||0; return ty-tx;
+   });
+   if(!a.length){
+     box.innerHTML=`<div class="public-empty">${loadError?"Impossible de charger vos demandes pour le moment.":"Aucune demande pour le moment."}</div>`;
+     return;
+   }
+   box.innerHTML=a.map(r=>`<article class="request-row"><div><small>${r.id}</small><strong>${String(r.title||"Demande").replace(/[<>]/g,"")}</strong><span>${String(r.status||"").replace(/[<>]/g,"")}</span></div><button class="public-secondary open-chat" data-conv="${r.id}">Ouvrir la discussion</button></article>`).join("");
  }
  function renderParkRequests(){
    const box=$("#parkRequests"); if(!box)return; const a=load("bcso_v2_permit_requests",[]);
