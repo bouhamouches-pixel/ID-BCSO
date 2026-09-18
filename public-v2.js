@@ -19,18 +19,61 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
    window.scrollTo({top:0,behavior:"smooth"});
  }
  document.addEventListener("click",e=>{
+   const protectedRoute=e.target.closest("[data-citizen-protected]");
+   if(protectedRoute && !auth.currentUser){
+     e.preventDefault();
+     sessionStorage.setItem("bcso_citizen_pending_action", protectedRoute.dataset.citizenProtected || "profile");
+     startCitizenDiscordLogin();
+     return;
+   }
+   const action=e.target.closest("[data-citizen-action]");
+   if(action){
+     e.preventDefault();
+     const target=action.dataset.citizenAction;
+     if(!auth.currentUser){
+       sessionStorage.setItem("bcso_citizen_pending_action",target);
+       startCitizenDiscordLogin();
+       return;
+     }
+     const el=target==="permit"?$("#permitForm"):$("#contactForm");
+     el?.scrollIntoView({behavior:"smooth",block:"start"});
+     return;
+   }
    const b=e.target.closest("[data-public-route]"); if(b){e.preventDefault();route(b.dataset.publicRoute)}
  });
  function showPublic(){publicSite.style.display="";proShell?.classList.remove("pro-visible");history.replaceState(null,"","#accueil")}
  function showPro(){publicSite.style.display="none";proShell?.classList.add("pro-visible");history.replaceState(null,"","#pro")}
  back?.addEventListener("click",showPublic);
- login?.addEventListener("click",()=>{ if(currentAuth){ route("profile"); } else startCitizenDiscordLogin(); });
- observeAuth(state=>{ currentAuth=state; const p=discordProfile(); if(login) login.innerHTML=state?`<span>●</span> ${p.username||p.global_name||"Mon espace"}`:`<span>♙</span> Se connecter avec Discord`; if(state){const c=load("bcso_v2_citizen",{});store("bcso_v2_citizen",{...c,uid:state.user.uid,discordId:state.claims.discordId||p.id||"",name:p.global_name||p.username||"Civil"}); renderCitizenRequests();renderLicenses();} });
+ login?.addEventListener("click",()=>{ if(currentAuth){ route("profile"); } else { sessionStorage.setItem("bcso_citizen_pending_action","profile"); startCitizenDiscordLogin(); } });
+ $("#citizenLoginBtn")?.addEventListener("click",()=>{ sessionStorage.setItem("bcso_citizen_pending_action","services"); startCitizenDiscordLogin(); });
+ observeAuth(state=>{
+   currentAuth=state; const p=discordProfile();
+   if(login) login.innerHTML=state?`<span>●</span> ${p.username||p.global_name||"Mon espace"}`:`<span>♙</span> Se connecter avec Discord`;
+   const citizenBtn=$("#citizenLoginBtn"); if(citizenBtn) citizenBtn.textContent=state?"Accéder à mon espace":"Se connecter avec Discord";
+   if(state){
+     const c=load("bcso_v2_citizen",{});store("bcso_v2_citizen",{...c,uid:state.user.uid,discordId:state.claims.discordId||p.id||"",name:p.global_name||p.username||"Civil"});
+     renderCitizenRequests();renderLicenses();
+     const pending=sessionStorage.getItem("bcso_citizen_pending_action");
+     if(pending){
+       sessionStorage.removeItem("bcso_citizen_pending_action");
+       if(pending==="profile"){route("profile");}
+       else if(pending==="recruitment"){route("recruitment");}
+       else {route("services"); setTimeout(()=>{const el=pending==="permit"?$("#permitForm"):pending==="contact"?$("#contactForm"):null;el?.scrollIntoView({behavior:"smooth",block:"start"});},100);}
+     }
+   }
+ });
 
  // Public recruitment form remains visual until citizen auth/backend deployment.
  $("#candidateApplication")?.addEventListener("submit",e=>{
    e.preventDefault();
-   const note=$("#applicationNote"); if(note) note.textContent="Dossier prêt à être transmis. Connectez l'authentification candidat Firebase pour l'envoi réel.";
+   const note=$("#applicationNote");
+   if(!auth.currentUser){
+     if(note) note.textContent="Connexion Discord requise avant le dépôt. Après connexion, vous reviendrez sur le recrutement.";
+     sessionStorage.setItem("bcso_citizen_pending_action","recruitment");
+     startCitizenDiscordLogin();
+     return;
+   }
+   if(note) note.textContent="Compte Discord vérifié. Le dépôt complet de candidature BCSA sera raccordé dans le module recrutement.";
  });
 
 

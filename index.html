@@ -25,7 +25,7 @@
         <button data-public-route="roster">Effectif</button>
         <button data-public-route="recruitment">Recrutement</button>
         <button data-public-route="services">Services citoyens</button>
-        <button data-public-route="profile">Mon espace</button>
+        <button data-public-route="profile" data-citizen-protected="profile">Mon espace</button>
       </nav>
       <button class="pro-login-btn" id="publicProLogin" type="button"><span>♙</span> Se connecter avec Discord</button>
     </header>
@@ -102,9 +102,13 @@
 
       <section class="public-view" id="public-services">
         <div class="public-page-hero"><span>SERVICES AUX CITOYENS</span><h1>Vos démarches avec le BCSO</h1><p>Rendez-vous Park Ranger et contact avec le Sheriff's Office.</p></div>
+        <section class="public-section citizen-auth-banner" id="citizenAuthBanner">
+          <div><span>ESPACE CITOYEN SÉCURISÉ</span><h2>Connectez-vous avec Discord pour effectuer une démarche</h2><p>La consultation du site reste publique. Discord est demandé uniquement pour déposer une demande, contacter le BCSO ou accéder à votre suivi.</p></div>
+          <button type="button" class="public-primary" id="citizenLoginBtn">Se connecter avec Discord</button>
+        </section>
         <section class="public-section service-choice-grid">
-          <article class="service-choice"><span>🌲 PARK RANGER</span><h2>Permis de pêche & chasse</h2><p>Demandez un rendez-vous, transmettez vos justificatifs et échangez directement avec les Park Rangers.</p><a href="#permitForm" class="public-primary">Prendre rendez-vous</a></article>
-          <article class="service-choice"><span>✉️ CONTACT</span><h2>Contacter le BCSO</h2><p>Une question ? Envoyez votre demande au service concerné et suivez la réponse depuis votre espace.</p><a href="#contactForm" class="public-secondary">Nous contacter</a></article>
+          <article class="service-choice"><span>🌲 PARK RANGER</span><h2>Permis de pêche & chasse</h2><p>Demandez un rendez-vous, transmettez vos justificatifs et échangez directement avec les Park Rangers.</p><button type="button" class="public-primary" data-citizen-action="permit">Prendre rendez-vous</button></article>
+          <article class="service-choice"><span>✉️ CONTACT</span><h2>Contacter le BCSO</h2><p>Une question ? Envoyez votre demande au service concerné et suivez la réponse depuis votre espace.</p><button type="button" class="public-secondary" data-citizen-action="contact">Nous contacter</button></article>
         </section>
         <section class="public-section citizen-form-section" id="permitForm">
           <div class="public-section-head"><div><span>PARK RANGER</span><h2>Demande de rendez-vous</h2></div></div>
@@ -1861,6 +1865,6 @@
       <p class="form-note">Un wipe archive l'ancien personnage et invalide ses permis. Son historique n'est pas supprimé.</p>
     </form>
   </div>
-  <script type="module" src="public-v2.js?v=2.4"></script>
+  <script type="module" src="public-v2.js?v=2.5"></script>
 </body>
 </html>
