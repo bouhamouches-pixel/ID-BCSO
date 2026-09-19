@@ -95,17 +95,127 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
 
  syncCitizenGate();
  // Public recruitment form remains visual until citizen auth/backend deployment.
- $("#candidateApplication")?.addEventListener("submit",e=>{
-   e.preventDefault();
-   const note=$("#applicationNote");
-   if(!isCitizenSession()){
-     if(note) note.textContent="Connexion Discord requise avant le dépôt. Après connexion, vous reviendrez sur le recrutement.";
-     sessionStorage.setItem("bcso_citizen_pending_action","recruitment");
-     startCitizenDiscordLogin();
-     return;
-   }
-   if(note) note.textContent="Compte Discord vérifié. Le dépôt complet de candidature BCSA sera raccordé dans le module recrutement.";
- });
+$("#candidateApplication")?.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const form=e.currentTarget;
+  const note=$("#applicationNote");
+  let stage="auth";
+
+  try{
+    const user=await requireCitizen("recruitment",note);
+    if(!user)return;
+
+    if(!characterId()){
+      if(note)note.textContent="Créez d’abord votre personnage RP avant de déposer votre candidature.";
+      $("#characterModal").hidden=false;
+      return;
+    }
+
+    const f=new FormData(form);
+    const ownerUid=user.uid;
+    const id="BCSA-"+new Date().getFullYear()+"-"+String(Date.now()).slice(-6);
+    const base=`citizens/${ownerUid}/applications/${id}`;
+
+    if(note)note.textContent="Envoi de votre dossier BCSA…";
+
+    stage="storage";
+
+    const identity=f.get("identity");
+    const drivingFiles=f.getAll("drivingLicense").filter(file=>file?.size);
+    const cv=f.get("cv");
+    const motivation=f.get("motivationLetter");
+    const psychological=f.get("psychologicalTest");
+    const firearm=f.get("firearmAptitude");
+
+    if(!identity?.size || !drivingFiles.length || !cv?.size ||
+       !motivation?.size || !psychological?.size || !firearm?.size){
+      throw new Error("Tous les documents demandés sont obligatoires.");
+    }
+
+    const identityUrl=await uploadFile(identity,`${base}/identity-${identity.name}`);
+    const drivingLicenseUrls=[];
+
+    for(let i=0;i<drivingFiles.length;i++){
+      const file=drivingFiles[i];
+      drivingLicenseUrls.push(
+        await uploadFile(file,`${base}/driving-license-${i+1}-${file.name}`)
+      );
+    }
+
+    const cvUrl=await uploadFile(cv,`${base}/cv-${cv.name}`);
+    const motivationLetterUrl=await uploadFile(motivation,`${base}/motivation-${motivation.name}`);
+    const psychologicalTestUrl=await uploadFile(psychological,`${base}/psychological-${psychological.name}`);
+    const firearmAptitudeUrl=await uploadFile(firearm,`${base}/firearm-${firearm.name}`);
+
+    const firstName=String(f.get("firstName")||"").trim();
+    const lastName=String(f.get("lastName")||"").trim();
+    const candidateName=[firstName,lastName].filter(Boolean).join(" ");
+
+    stage="firestore";
+
+    await setDoc(doc(db,"applications",id),{
+      id,
+      ownerUid,
+      citizenUid:ownerUid,
+      citizenDiscordId:discordId(),
+      characterId:characterId(),
+      firstName,
+      lastName,
+      name:candidateName,
+      birthDate:String(f.get("birthDate")||""),
+      phone:String(f.get("phone")||""),
+      targetService:"bcsa",
+      status:"Reçue",
+      documents:{
+        identityUrl,
+        drivingLicenseUrls,
+        cvUrl,
+        motivationLetterUrl,
+        psychologicalTestUrl,
+        firearmAptitudeUrl
+      },
+      createdAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    });
+
+    stage="conversation";
+
+    await ensureConversation({
+      conversationId:id,
+      kind:"bcsa",
+      subject:"Candidature BCSA",
+      citizenUid:ownerUid,
+      citizenDiscordId:discordId(),
+      targetService:"bcsa",
+      characterId:characterId(),
+      citizenName:candidateName,
+      citizenFirstName:firstName,
+      citizenLastName:lastName
+    });
+
+    stage="message";
+
+    await sendPortalMessage({
+      conversationId:id,
+      senderId:ownerUid,
+      senderType:"citizen",
+      senderLabel:candidateName,
+      text:"Bonjour, je viens de déposer ma candidature à la Blaine County Sheriff's Academy.",
+      targetService:"bcsa"
+    });
+
+    if(note)note.innerHTML=`<strong>Candidature ${id} envoyée.</strong><br>Votre dossier a été transmis à la BCSA.`;
+    form.reset();
+    setTimeout(()=>route("profile"),1200);
+
+  }catch(err){
+    console.error("BCSO BCSA submit failed",err);
+    if(note)note.textContent=
+      err?.code==="permission-denied"
+        ? `Firebase bloque l’étape « ${stage} » (permission-denied).`
+        : `Impossible d’envoyer la candidature à l’étape « ${stage} » : ${err?.message||err?.code||String(err)}`;
+  }
+});
 
 
  // --- V2.3 Discord account -> RP character ---

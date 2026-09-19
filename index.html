@@ -86,12 +86,12 @@
             <div class="application-head"><span>CANDIDATURE BCSO</span><h2>Votre dossier</h2><p>Préparez les documents nécessaires avant l'envoi.</p></div>
             <div class="form-grid-v2"><label>Nom<input name="lastName" required></label><label>Prénom<input name="firstName" required></label><label>Date de naissance<input name="birthDate" type="date" required></label><label>Téléphone<input name="phone" required></label></div>
             <div class="upload-grid">
-              <label>Carte d'identité<input type="file" accept="image/*,.pdf" required></label>
-              <label>Permis de conduire<input type="file" accept="image/*,.pdf" multiple required></label>
-              <label>CV<input type="file" accept=".pdf,.doc,.docx,image/*" required></label>
-              <label>Lettre de motivation<input type="file" accept=".pdf,.doc,.docx,image/*" required></label>
-              <label>Test psychologique<input type="file" accept="image/*,.pdf" required></label>
-              <label>Aptitude au port d'arme<input type="file" accept="image/*,.pdf" required></label>
+              <label>Carte d'identité<input name="identity" type="file" accept="image/*,.pdf" required></label>
+              <label>Permis de conduire<input name="drivingLicense" type="file" accept="image/*,.pdf" multiple required></label>
+              <label>CV<input name="cv" type="file" accept=".pdf,image/*" required></label>
+              <label>Lettre de motivation<input name="motivationLetter" type="file" accept=".pdf,image/*" required></label>
+              <label>Test psychologique<input name="psychologicalTest" type="file" accept="image/*,.pdf" required></label>
+              <label>Aptitude au port d'arme<input name="firearmAptitude" type="file" accept="image/*,.pdf" required></label>
             </div>
             <label class="consent-v2"><input type="checkbox" required> Je confirme l'exactitude des informations et autorise la BCSA à consulter les documents transmis dans le cadre du recrutement.</label>
             <button class="public-primary application-submit" type="submit">Continuer avec Discord et envoyer</button>
