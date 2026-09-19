@@ -1,4 +1,4 @@
-import { auth, db, storage, startCitizenDiscordLogin, observeAuth } from "./firebase-auth.js";
+import { auth, db, storage, startCitizenDiscordLogin, startBcsoDiscordLogin, observeAuth } from "./firebase-auth.js";
 import { doc, setDoc, serverTimestamp, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
 import { ensureConversation, sendPortalMessage, watchMessages } from "./messaging-v2.js";
@@ -48,7 +48,7 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  function showPublic(){publicSite.style.display="";proShell?.classList.remove("pro-visible");history.replaceState(null,"","#accueil")}
  function showPro(){publicSite.style.display="none";proShell?.classList.add("pro-visible");history.replaceState(null,"","#pro")}
  back?.addEventListener("click",showPublic);
- login?.addEventListener("click",()=>{ if(currentAuth && isCitizenSession()){ route("profile"); } else { sessionStorage.setItem("bcso_citizen_pending_action","profile"); startCitizenDiscordLogin(); } });
+ login?.addEventListener("click",()=>{ sessionStorage.setItem("bcso_pro_pending","1"); startBcsoDiscordLogin(); });
  $("#citizenLoginBtn")?.addEventListener("click",()=>{ sessionStorage.setItem("bcso_citizen_pending_action","services"); startCitizenDiscordLogin(); });
  function syncCitizenGate(){
    const ok=isCitizenSession();
