@@ -34,3 +34,32 @@
 @media(max-width:850px){.service-choice-grid,.license-grid{grid-template-columns:1fr}.public-nav button[data-public-route="profile"],.public-nav button[data-public-route="news"]{display:none}}
 
 .character-banner{display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(200,173,115,.25);background:linear-gradient(120deg,#151819,#101213);padding:24px}.character-banner small{color:var(--pub-gold);letter-spacing:.18em}.character-banner h2{font:500 30px Georgia,serif;margin:7px 0}.character-banner span{color:#8e9495;font-size:10px}.archive-character-btn{width:100%;margin-top:10px;border:1px solid rgba(215,92,100,.3);background:rgba(215,92,100,.05);color:#d75c64;padding:11px}
+
+/* BCSA — correction affichage consentement */
+.application-card label.consent-v2 {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  width: 100% !important;
+  margin: 18px 0 !important;
+  color: #aeb2b3 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+}
+
+.application-card label.consent-v2 input[type="checkbox"] {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  margin: 0 !important;
+  flex: 0 0 20px !important;
+}
+
+.application-card label.consent-v2 span {
+  display: block !important;
+  flex: 1 !important;
+  margin: 0 !important;
+}
