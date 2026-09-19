@@ -71,6 +71,12 @@ import { ensureConversation, sendPortalMessage, watchMessages } from "./messagin
  }
  observeAuth(state=>{
    currentAuth=state; const p=discordProfile(); syncCitizenGate();
+
+  // Connexion professionnelle BCSO
+  if(state?.claims?.bcso && sessionStorage.getItem("bcso_pro_pending")==="1"){
+    sessionStorage.removeItem("bcso_pro_pending");
+    showPro();
+  }
    if(login) login.innerHTML=state?`<span>●</span> ${p.username||p.global_name||"Mon espace"}`:`<span>♙</span> Se connecter avec Discord`;
    const citizenBtn=$("#citizenLoginBtn"); if(citizenBtn) citizenBtn.textContent=state?"Accéder à mon espace":"Se connecter avec Discord";
    if(state && isCitizenSession()){
